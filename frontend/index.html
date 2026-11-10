@@ -1017,6 +1017,11 @@
                   <input type="number" id="pixel-mask-find-cold-percent" value="20" min="1" max="100" step="1" inputmode="numeric"
                          data-i18n-aria-label="pixel_mask.find.cold_unit" aria-label="% of their surroundings or less" />
                   <span class="pixel-mask-find-unit" data-i18n="pixel_mask.find.cold_unit">% of their surroundings or less</span>
+                  <label class="pixel-mask-find-check"><input type="checkbox" id="pixel-mask-find-value" /><span data-i18n="pixel_mask.find.value">Pixels with value</span></label>
+                  <input type="number" id="pixel-mask-find-value-limit" value="0" step="any" disabled data-i18n-aria-label="pixel_mask.find.value_label" aria-label="Pixel value" />
+                  <select id="pixel-mask-find-value-mode" disabled data-i18n-aria-label="pixel_mask.find.value_mode" aria-label="Which pixels to take">
+                    <option value="eq" data-i18n="pixel_mask.find.value_eq">exactly</option><option value="gte" data-i18n="pixel_mask.find.value_gte">or more</option><option value="lte" data-i18n="pixel_mask.find.value_lte">or less</option>
+                  </select>
                 </div>
                 <div class="pixel-mask-find-foot">
                   <span class="pixel-mask-find-result" id="pixel-mask-find-result" role="status" aria-live="polite"></span>

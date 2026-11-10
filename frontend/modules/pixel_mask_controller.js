@@ -30,7 +30,7 @@
 import { formatNumber, t } from "./i18n.js";
 import { showConfirmDialog } from "./dialogs.js";
 import { countEdits } from "./pixel_mask_edit.js";
-import { addFound, findBadPixels } from "./pixel_mask_find.js";
+import { addFound, applyValueRule, findBadPixels } from "./pixel_mask_find.js";
 import { failureDetail, fetchJSONWithInit, fetchResponse } from "./http.js";
 import {
   GAP_BIT,
@@ -83,6 +83,9 @@ export function createPixelMaskController({
     findHotSigma,
     findCold,
     findColdPercent,
+    findValue,
+    findValueLimit,
+    findValueMode,
     findResultEl,
     findAddBtn,
     findCloseBtn,
@@ -357,6 +360,7 @@ export function createPixelMaskController({
     const data = state.dataRaw;
     const width = state.width;
     const mask = currentMask();
+    const usableMask = mask && frameShapeMatches(mask.shape) ? mask.data : null;
     findSearching = true;
     render();
     let last = Date.now();
@@ -364,7 +368,7 @@ export function createPixelMaskController({
       data,
       width,
       height: state.height,
-      mask: mask && frameShapeMatches(mask.shape) ? mask.data : null,
+      mask: usableMask,
       counts: isCounts(data),
       options: findOptions(),
       // Let the page draw now and then on a large image.
@@ -376,11 +380,13 @@ export function createPixelMaskController({
     });
     if (run !== findRun || !findOpen) return;
     findSearching = false;
+    const rule = { on: findValue?.checked, text: findValueLimit?.value, mode: findValueMode?.value };
+    applyValueRule(found, { data, width, height: state.height, mask: usableMask, ...rule });
     findResult = { ...found, data, width };
     setMarkers({
       width,
       groups: [
-        { kind: "hot", indices: found.hot },
+        { kind: "hot", indices: found.hot.concat(found.value) },
         { kind: "cold", indices: found.dead.concat(found.cold) },
       ],
     });
@@ -415,7 +421,7 @@ export function createPixelMaskController({
   }
 
   function foundCount(result) {
-    return result ? result.hot.length + result.dead.length + result.cold.length : 0;
+    return result ? result.hot.length + result.dead.length + result.cold.length + result.value.length : 0;
   }
 
   /** Add what was found to the mask in use: one edit, Discard edits undoes it. */
@@ -448,7 +454,7 @@ export function createPixelMaskController({
       else if (!foundCount(findResult)) findResultEl.textContent = t("pixel_mask.find.none");
       else {
         // Only the kinds found: "Found 6 hot pixels." or "Found 6 hot, 2 dead pixels."
-        const list = ["hot", "dead", "cold"]
+        const list = ["value", "hot", "dead", "cold"]
           .filter((kind) => findResult[kind].length)
           .map((kind) => t(`pixel_mask.find.part.${kind}`, { count: formatCount(findResult[kind].length) }))
           .join(", ");
@@ -458,6 +464,7 @@ export function createPixelMaskController({
     if (findAddBtn) findAddBtn.disabled = busy || findSearching || !foundCount(findResult);
     if (findHotSigma && findHot) findHotSigma.disabled = !findHot.checked;
     if (findColdPercent && findCold) findColdPercent.disabled = !findCold.checked;
+    if (findValue) [findValueMode, findValueLimit].forEach((el) => el && (el.disabled = !findValue.checked));
   }
 
   function describeEdits() {
@@ -946,8 +953,8 @@ export function createPixelMaskController({
   findBtn?.addEventListener("click", () => openFind());
   findCloseBtn?.addEventListener("click", () => closeFind());
   findAddBtn?.addEventListener("click", () => addFoundToMask());
-  [findHot, findCold].forEach((box) => box?.addEventListener("change", () => scheduleFind(0)));
-  [findHotSigma, findColdPercent].forEach((input) => input?.addEventListener("input", () => scheduleFind()));
+  [findHot, findCold, findValue, findValueMode].forEach((box) => box?.addEventListener("change", () => scheduleFind(0)));
+  [findHotSigma, findColdPercent, findValueLimit].forEach((input) => input?.addEventListener("input", () => scheduleFind()));
   discardBtn?.addEventListener("click", () => void discardEdits());
   // Edits only live in this page until saved or sent.
   if (typeof window !== "undefined") {

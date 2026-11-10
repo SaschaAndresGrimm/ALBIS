@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Find bad pixels can mask by value.** A new rule, **Pixels with value**, takes every pixel that reads exactly a number you type, or that number or more, or that number or less. It covers what the surroundings-based search cannot: every pixel that counts zero in a flat-field image, every pixel at the overflow value, or everything above or below a cutoff. It is off until you tick it, and a pixel it takes is counted once, not also as hot or dead.
+
 ## [0.43.0] - 2026-11-09
 
 The first release with an outside contributor: Lucas Wagner wrote the Min/Max Finder cutoffs and the clickable **Manual axes** tag. He worked with an AI coding agent that followed ALBIS's contributor guides, checks and review steps. Both pull requests arrived complete, with tests, translations and documentation, and needed only small fixes before merging.

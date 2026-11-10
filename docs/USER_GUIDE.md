@@ -1036,12 +1036,19 @@ them on it, hot ones in one colour, dead and cold ones in another:
 - **Dead and cold pixels** reach no more than the given percentage of their
   surroundings (20 % by default); dead ones read zero. Only where the
   surroundings are lit: a dark image has no dead pixels to show.
+- **Pixels with value** (off by default) takes every pixel that reads exactly
+  the number typed, that number or more, or that number or less, whatever its
+  surroundings. Use it for every pixel that counts zero, for the overflow value
+  (65535 for a 16-bit image, 4294967295 for a 32-bit one), or for everything
+  above or below a cutoff. A pixel it takes is not also reported as hot, dead
+  or cold. Negative values in the file, which some formats use as flags, are
+  skipped unless the number typed is itself negative.
 - "Surroundings" is the 32 × 32 pixel block a pixel sits in: its median, and its
   spread measured robustly, never below the Poisson noise of the counts. Pixels
   already masked are left out.
 - The search runs again when a setting or the image changes. **Add to mask**
-  adds what was found as an edit (dead 2, cold 4, hot 8), which **Discard
-  edits** takes back.
+  adds what was found as an edit (dead 2, cold 4, hot 8, by value 16), which
+  **Discard edits** takes back.
 - It works best on a flat-field or dark image. In a diffraction image a sharp
   reflection one pixel wide looks just like a hot pixel.
 

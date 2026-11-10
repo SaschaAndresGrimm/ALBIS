@@ -73,7 +73,7 @@
 
 .pixel-mask-find-rules {
   display: grid;
-  grid-template-columns: max-content 3.6em minmax(0, 1fr);
+  grid-template-columns: max-content 6em minmax(0, 1fr);
   align-items: center;
   column-gap: 8px;
   row-gap: 6px;

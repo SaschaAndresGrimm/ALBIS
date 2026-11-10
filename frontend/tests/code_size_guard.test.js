@@ -36,12 +36,14 @@ const LINE_BASELINE = {
   // +1 to hand the BG/FG count rows to the statistics; -5 for formatValue's
   // body, now formatLevelValue in format_utils.js; -1 for the Min/Max
   // Finder's beta note.
-  "frontend/app.js": 3510,
+  // +3 for the Find bad pixels "by value" rule: three element lookups.
+  "frontend/app.js": 3513,
   // +17 in the stylesheet split: one <link> per part in frontend/styles/.
   // +45 for the Min/Max Finder section and its opt-in: markup lives here.
   // +3 for the Below BG / BG to FG / Above FG rows of the statistics.
   // +4 for the update dialog's "Don't check for updates at startup".
-  "frontend/index.html": 2661,
+  // +5 for the Find bad pixels "by value" row.
+  "frontend/index.html": 2666,
 };
 
 // The only modules that call fetch() themselves: http.js, which every other
