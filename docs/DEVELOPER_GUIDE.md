@@ -32,7 +32,8 @@ inherits whatever it was.
 
 Default config uses `server.port: 0` (random free port), and the launcher opens the browser for you.
 For the backend alone — no browser launch, no desktop integration — use `python -m uvicorn backend.app:app`
-and open the URL Uvicorn prints.
+and open the URL Uvicorn prints. Add `--timeout-graceful-shutdown 5` on Windows: without it, Ctrl-C can hang
+at "Shutting down" after a browser was closed mid-request.
 
 `python backend/app.py` does not work and never can: running a module of a package as a script leaves it
 without a parent package, so its relative imports fail before anything is served.
