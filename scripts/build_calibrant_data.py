@@ -44,19 +44,15 @@ GROUPS = ("standards", "saxs", "metals", "oxides", "other")
 # label it shows. Labels are formulas and standard numbers, which read the same
 # in every language; mineral names are proper names and stay as they are.
 # pyFAI's "mock" is left out: it is a test fixture, not a material.
+# One entry per calibrant, not one per NIST issue: pyFAI's Si, LaB6 and CeO2
+# are SRM 640c, 660c and 674b. The issues differ by at most 0.0075 % in d (Si
+# 640 to 640e), which moves a ring by a third of a pixel at the corner of an
+# EIGER2 16M at 100 mm: they matter to a fit, not to a ring drawn as a guide,
+# and the nine of them in the list looked like a choice that changed nothing.
 CATALOGUE = (
     ("Si", "standards", "Si"),
     ("LaB6", "standards", "LaB₆"),
-    ("CeO2", "standards", "CeO₂ (SRM 674b)"),
-    ("Si_SRM640", "standards", "Si (SRM 640)"),
-    ("Si_SRM640a", "standards", "Si (SRM 640a)"),
-    ("Si_SRM640b", "standards", "Si (SRM 640b)"),
-    ("Si_SRM640c", "standards", "Si (SRM 640c)"),
-    ("Si_SRM640d", "standards", "Si (SRM 640d)"),
-    ("Si_SRM640e", "standards", "Si (SRM 640e)"),
-    ("LaB6_SRM660a", "standards", "LaB₆ (SRM 660a)"),
-    ("LaB6_SRM660b", "standards", "LaB₆ (SRM 660b)"),
-    ("LaB6_SRM660c", "standards", "LaB₆ (SRM 660c)"),
+    ("CeO2", "standards", "CeO₂"),
     ("AgBh", "saxs", "AgBh (silver behenate)"),
     ("C14H30O", "saxs", "C₁₄H₃₀O (tetradecanol)"),
     ("PBBA", "saxs", "PBBA (p-bromobenzoic acid)"),

@@ -462,7 +462,9 @@ to 16): **+ Add ring** adds a field, **×** removes one, and the list is sorted
 by d when you leave it. **Clear** removes them all.
 **Reference** draws the rings of a known material on top of yours: hexagonal
 ice, first in the list and the quickest way to see whether ice is on an image;
-a calibrant (Si, LaB6, CeO2 and their NIST SRM issues); a small-angle
+a calibrant (Si, LaB6 and CeO2, as NIST SRM 640c, 660c and 674b: the other
+issues of a standard differ by under a third of a pixel, so one of each is
+listed, and hovering an entry names its source); a small-angle
 calibrant (silver behenate, tetradecanol, PBBA); a metal (Al, Au, Ni, Pt); an
 oxide or a mineral. Its rings are solid and magenta, labelled with the
 material and hkl ("Al 111"); yours stay dashed and blue. Use it to check the

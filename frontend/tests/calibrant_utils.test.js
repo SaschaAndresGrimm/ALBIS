@@ -44,8 +44,9 @@ describe("calibrant data", () => {
 
 describe("referenceRingLabel", () => {
   it("names the ring by formula and hkl, or by d where the source has no hkl", () => {
-    const lab6 = getCalibrant("LaB6_SRM660a");
+    const lab6 = getCalibrant("LaB6");
     expect(calibrantShortName(lab6)).toBe("LaB₆");
+    expect(calibrantShortName(getCalibrant("AgBh"))).toBe("AgBh");
     expect(referenceRingLabel(lab6, 4.1569, "100")).toBe("LaB₆ 100");
     expect(referenceRingLabel(getCalibrant("CrOx"), 3.645, "")).toBe("CrOx 3.65 Å");
   });
