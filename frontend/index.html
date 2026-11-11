@@ -892,29 +892,23 @@
                 </span>
                 <span class="section-chevron">▾</span>
               </button>
-              <div class="section-state is-empty" id="geometry-state" role="status" aria-live="polite" data-i18n="geometry.state.no_file">
-                Load an image to see its detector geometry.
+              <div class="geometry-status-row">
+                <div class="section-state is-empty" id="geometry-state" role="status" aria-live="polite" data-i18n="geometry.state.no_file">
+                  Load an image to see its detector geometry.
+                </div>
+                <button id="geometry-enter-manual" class="btn btn-secondary geometry-enter-manual" type="button" hidden data-geometry-enter-manual data-i18n="geometry.enter_manually">Enter manually</button>
               </div>
               <div class="geometry-override-row">
                 <label class="geometry-override-toggle">
                   <input id="geometry-override" type="checkbox" />
                   <span data-i18n="geometry.override_toggle">Override manually</span>
                 </label>
-                <button
-                  id="geometry-reset"
-                  class="btn btn-secondary geometry-reset"
-                  type="button"
-                  data-i18n="geometry.reset"
-                  data-i18n-title="geometry.reset_title"
-                  data-i18n-aria-label="geometry.reset_title"
-                >
-                  Reset to metadata
-                </button>
+                <button id="geometry-reset" class="btn btn-secondary geometry-reset" type="button" hidden data-i18n="geometry.reset" data-i18n-title="geometry.reset_title" data-i18n-aria-label="geometry.reset_title">Reset to metadata</button>
               </div>
-              <div class="geometry-override-hint" id="geometry-override-hint" data-i18n="geometry.override_hint">
+              <div class="geometry-override-hint is-hidden" id="geometry-override-hint" data-i18n="geometry.override_hint">
                 Values you enter replace the image metadata for every image, and are kept until you switch this off.
               </div>
-              <div class="rings-grid geometry-grid">
+              <div class="geometry-grid">
                 <label class="field">
                   <span data-i18n="analysis.rings.detector_distance">Detector distance (mm)</span>
                   <input id="geometry-distance" type="number" min="0" step="0.1" placeholder="—" />
@@ -943,31 +937,11 @@
                 </label>
                 <label class="field rings-geometry-file-field">
                   <span class="field-label-row"><span data-i18n="analysis.rings.geometry_file">Geometry file</span><button type="button" class="info-tip" data-info-key="info.geometry_file" aria-label="More information" data-i18n-aria-label="info.button_label"></button></span>
-                  <div class="rings-geometry-file-row">
-                    <input
-                      id="geometry-file"
-                      type="text"
-                      placeholder="path/to/imported.expt"
-                      data-i18n-placeholder="analysis.rings.placeholder.geometry_file"
-                    />
-                    <button
-                      id="geometry-file-browse"
-                      class="btn btn-secondary rings-geometry-icon-btn"
-                      type="button"
-                      title="Browse"
-                      aria-label="Browse"
-                      data-i18n-title="series.ui.browse"
-                      data-i18n-aria-label="series.ui.browse"
-                    >
-                      📁
-                    </button>
-                    <button
-                      id="geometry-file-clear"
-                      class="btn btn-secondary rings-geometry-clear-btn"
-                      type="button"
-                      data-i18n="analysis.rings.geometry_clear"
-                    >
-                      Clear
+                  <div class="geometry-file-row">
+                    <input id="geometry-file" type="text" placeholder="path/to/imported.expt" data-i18n-placeholder="analysis.rings.placeholder.geometry_file" />
+                    <button id="geometry-file-clear" class="geometry-file-clear" type="button" title="Clear" aria-label="Clear" data-i18n-title="analysis.rings.geometry_clear" data-i18n-aria-label="analysis.rings.geometry_clear">×</button>
+                    <button id="geometry-file-browse" class="btn btn-secondary autoload-action-btn" type="button" title="Browse" aria-label="Browse" data-i18n-title="series.ui.browse" data-i18n-aria-label="series.ui.browse">
+                      <svg class="autoload-action-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M2.5 6.5a1.25 1.25 0 0 1 1.25-1.25h4.1L9.8 7.4h6.45a1.25 1.25 0 0 1 1.25 1.25v6.6a1.25 1.25 0 0 1-1.25 1.25H3.75a1.25 1.25 0 0 1-1.25-1.25z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
                     </button>
                   </div>
                   <div class="field-hint is-hidden" id="geometry-file-hint"></div>
@@ -1415,13 +1389,12 @@
                   <div class="ring-values">
                     <div class="ring-list" id="ring-list"></div>
                     <button type="button" class="btn btn-secondary ring-add" id="ring-add" data-i18n="rings.add">+ Add ring</button>
+                    <button type="button" class="btn btn-secondary" id="ring-clear" data-i18n="rings.clear">Clear</button>
                   </div>
-                  <div class="ring-presets">
-                    <span data-i18n="rings.presets">Presets</span>
-                    <button type="button" class="btn btn-secondary inpaint-value-btn" id="ring-preset-ice"
-                      data-i18n="rings.preset.ice" data-i18n-title="rings.preset.ice_title" title="Add the hexagonal ice rings">Ice rings</button>
-                    <button type="button" class="btn btn-secondary inpaint-value-btn" id="ring-clear" data-i18n="rings.clear">Clear</button>
-                  </div>
+                  <label class="ring-reference">
+                    <span data-i18n="rings.reference" data-i18n-title="rings.reference_title" title="Also draw the rings of a reference material">Reference</span>
+                    <select id="ring-reference" data-i18n-aria-label="rings.reference_title" aria-label="Also draw the rings of a reference material"></select>
+                  </label>
                 </div>
               </div>
             </section>

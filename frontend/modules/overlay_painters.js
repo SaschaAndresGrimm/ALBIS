@@ -36,6 +36,8 @@ export const SCREEN_OVERLAY_COLORS = Object.freeze({
   ringHalo: "rgba(255, 255, 255, 0.45)",
   ring: "rgba(20, 80, 170, 0.95)",
   ringActive: "rgba(90, 160, 255, 1)",
+  referenceRing: "rgba(210, 50, 210, 0.95)",
+  referenceLabelText: "rgba(255, 180, 250, 0.98)",
   labelBox: "rgba(10, 20, 40, 0.55)",
   labelHalo: "rgba(0, 0, 0, 0.7)",
   labelText: "rgba(230, 240, 255, 0.98)",
@@ -61,6 +63,8 @@ export const OPAQUE_OVERLAY_COLORS = Object.freeze({
   ringHalo: "rgb(255, 255, 255)",
   ring: "rgb(20, 80, 170)",
   ringActive: "rgb(20, 80, 170)",
+  referenceRing: "rgb(225, 60, 225)",
+  referenceLabelText: "rgb(225, 60, 225)",
   labelBox: "rgb(0, 0, 0)",
   labelHalo: "rgb(0, 0, 0)",
   labelText: "rgb(255, 255, 255)",
@@ -91,6 +95,7 @@ export const OPAQUE_OVERLAY_RGB = Object.freeze([
   [255, 196, 110],
   [72, 255, 105],
   [74, 163, 255],
+  [225, 60, 225],
 ]);
 
 /** Nearest OPAQUE_OVERLAY_RGB entry to an (r,g,b), by squared distance. */
@@ -443,18 +448,25 @@ export function markerInkScale(count) {
   return Math.max(MARKER_INK_FLOOR, 1 - (n - MARKER_INK_FULL_UPTO) * MARKER_INK_TAPER);
 }
 
+/** The d-spacings to draw: the user's rings, then the reference material's. */
+function ringDSpacings(params) {
+  const rings = Array.isArray(params?.rings) ? params.rings : [];
+  const reference = Array.isArray(params?.reference?.lines) ? params.reference.lines : [];
+  return [...rings, ...reference.map((line) => line.d)];
+}
+
 /** Ring d-spacings, resolved to screen-space segments once per geometry. */
 export function buildGeometryRingCache(params) {
   const cache = new Map();
   if (!params || params.mode !== "geometry" || !params.geometry) return cache;
-  if (!Array.isArray(params.rings)) return cache;
   const adjustedGeometry = applyGeometryOverrides(params.geometry, {
     centerX: params.centerX,
     centerY: params.centerY,
     distanceMm: params.distanceMm,
     twoThetaDeg: params.twoThetaDeg,
   });
-  params.rings.forEach((dSpacing) => {
+  ringDSpacings(params).forEach((dSpacing) => {
+    if (cache.has(dSpacing)) return;
     const segments = buildGeometryRingSegments({
       geometry: adjustedGeometry,
       energyEv: params.energyEv,
@@ -495,7 +507,7 @@ function createRingLabelPlacer(ctx, colors, uiScale) {
     (isSoft ? soft : hard).push(box);
   }
 
-  function draw(screenPoint, label, direction) {
+  function draw(screenPoint, label, direction, textColor = colors.labelText) {
     if (!screenPoint || !label) return;
     const textWidth = ctx.measureText(label).width;
     const boxW = textWidth + padX * 2;
@@ -547,26 +559,37 @@ function createRingLabelPlacer(ctx, colors, uiScale) {
     ctx.lineWidth = 3 * uiScale;
     ctx.strokeStyle = colors.labelHalo;
     ctx.strokeText(label, textX, textY);
-    ctx.fillStyle = colors.labelText;
+    ctx.fillStyle = textColor;
     ctx.fillText(label, textX, textY);
   }
 
   return { draw, reserve, fontSize };
 }
 
-function strokeRingPath(ctx, points, colors, uiScale) {
+// A user's ring is dashed; a reference material's is solid and thinner, in
+// its own colour, so the two sets tell apart without the colour as well.
+const USER_RING_STROKE = { halo: 3.5, line: 2, dash: true };
+const REFERENCE_RING_STROKE = { halo: 2.5, line: 1.25, dash: false };
+
+/** Stroke the current path twice: halo, then the ring. */
+function strokeRing(ctx, colors, uiScale, { halo, line, dash }, lineColor) {
+  ctx.setLineDash(dash ? [6 * uiScale, 6 * uiScale] : []);
+  ctx.lineWidth = halo * uiScale;
+  ctx.strokeStyle = colors.ringHalo;
+  ctx.stroke();
+  ctx.lineWidth = line * uiScale;
+  ctx.strokeStyle = lineColor;
+  ctx.stroke();
+}
+
+function strokeRingPath(ctx, points, colors, uiScale, stroke = USER_RING_STROKE, lineColor = colors.ring) {
   if (!Array.isArray(points) || points.length < 2) return;
   ctx.beginPath();
   ctx.moveTo(points[0].x, points[0].y);
   for (let index = 1; index < points.length; index += 1) {
     ctx.lineTo(points[index].x, points[index].y);
   }
-  ctx.lineWidth = 3.5 * uiScale;
-  ctx.strokeStyle = colors.ringHalo;
-  ctx.stroke();
-  ctx.lineWidth = 2 * uiScale;
-  ctx.strokeStyle = colors.ring;
-  ctx.stroke();
+  strokeRing(ctx, colors, uiScale, stroke, lineColor);
 }
 
 function drawBeamCenterMarker(ctx, centerX, centerY, zoom, colors, uiScale, highlight) {
@@ -675,27 +698,57 @@ export function paintResolutionRings(
     );
   }
 
+  // The reference material's rings go under the user's, and their labels are
+  // placed after the user's, which therefore never give way to them.
+  const reference = Array.isArray(params.reference?.lines) ? params.reference.lines : [];
+  const referenceLabels = [];
+  // A dense set (silver behenate's orders, LaB6 at high energy) would bury the
+  // image in labels that slide along their rings looking for room: a ring is
+  // labelled only when it is a label's height out from the last one labelled.
+  // Every ring is still drawn, and the one past an unlabelled gap is named.
+  const labelGap = labels.fontSize + 10 * uiScale;
+  let lastLabelRadius = -Infinity;
+  const keepReferenceLabel = (labelPoint) => {
+    if (!labelPoint) return false;
+    const radius = Math.hypot(labelPoint.x - centerX, labelPoint.y - centerY);
+    if (Math.abs(radius - lastLabelRadius) < labelGap) return false;
+    lastLabelRadius = radius;
+    return true;
+  };
+
   if (params.mode === "geometry" && params.geometry) {
     const cache = geometryCache || buildGeometryRingCache(params);
-    rings.forEach((d) => {
+    const drawGeometryRing = (d, stroke, lineColor) => {
       const entry = cache.get(d);
-      if (!entry || !Array.isArray(entry.segments) || !entry.segments.length) return;
+      if (!entry || !Array.isArray(entry.segments) || !entry.segments.length) return null;
       entry.segments.forEach((segment) => {
         strokeRingPath(
           ctx,
           segment.map((point) => ({ x: viewX(view, point.x), y: viewY(view, point.y) })),
           colors,
-          uiScale
+          uiScale,
+          stroke,
+          lineColor
         );
       });
       const labelPoint = entry.labelPoint
         ? { x: viewX(view, entry.labelPoint.x), y: viewY(view, entry.labelPoint.y) }
         : null;
-      const label = formatRingLabel(d);
       const labelDir = labelPoint
         ? { x: labelPoint.x - centerX, y: labelPoint.y - centerY }
         : null;
-      labels.draw(labelPoint, label, labelDir);
+      return { labelPoint, labelDir };
+    };
+    reference.forEach((line) => {
+      const drawn = drawGeometryRing(line.d, REFERENCE_RING_STROKE, colors.referenceRing);
+      if (drawn && keepReferenceLabel(drawn.labelPoint)) referenceLabels.push({ ...drawn, label: line.label });
+    });
+    rings.forEach((d) => {
+      const drawn = drawGeometryRing(d, USER_RING_STROKE, colors.ring);
+      if (drawn) labels.draw(drawn.labelPoint, formatRingLabel(d), drawn.labelDir);
+    });
+    referenceLabels.forEach(({ labelPoint, label, labelDir }) => {
+      labels.draw(labelPoint, label, labelDir, colors.referenceLabelText);
     });
     if (params.centerKnown) {
       drawBeamCenterMarker(ctx, centerX, centerY, view.scaleX, colors, uiScale, centerActive);
@@ -712,33 +765,46 @@ export function paintResolutionRings(
     return false;
   }
   const labelAngle = -Math.PI / 6;
-  rings.forEach((d) => {
+  const labelDir = { x: Math.cos(labelAngle), y: Math.sin(labelAngle) };
+  // The ring's screen radii, or null when it is not drawn (too small, or past 90°).
+  const ellipseRadii = (d) => {
     const twoTheta = braggTwoTheta(d, params.energyEv);
-    if (twoTheta === null) return;
+    if (twoTheta === null) return null;
     const radiusPx = (params.distanceMm * Math.tan(twoTheta)) / pixelSizeMm;
-    if (!Number.isFinite(radiusPx) || radiusPx <= 0) return;
+    if (!Number.isFinite(radiusPx) || radiusPx <= 0) return null;
     const radiusX = radiusPx * view.scaleX;
     const radiusY = (radiusPx / aspect) * view.scaleY;
-    if (Math.max(radiusX, radiusY) < 5) return;
+    if (Math.max(radiusX, radiusY) < 5) return null;
+    ctx.beginPath();
+    ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
+    return { radiusX, radiusY };
+  };
+  const labelPointOn = ({ radiusX, radiusY }) => ({
+    x: centerX + labelDir.x * radiusX,
+    y: centerY + labelDir.y * radiusY,
+  });
+  reference.forEach((line) => {
+    const radii = ellipseRadii(line.d);
+    if (!radii) return;
+    strokeRing(ctx, colors, uiScale, REFERENCE_RING_STROKE, colors.referenceRing);
+    const labelPoint = labelPointOn(radii);
+    if (keepReferenceLabel(labelPoint)) referenceLabels.push({ labelPoint, label: line.label });
+  });
+  rings.forEach((d) => {
+    const radii = ellipseRadii(d);
+    if (!radii) return;
     const active = isRingActive(d);
-    const ellipse = () => {
-      ctx.beginPath();
-      ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
-    };
-    ellipse();
-    ctx.lineWidth = (active ? 4.5 : 3.5) * uiScale;
-    ctx.strokeStyle = colors.ringHalo;
-    ctx.stroke();
-    ellipse();
-    ctx.lineWidth = (active ? 3 : 2) * uiScale;
-    ctx.strokeStyle = active ? colors.ringActive : colors.ring;
-    ctx.stroke();
-
-    labels.draw(
-      { x: centerX + Math.cos(labelAngle) * radiusX, y: centerY + Math.sin(labelAngle) * radiusY },
-      formatRingLabel(d),
-      { x: Math.cos(labelAngle), y: Math.sin(labelAngle) }
+    strokeRing(
+      ctx,
+      colors,
+      uiScale,
+      active ? { ...USER_RING_STROKE, halo: 4.5, line: 3 } : USER_RING_STROKE,
+      active ? colors.ringActive : colors.ring
     );
+    labels.draw(labelPointOn(radii), formatRingLabel(d), labelDir);
+  });
+  referenceLabels.forEach(({ labelPoint, label }) => {
+    labels.draw(labelPoint, label, labelDir, colors.referenceLabelText);
   });
 
   if (params.centerKnown) {
