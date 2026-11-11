@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.44.0] - 2026-11-11
+
 ### Added
 
 - **Resolution Rings can draw the rings of a calibrant, a metal or ice.** A new **Reference** menu under the ring list lists 22 materials: the line-position calibrants (Si, LaB6 and CeO2, after NIST SRM 640c, 660c and 674b; hover one to see which), the small-angle calibrants (silver behenate, tetradecanol, PBBA), metals (Al, Au, Ni, Pt), oxides, minerals and hexagonal ice. Choose one and its rings are drawn in magenta, solid and labelled with the material and hkl ("Al 111"), next to your own dashed rings. If the rings of a calibrant you measured fall on the drawn ones, the distance, energy and beam centre are right. Unexpected rings, from an aluminium window or a holder, say, can be named the same way. Only the rings that fall on the detector are drawn, at most 60, nearest the beam first. They do not count against the 16 rings of your own, **Clear** leaves them, and the image and GIF exports include them. The d-spacings come from pyFAI's calibrant library, the same source xrdPlanner uses.
@@ -1941,7 +1943,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.43.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.44.0...HEAD
+[0.44.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.43.0...v0.44.0
 [0.43.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.4...v0.43.0
 [0.42.4]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.3...v0.42.4
 [0.42.3]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.2...v0.42.3
