@@ -299,6 +299,9 @@
 
 .loading {
   position: absolute;
+  /* With the readout above every overlay on the image: without a level it
+     sat under the rings, ROI and mask tint that are drawn over the frame. */
+  z-index: 8;
   display: none;
   top: 12px;
   right: 12px;

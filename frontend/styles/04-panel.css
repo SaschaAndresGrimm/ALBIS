@@ -241,12 +241,14 @@ body.canvas-first .viewer-footer {
     filter var(--motion-med) var(--motion-ease-standard);
 }
 
-/* Idle, the bars stand back but stay legible over a bright frame. */
+/* Idle, the bars stand back by dulling, not by fading. They stay as opaque
+   as any floating surface (docs/UI_GUIDE.md): faded to 0.7, they let a
+   third of the frame through, so a bright frame or the pixel mask's tint
+   turned them that colour and the pixel values showed through the toolbar. */
 body.canvas-first.chrome-idle .menu-bar,
 body.canvas-first.chrome-idle .toolbar,
 body.canvas-first.chrome-idle .viewer-footer {
-  opacity: 0.7;
-  filter: saturate(0.8);
+  filter: saturate(0.7) brightness(0.85);
 }
 
 body.canvas-first.chrome-idle .menu-bar:hover,
