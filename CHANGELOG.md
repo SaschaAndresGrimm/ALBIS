@@ -21,7 +21,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
-- **The pixel readout at the mouse stays readable over the pixel mask overlay.** The X, Y and value label sat below the overlay that Edit on image and Find bad pixels draw on the image, so where pixels were tinted, which is where you are looking, the label was covered by the tint. It is now drawn on top.
+- **The pixel readout, resolution rings, peaks, pixel values and ROI stay visible over the pixel mask overlay.** The overlay that Edit on image and Find bad pixels draw on the image sat above all of them, so where pixels were tinted, which is where you are looking, they were covered by the tint. The overlay now sits right above the image and under everything else.
 
 - **Edit on image takes a box over a whole EIGER2 16M frame.** An edit touching more than 16.7 million pixels, such as a box over all 18 million of an EIGER2 16M frame to mask everything and then unmask a region, stopped with an error, because the editor kept the pixels it changed in a JavaScript Set or Map, which holds no more than that. It now keeps them in a flag per pixel. Small edits on a large frame stay as quick as before: the overlay looks only at the part of the image that has edits and is on screen.
 

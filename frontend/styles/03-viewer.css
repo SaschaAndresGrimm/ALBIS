@@ -205,12 +205,15 @@
   z-index: 5;
 }
 
-/* Data → Pixel Mask → Edit on image (beta): the pixels changed by hand and the
-   shape being drawn, over everything but the toolbar. */
+/* Data → Pixel Mask → Edit on image (beta) and Find bad pixels: the pixels
+   changed by hand or found, and the shape being drawn. Right above the image
+   and under every annotation: it paints whole areas when many pixels are
+   found or a large region is edited, and above the rings, peaks, pixel values
+   and ROI it hid them all under its tint. */
 #mask-edit-overlay {
   position: absolute;
   pointer-events: none;
-  z-index: 6;
+  z-index: 1;
 }
 
 .canvas-wrap.is-mask-editing {
@@ -587,9 +590,8 @@
   white-space: nowrap;
   pointer-events: none;
   display: none;
-  /* Above the mask overlay (6), which paints whole areas when Find bad pixels
-     finds many pixels or a large region is edited: at 5 the readout was
-     hidden under the tint, exactly where it was being read. */
+  /* Above every overlay on the image, the mask's tint included: under it
+     the readout was hidden exactly where it was being read. */
   z-index: 8;
 }
 
