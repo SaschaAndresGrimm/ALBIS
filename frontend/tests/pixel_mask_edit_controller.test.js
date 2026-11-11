@@ -20,7 +20,7 @@ function key(type, k, extra = {}) {
 
 const opened = [];
 
-function setup({ width = 8, height = 6 } = {}) {
+function setup({ width = 8, height = 6, overlay = null, view = { scaleX: 10, scaleY: 10, offsetX: 0, offsetY: 0 } } = {}) {
   document.body.innerHTML = "";
   const canvasWrap = document.createElement("div");
   const bar = document.createElement("div");
@@ -62,13 +62,13 @@ function setup({ width = 8, height = 6 } = {}) {
     }),
     onClose: vi.fn(),
     getImagePoint: (event) => ({ x: event.clientX, y: event.clientY }),
-    getView: () => ({ scaleX: 10, scaleY: 10, offsetX: 0, offsetY: 0 }),
-    syncOverlayCanvas: () => null,
+    getView: () => view,
+    syncOverlayCanvas: () => (overlay ? { width: overlay.width, height: overlay.height, dpr: 1 } : null),
     describeEdits: () => "count",
   };
   const editor = createPixelMaskEditController({
     state,
-    elements: { canvasWrap, bar, toolButtons, modeButtons, brushSize, undoBtn, redoBtn, doneBtn, countEl },
+    elements: { overlay, canvasWrap, bar, toolButtons, modeButtons, brushSize, undoBtn, redoBtn, doneBtn, countEl },
     callbacks,
     isMac: true,
   });
@@ -83,7 +83,56 @@ beforeEach(() => {
   vi.restoreAllMocks();
 });
 
+/** An overlay canvas whose 2D context records what is drawn on it. */
+function fakeOverlay(width, height) {
+  const ctx = {
+    clearRect: vi.fn(),
+    createImageData: (w, h) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }),
+    putImageData: vi.fn(),
+    beginPath: vi.fn(),
+    moveTo: vi.fn(),
+    arc: vi.fn(),
+    stroke: vi.fn(),
+    strokeRect: vi.fn(),
+    fillRect: vi.fn(),
+  };
+  return { width, height, ctx, getContext: () => ctx };
+}
+
 describe("pixel mask editor", () => {
+  it("marks every pixel Find bad pixels found, not only the first 20,000", () => {
+    // 300 x 200 with every pixel found: rings stopped after 20,000 in row
+    // order, so only the top third of the image was marked.
+    const overlay = fakeOverlay(300, 200);
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((draw) => {
+      draw();
+      return 1;
+    });
+    const { editor } = setup({ width: 300, height: 200, overlay, view: { scaleX: 1, scaleY: 1, offsetX: 0, offsetY: 0 } });
+    const indices = Array.from({ length: 300 * 200 }, (_, i) => i);
+
+    editor.setMarkers({ width: 300, groups: [{ kind: "hot", indices }] });
+
+    expect(overlay.ctx.arc).not.toHaveBeenCalled();
+    const painted = overlay.ctx.putImageData.mock.calls.at(-1)[0].data;
+    const alpha = (x, y) => painted[(y * 300 + x) * 4 + 3];
+    expect([alpha(0, 0), alpha(150, 100), alpha(299, 199)]).toEqual([200, 200, 200]);
+  });
+
+  it("still rings a few pixels found, so a single one shows", () => {
+    const overlay = fakeOverlay(80, 60);
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((draw) => {
+      draw();
+      return 1;
+    });
+    const { editor } = setup({ overlay });
+
+    editor.setMarkers({ width: 8, groups: [{ kind: "hot", indices: [3, 40] }] });
+
+    expect(overlay.ctx.arc).toHaveBeenCalledTimes(2);
+    expect(overlay.ctx.putImageData).not.toHaveBeenCalled();
+  });
+
   it("leaves the image alone until opened", () => {
     const { canvasWrap, viewerDown, bar } = setup();
     canvasWrap.dispatchEvent(pointer("pointerdown", { x: 1, y: 1 }));

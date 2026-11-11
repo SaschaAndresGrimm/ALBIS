@@ -17,6 +17,7 @@
 
 import { t } from "./i18n.js";
 import { colorDistance } from "./mask_colors.js";
+import { markersAsRings, paintPixels } from "./pixel_paint_utils.js";
 import {
   createChange,
   createHistory,
@@ -36,9 +37,9 @@ const MASKED_TINTS = [[255, 0, 255], [255, 140, 0], [0, 220, 255], [255, 105, 18
 const UNMASKED_TINTS = [[0, 220, 120], [180, 255, 0], [0, 200, 255], [255, 220, 0]];
 const CLEAR_OF_MASK_COLORS = 40;
 // Find bad pixels' preview: a ring around each pixel found, so a single pixel
-// shows at any zoom. Hot ones in the masking tint, dead and cold in another.
+// shows at any zoom, or a tint over each when there are too many to ring
+// (pixel_paint_utils.js). Hot ones in the masking tint, dead and cold in another.
 const COLD_TINTS = [[0, 200, 255], [255, 220, 0], [180, 255, 0]];
-const MARKER_LIMIT = 20000;
 
 export function pickTint(candidates, avoid = []) {
   return candidates.find((rgb) => avoid.every((other) => colorDistance(rgb, other) >= CLEAR_OF_MASK_COLORS)) || candidates[0];
@@ -378,33 +379,36 @@ export function createPixelMaskEditController({ state, elements = {}, callbacks 
     });
   }
 
-  function paintChanged(current, view, dpr) {
+  /**
+   * The tinted pixels: those changed by hand while editing, and Find bad
+   * pixels' markers when there are too many to ring. One buffer, one put.
+   */
+  function paintTinted(view, dpr, paintMarkers) {
+    const current = active ? target() : null;
+    const edits = current && changed.size;
+    if (!edits && !paintMarkers) return;
     const w = overlay.width;
     const h = overlay.height;
     if (!imageData || imageData.width !== w || imageData.height !== h) imageData = ctx.createImageData(w, h);
     const buf = imageData.data;
     buf.fill(0);
-    const { data, width } = current;
-    for (const index of changed) {
-      const x = index % width;
-      const y = (index - x) / width;
-      const sx0 = Math.floor((x * view.scaleX + view.offsetX) * dpr);
-      const sy0 = Math.floor((y * view.scaleY + view.offsetY) * dpr);
-      const sx1 = Math.max(sx0 + 1, Math.floor(((x + 1) * view.scaleX + view.offsetX) * dpr));
-      const sy1 = Math.max(sy0 + 1, Math.floor(((y + 1) * view.scaleY + view.offsetY) * dpr));
-      if (sx1 <= 0 || sy1 <= 0 || sx0 >= w || sy0 >= h) continue;
-      const [r, g, b] = data[index] & ~1 ? tints.masked : tints.unmasked;
-      const a = 150;
-      for (let py = Math.max(0, sy0); py < Math.min(h, sy1); py += 1) {
-        let o = (py * w + Math.max(0, sx0)) * 4;
-        for (let px = Math.max(0, sx0); px < Math.min(w, sx1); px += 1) {
-          buf[o] = r;
-          buf[o + 1] = g;
-          buf[o + 2] = b;
-          buf[o + 3] = a;
-          o += 4;
-        }
+    if (paintMarkers) {
+      for (const group of markers.groups) {
+        const color = [...(group.kind === "hot" ? tints.masked : tints.cold), 200];
+        paintPixels(buf, w, h, { indices: group.indices, width: markers.width, view, dpr, colorOf: () => color });
       }
+    }
+    if (edits) {
+      const { data, width } = current;
+      const masked = [...tints.masked, 150];
+      const unmasked = [...tints.unmasked, 150];
+      paintPixels(buf, w, h, {
+        indices: changed,
+        width,
+        view,
+        dpr,
+        colorOf: (index) => (data[index] & ~1 ? masked : unmasked),
+      });
     }
     ctx.putImageData(imageData, 0, 0);
   }
@@ -465,16 +469,14 @@ export function createPixelMaskEditController({ state, elements = {}, callbacks 
     }
   }
 
-  function drawMarkers(view, width, height) {
-    if (!markers) return;
+  /** A ring round each marker, so a single pixel shows at any zoom. */
+  function drawMarkerRings(view, width, height) {
     const radius = Math.max(6, view.scaleX * 0.5 + 3);
-    let drawn = 0;
     ctx.lineWidth = 1.5;
     for (const group of markers.groups) {
       ctx.strokeStyle = rgba(group.kind === "hot" ? tints.masked : tints.cold, 0.95);
       ctx.beginPath();
       for (const index of group.indices) {
-        if (drawn >= MARKER_LIMIT) break;
         const x = index % markers.width;
         const y = (index - x) / markers.width;
         const sx = (x + 0.5) * view.scaleX + view.offsetX;
@@ -482,7 +484,6 @@ export function createPixelMaskEditController({ state, elements = {}, callbacks 
         if (sx < -radius || sy < -radius || sx > width + radius || sy > height + radius) continue;
         ctx.moveTo(sx + radius, sy);
         ctx.arc(sx, sy, radius, 0, Math.PI * 2);
-        drawn += 1;
       }
       ctx.stroke();
     }
@@ -496,11 +497,9 @@ export function createPixelMaskEditController({ state, elements = {}, callbacks 
     if (!active && !markers) return;
     updateTints();
     const view = getView();
-    if (active) {
-      const current = target();
-      if (current && changed.size) paintChanged(current, view, metrics.dpr || 1);
-    }
-    drawMarkers(view, metrics.width, metrics.height);
+    const rings = Boolean(markers) && markersAsRings(markers.groups);
+    paintTinted(view, metrics.dpr || 1, Boolean(markers) && !rings);
+    if (rings) drawMarkerRings(view, metrics.width, metrics.height);
     if (active) drawPreview(view);
   }
 
