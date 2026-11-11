@@ -19,6 +19,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - **Ice rings moved from a button to the top of the new Reference menu.** The **Ice rings** button copied the ten ice d-spacings into your ring list, where they took 10 of the 16 rings, could be dragged off their true radius, and went with **Clear**. As a reference, ice is labelled with hkl and drawn in its own colour, and your 16 rings stay yours. Choose **H₂O (ice Ih)**, directly under **None**. The Presets row is gone; **Clear** now sits next to **+ Add ring**. Ice rings you already added with the button stay in your list until you clear them.
 
+### Fixed
+
+- **Edit on image takes a box over a whole EIGER2 16M frame.** An edit touching more than 16.7 million pixels, such as a box over all 18 million of an EIGER2 16M frame to mask everything and then unmask a region, stopped with an error, because the editor kept the pixels it changed in a JavaScript Set or Map, which holds no more than that. It now keeps them in a flag per pixel. Small edits on a large frame stay as quick as before: the overlay looks only at the part of the image that has edits and is on screen.
+
 ## [0.43.0] - 2026-11-09
 
 The first release with an outside contributor: Lucas Wagner wrote the Min/Max Finder cutoffs and the clickable **Manual axes** tag. He worked with an AI coding agent that followed ALBIS's contributor guides, checks and review steps. Both pull requests arrived complete, with tests, translations and documentation, and needed only small fixes before merging.

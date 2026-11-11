@@ -17,9 +17,10 @@
 
 import { t } from "./i18n.js";
 import { colorDistance } from "./mask_colors.js";
-import { markersAsRings, paintPixels } from "./pixel_paint_utils.js";
+import { createPixelPainter, markersAsRings, paintPixels, visibleImageArea } from "./pixel_paint_utils.js";
 import {
   createChange,
+  createChangedPixels,
   createHistory,
   forEachInBox,
   forEachInBrush,
@@ -102,8 +103,8 @@ export function createPixelMaskEditController({ state, elements = {}, callbacks 
 
   const rgba = (rgb, alpha) => `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
   const history = createHistory();
-  // Indices where the mask differs from what editing started from.
-  let changed = new Set();
+  // Pixels where the mask differs from what editing started from.
+  const changed = createChangedPixels();
 
   function target() {
     const next = getTarget();
@@ -112,18 +113,13 @@ export function createPixelMaskEditController({ state, elements = {}, callbacks 
   }
 
   function trackChanged(data, base, indices) {
-    for (const index of indices) {
-      if (data[index] !== base[index]) changed.add(index);
-      else changed.delete(index);
-    }
+    changed.track(data, base, indices);
   }
 
   function rebuildChanged() {
-    changed = new Set();
     const current = target();
-    if (!current) return;
-    const { data, base } = current;
-    for (let i = 0; i < data.length; i += 1) if (data[i] !== base[i]) changed.add(i);
+    if (!current) changed.clear();
+    else changed.rebuild(current.data, current.base, current.width);
   }
 
   // ---- applying edits -------------------------------------------------------
@@ -383,7 +379,8 @@ export function createPixelMaskEditController({ state, elements = {}, callbacks 
    * The tinted pixels: those changed by hand while editing, and Find bad
    * pixels' markers when there are too many to ring. One buffer, one put.
    */
-  function paintTinted(view, dpr, paintMarkers) {
+  function paintTinted(view, metrics, paintMarkers) {
+    const dpr = metrics.dpr || 1;
     const current = active ? target() : null;
     const edits = current && changed.size;
     if (!edits && !paintMarkers) return;
@@ -399,16 +396,13 @@ export function createPixelMaskEditController({ state, elements = {}, callbacks 
       }
     }
     if (edits) {
-      const { data, width } = current;
+      const { data, width, height } = current;
       const masked = [...tints.masked, 150];
       const unmasked = [...tints.unmasked, 150];
-      paintPixels(buf, w, h, {
-        indices: changed,
-        width,
-        view,
-        dpr,
-        colorOf: (index) => (data[index] & ~1 ? masked : unmasked),
-      });
+      const paint = createPixelPainter(buf, w, h, { width, view, dpr });
+      // Only what is on screen: the scan is the edits' box cut to the view.
+      const area = visibleImageArea(view, metrics.width, metrics.height, width, height);
+      if (area) changed.forEachIn(area, (index) => paint(index, data[index] & ~1 ? masked : unmasked));
     }
     ctx.putImageData(imageData, 0, 0);
   }
@@ -498,7 +492,7 @@ export function createPixelMaskEditController({ state, elements = {}, callbacks 
     updateTints();
     const view = getView();
     const rings = Boolean(markers) && markersAsRings(markers.groups);
-    paintTinted(view, metrics.dpr || 1, Boolean(markers) && !rings);
+    paintTinted(view, metrics, Boolean(markers) && !rings);
     if (rings) drawMarkerRings(view, metrics.width, metrics.height);
     if (active) drawPreview(view);
   }
@@ -605,7 +599,7 @@ export function createPixelMaskEditController({ state, elements = {}, callbacks 
     window.removeEventListener("keyup", onKeyUp, true);
     window.removeEventListener("blur", onBlur);
     history.clear();
-    changed = new Set();
+    changed.clear();
     hover = null;
     renderBar();
     draw();

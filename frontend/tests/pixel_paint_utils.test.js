@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MARKER_RING_LIMIT, markersAsRings, paintPixels } from "../modules/pixel_paint_utils.js";
+import { MARKER_RING_LIMIT, markersAsRings, paintPixels, visibleImageArea } from "../modules/pixel_paint_utils.js";
 
 const RED = [255, 0, 0, 200];
 const alphaAt = (buf, w, x, y) => buf[(y * w + x) * 4 + 3];
@@ -50,5 +50,14 @@ describe("pixel_paint_utils", () => {
     paintPixels(buf, 10, 10, { indices: [40 * 9 + 9], width: 40, view, dpr: 2, colorOf: () => RED });
     // (9, 9) at 0.25 x 2 = 4.5 -> device pixel (4, 4).
     expect(alphaAt(buf, 10, 4, 4)).toBe(200);
+  });
+
+  it("knows which image pixels a canvas shows", () => {
+    // Zoomed in 4x, panned 100 css px left and 40 up, on a 200 x 120 canvas.
+    const view = { scaleX: 4, scaleY: 4, offsetX: -100, offsetY: -40 };
+    expect(visibleImageArea(view, 200, 120, 1000, 1000)).toEqual({ x0: 25, y0: 10, x1: 75, y1: 40 });
+    // Clamped to the image, and nothing when it is out of view.
+    expect(visibleImageArea({ scaleX: 1, scaleY: 1, offsetX: 50, offsetY: 0 }, 200, 100, 20, 20)).toEqual({ x0: 0, y0: 0, x1: 19, y1: 19 });
+    expect(visibleImageArea({ scaleX: 1, scaleY: 1, offsetX: 500, offsetY: 0 }, 200, 100, 20, 20)).toBeNull();
   });
 });

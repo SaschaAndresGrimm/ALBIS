@@ -119,6 +119,26 @@ describe("pixel mask editor", () => {
     expect([alpha(0, 0), alpha(150, 100), alpha(299, 199)]).toEqual([200, 200, 200]);
   });
 
+  it("tints the pixels changed by hand, those in view only", () => {
+    // 8 x 6 image at 10x, panned 20 px left: pixels 0 and 1 of each row are
+    // off the 80 x 60 overlay, pixel 2 is at its left edge.
+    const overlay = fakeOverlay(80, 60);
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((draw) => {
+      draw();
+      return 1;
+    });
+    const { editor, canvasWrap } = setup({ overlay, view: { scaleX: 10, scaleY: 10, offsetX: -20, offsetY: 0 } });
+    editor.open();
+    canvasWrap.dispatchEvent(pointer("pointerdown", { x: 0, y: 0 }));
+    canvasWrap.dispatchEvent(pointer("pointermove", { x: 3, y: 0 }));
+    canvasWrap.dispatchEvent(pointer("pointerup", { x: 3, y: 0 }));
+
+    const painted = overlay.ctx.putImageData.mock.calls.at(-1)[0].data;
+    const alpha = (x, y) => painted[(y * 80 + x) * 4 + 3];
+    // Image pixels 2 and 3 of row 0 land on screen 0..19; 4 was not painted.
+    expect([alpha(0, 0), alpha(15, 5), alpha(25, 5)]).toEqual([150, 150, 0]);
+  });
+
   it("still rings a few pixels found, so a single one shows", () => {
     const overlay = fakeOverlay(80, 60);
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((draw) => {

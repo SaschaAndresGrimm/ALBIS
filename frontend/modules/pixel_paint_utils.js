@@ -23,24 +23,21 @@ export function markersAsRings(groups) {
 }
 
 /**
- * Tint each pixel of `indices` (row-major in an image `width` wide) in `buf`,
- * an RGBA buffer `w` x `h` device pixels. `view` maps image to CSS pixels
+ * A painter for single pixels of an image `width` wide into `buf`, an RGBA
+ * buffer `w` x `h` device pixels. `view` maps image to CSS pixels
  * ({ scaleX, scaleY, offsetX, offsetY }), `dpr` CSS to device pixels.
- * `colorOf(index)` gives [r, g, b, a]. A pixel smaller than a device pixel
- * still takes one, so it shows at any zoom. Returns how many were in view.
+ * `paint(index, [r, g, b, a])` tints the pixel's area, at least one device
+ * pixel so it shows at any zoom, and returns whether it was in view.
  */
-export function paintPixels(buf, w, h, { indices, width, view, dpr = 1, colorOf }) {
-  let shown = 0;
-  for (const index of indices) {
+export function createPixelPainter(buf, w, h, { width, view, dpr = 1 }) {
+  return function paint(index, [r, g, b, a]) {
     const x = index % width;
     const y = (index - x) / width;
     const sx0 = Math.floor((x * view.scaleX + view.offsetX) * dpr);
     const sy0 = Math.floor((y * view.scaleY + view.offsetY) * dpr);
     const sx1 = Math.max(sx0 + 1, Math.floor(((x + 1) * view.scaleX + view.offsetX) * dpr));
     const sy1 = Math.max(sy0 + 1, Math.floor(((y + 1) * view.scaleY + view.offsetY) * dpr));
-    if (sx1 <= 0 || sy1 <= 0 || sx0 >= w || sy0 >= h) continue;
-    shown += 1;
-    const [r, g, b, a] = colorOf(index);
+    if (sx1 <= 0 || sy1 <= 0 || sx0 >= w || sy0 >= h) return false;
     const px0 = Math.max(0, sx0);
     const px1 = Math.min(w, sx1);
     for (let py = Math.max(0, sy0); py < Math.min(h, sy1); py += 1) {
@@ -53,6 +50,27 @@ export function paintPixels(buf, w, h, { indices, width, view, dpr = 1, colorOf 
         o += 4;
       }
     }
-  }
+    return true;
+  };
+}
+
+/** Tint each pixel of `indices`, coloured by `colorOf(index)`; returns how many were in view. */
+export function paintPixels(buf, w, h, { indices, width, view, dpr = 1, colorOf }) {
+  const paint = createPixelPainter(buf, w, h, { width, view, dpr });
+  let shown = 0;
+  for (const index of indices) if (paint(index, colorOf(index))) shown += 1;
   return shown;
+}
+
+/**
+ * The image pixels a canvas `cssWidth` x `cssHeight` shows through `view`, as
+ * an inclusive box clamped to the image, or null when none are in view.
+ */
+export function visibleImageArea(view, cssWidth, cssHeight, imageWidth, imageHeight) {
+  if (!(view.scaleX > 0) || !(view.scaleY > 0)) return null;
+  const x0 = Math.max(0, Math.floor(-view.offsetX / view.scaleX));
+  const y0 = Math.max(0, Math.floor(-view.offsetY / view.scaleY));
+  const x1 = Math.min(imageWidth - 1, Math.floor((cssWidth - view.offsetX) / view.scaleX));
+  const y1 = Math.min(imageHeight - 1, Math.floor((cssHeight - view.offsetY) / view.scaleY));
+  return x0 > x1 || y0 > y1 ? null : { x0, y0, x1, y1 };
 }

@@ -4,6 +4,7 @@ import {
   USER_MASK_BIT,
   countEdits,
   createChange,
+  createChangedPixels,
   createHistory,
   editedValue,
   forEachInBox,
@@ -131,5 +132,57 @@ describe("editing values", () => {
     const base = new Uint32Array([0, 8, 3, 0]);
     const data = new Uint32Array([USER_MASK_BIT, 0, 1, 0]);
     expect(countEdits(base, data)).toEqual({ masked: 1, unmasked: 2 });
+  });
+});
+
+describe("pixels changed by hand", () => {
+  it("counts them, knows where they are, and forgets one set back", () => {
+    // 4 x 3 image; pixels 1 (1, 0) and 10 (2, 2) differ from the start.
+    const base = new Uint32Array(12);
+    const data = base.slice();
+    data[1] = USER_MASK_BIT;
+    data[10] = USER_MASK_BIT;
+    const changed = createChangedPixels();
+    changed.rebuild(data, base, 4);
+    expect(changed.size).toBe(2);
+    const seen = [];
+    changed.forEachIn({ x0: 0, y0: 0, x1: 3, y1: 2 }, (i) => seen.push(i));
+    expect(seen).toEqual([1, 10]);
+
+    // Only the area asked for is looked at.
+    seen.length = 0;
+    changed.forEachIn({ x0: 2, y0: 1, x1: 3, y1: 2 }, (i) => seen.push(i));
+    expect(seen).toEqual([10]);
+
+    data[1] = 0;
+    changed.track(data, base, [1, 1]);
+    expect(changed.size).toBe(1);
+
+    changed.clear();
+    expect(changed.size).toBe(0);
+  });
+
+  it("takes an edit over a frame larger than a Set or a Map can hold, and undoes it", () => {
+    // 4097 x 4097 is past 2^24 pixels, the most a Set or Map holds; an EIGER2
+    // 16M frame (4148 x 4362) is too. A box over all of it used to throw.
+    const width = 4097;
+    const n = width * width;
+    const base = new Uint8Array(n);
+    const data = base.slice();
+    const change = createChange();
+    for (let i = 0; i < n; i += 1) change.apply(data, i, "mask");
+    const record = change.finish(data);
+    expect(record.idx).toHaveLength(n);
+
+    const changed = createChangedPixels();
+    changed.track(data, base, record.idx);
+    expect(changed.size).toBe(n);
+
+    const history = createHistory();
+    history.push(record);
+    history.undo(data);
+    expect(data[n - 1]).toBe(0);
+    changed.track(data, base, record.idx);
+    expect(changed.size).toBe(0);
   });
 });

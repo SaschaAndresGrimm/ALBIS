@@ -16,6 +16,9 @@
 export const USER_MASK_BIT = 0x10;
 const GAP_BIT = 0x1;
 const HISTORY_LIMIT = 100;
+// Past this many pixels touched, a stroke's duplicates are found with a flag
+// per image pixel rather than a Set, which cannot hold past 2^24.
+const SMALL_CHANGE = 1 << 20;
 
 /** Call visit(index) for each pixel of the box between two corners. */
 export function forEachInBox(a, b, width, height, visit) {
@@ -127,35 +130,49 @@ export function editedValue(value, mode) {
 
 /**
  * One undoable change: the pixels it touched with their values before and
- * after. Built while a stroke runs, so each pixel is recorded once, with the
- * value it had before the stroke.
+ * after, built while a stroke runs.
+ *
+ * Kept as two lists, not a Map from pixel to old value: a Map holds at most
+ * 2^24 entries, and a box over a whole EIGER2 16M frame (18 million pixels)
+ * threw. A pixel changed twice in a stroke is listed twice; finish keeps its
+ * first entry, which has the value from before the stroke.
  */
 export function createChange() {
-  const before = new Map();
+  const touched = [];
+  const old = [];
   return {
-    before,
     /** Edit pixel `index` of `data`; returns whether its value changed. */
     apply(data, index, mode) {
-      const old = data[index];
-      const next = editedValue(old, mode);
-      if (next === old) return false;
-      if (!before.has(index)) before.set(index, old);
+      const value = data[index];
+      const next = editedValue(value, mode);
+      if (next === value) return false;
+      touched.push(index);
+      old.push(value);
       data[index] = next;
       return true;
     },
     /** Freeze into the record history keeps, or null if nothing changed. */
     finish(data) {
+      // Seen pixels: a Set while it is small, a flag per pixel past that.
+      const small = touched.length < SMALL_CHANGE;
+      const seenSet = small ? new Set() : null;
+      const seenFlags = small ? null : new Uint8Array(data.length);
       const indices = [];
-      for (const [index, old] of before) if (data[index] !== old) indices.push(index);
+      const was = [];
+      for (let k = 0; k < touched.length; k += 1) {
+        const index = touched[k];
+        if (small ? seenSet.has(index) : seenFlags[index]) continue;
+        if (small) seenSet.add(index);
+        else seenFlags[index] = 1;
+        if (data[index] === old[k]) continue;
+        indices.push(index);
+        was.push(old[k]);
+      }
       if (!indices.length) return null;
       const idx = Uint32Array.from(indices);
-      const was = new Uint32Array(idx.length);
       const now = new Uint32Array(idx.length);
-      idx.forEach((index, k) => {
-        was[k] = before.get(index);
-        now[k] = data[index];
-      });
-      return { idx, was, now };
+      for (let k = 0; k < idx.length; k += 1) now[k] = data[idx[k]];
+      return { idx, was: Uint32Array.from(was), now };
     },
   };
 }
@@ -197,6 +214,80 @@ export function createHistory(limit = HISTORY_LIMIT) {
     },
     get canRedo() {
       return undone.length > 0;
+    },
+  };
+}
+
+/**
+ * Which pixels differ from what editing started from, for the overlay: a flag
+ * per pixel, how many are set, and the box round them all.
+ *
+ * Not a Set of indices: a Set holds at most 2^24, fewer than an EIGER2 16M
+ * frame has pixels. Flags alone would make the overlay scan the whole frame on
+ * every pointer move; the box keeps that scan as small as the edits, and it
+ * only grows -- shrinking it would need a scan of its own.
+ */
+export function createChangedPixels() {
+  let flags = new Uint8Array(0);
+  let width = 0;
+  let size = 0;
+  let box = null;
+
+  function grow(index) {
+    const x = index % width;
+    const y = (index - x) / width;
+    if (!box) box = { x0: x, y0: y, x1: x, y1: y };
+    else {
+      if (x < box.x0) box.x0 = x;
+      if (x > box.x1) box.x1 = x;
+      if (y < box.y0) box.y0 = y;
+      if (y > box.y1) box.y1 = y;
+    }
+  }
+
+  return {
+    /** Start over for `data` against `base`, an image `imageWidth` wide. */
+    rebuild(data, base, imageWidth) {
+      width = imageWidth;
+      flags = new Uint8Array(data?.length || 0);
+      size = 0;
+      box = null;
+      for (let i = 0; i < flags.length; i += 1) {
+        if (data[i] === base[i]) continue;
+        flags[i] = 1;
+        size += 1;
+        grow(i);
+      }
+    },
+    /** Note what `indices` are now: changed or back to how they began. */
+    track(data, base, indices) {
+      for (const index of indices) {
+        const now = data[index] !== base[index] ? 1 : 0;
+        if (now === flags[index]) continue;
+        flags[index] = now;
+        size += now ? 1 : -1;
+        if (now) grow(index);
+      }
+    },
+    clear() {
+      flags = new Uint8Array(0);
+      size = 0;
+      box = null;
+    },
+    get size() {
+      return size;
+    },
+    /** Call visit(index) for each changed pixel inside `area` ({ x0, y0, x1, y1 }, inclusive). */
+    forEachIn(area, visit) {
+      if (!box || !size) return;
+      const x0 = Math.max(box.x0, area.x0);
+      const x1 = Math.min(box.x1, area.x1);
+      const y0 = Math.max(box.y0, area.y0);
+      const y1 = Math.min(box.y1, area.y1);
+      for (let y = y0; y <= y1; y += 1) {
+        const row = y * width;
+        for (let x = x0; x <= x1; x += 1) if (flags[row + x]) visit(row + x);
+      }
     },
   };
 }
