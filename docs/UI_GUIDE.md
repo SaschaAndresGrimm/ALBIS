@@ -84,6 +84,12 @@ status bar — is nearly opaque (0.86–0.97) and frosted (`backdrop-filter:
 blur(10px)` with its `-webkit-` twin), so the image cannot read through it.
 Giving a menu the well's 0.92 once made the toolbar legible through it.
 
+What counts is the opacity you see: an element's `opacity` times its
+background's alpha. Never fade a floating surface with `opacity`; dull it
+with `filter` instead. The idle bars once faded to 0.7 over a 0.88
+background, 62% in all, and a bright frame or the pixel mask's tint turned
+them that colour, with the pixel values readable through the toolbar.
+
 ### Borders
 
 `--border-subtle` (0.22) · `--border-soft` (0.28) · `--border` (0.34) ·
@@ -113,6 +119,11 @@ engine. Use the existing ones; do not reintroduce native styling.
   when disabled. Put it in a `label.checkbox` with its text.
 - **Dropdowns** — a plain `<select>` gets the ALBIS chevron
   (`--select-chevron`). Inside a dialog or panel, wrap it in `label.field`.
+  The chevron is all a bare one gets: no border, corners, height or text size,
+  as Find bad pixels' "exactly / or more / or less" once showed. One in a
+  compact row of its own is added to the shared field rule instead; the style
+  guard lists the containers that rule covers and fails on a `<select>`
+  outside them.
 - **Chevrons** — collapse and disclosure arrows are drawn with
   `--chevron-mask` in `currentColor` (see `.section-chevron`), never a ▾/▸
   character, which comes from whatever font has one.
@@ -178,6 +189,23 @@ Pick a layer from this scale; a new one goes into both this table and
 | 1500 | Confirmations (`.dialog-modal`), above the dialog that asked. |
 | 2000 | Toasts. |
 | 3000–3001 | Tooltips and info bubbles, above everything. |
+
+Over the image (`.canvas-shell`), the 1–8 band in this order. Areas painted
+over the image go under the lines drawn on it, and what you read goes over
+both. The mask overlay once sat at 6, above the rings and ROI, and when it
+painted large areas its tint hid them, the cursor readout and the loading
+badge.
+
+| z-index | Layer |
+| --- | --- |
+| (none) | The image (`.canvas-wrap`). |
+| 1 | The pixel mask overlay: pixels changed by hand or found, the shape being drawn (`#mask-edit-overlay`). |
+| 2 | Resolution rings. |
+| 3 | Peaks. |
+| 4 | Pixel values at high zoom. |
+| 5 | ROI. |
+| 6 | The magnifier lens. |
+| 8 | What you read and use: the cursor readout, **Loading frame…**, the mask-edit toolbar. |
 
 ## Text and translation
 

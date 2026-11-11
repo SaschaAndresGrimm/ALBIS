@@ -58,6 +58,15 @@ everywhere.
 - **State lives in `state` or a controller**, not in the DOM: read values from
   `state`, write the DOM from it.
 - `console.warn`/`error`/`info` only; eslint flags `console.log`.
+- **Nothing keyed by pixel index in a `Set` or `Map`.** Both hold at most
+  2^24 entries, and an EIGER2 16M frame has 18.1 million pixels: Find bad
+  pixels' value rule and Edit on image both threw "maximum size exceeded" on
+  a whole frame. Use a typed array of flags or plain lists, and test at
+  4097 x 4097, just past the limit (`tests/pixel_mask_edit.test.js`).
+- **A limit on what is shown must not quietly cut the result.** Find bad
+  pixels drew at most 20,000 rings in row order, so past that only the top
+  rows were marked and the rest of the image looked clean. Either show the
+  rest another way (it now paints them) or say that the view is limited.
 
 ## Tests
 
@@ -66,6 +75,11 @@ Vitest with jsdom, in `frontend/tests/`, one file per module
 in `document.body.innerHTML`, pass fakes for callbacks (`vi.fn()`), and assert
 on what the user would see or what the module calls. Run them with
 `npm run test:js`; the style guard and the locale tests run with them.
+
+An element a module measures with `getComputedStyle` has to be in the
+document: since jsdom 31 a detached one has an empty computed style
+(`position` reads `""`), so a fake panel built but never appended read as
+docked (`overview_viewport_controller.test.js`).
 
 ## Copy these
 

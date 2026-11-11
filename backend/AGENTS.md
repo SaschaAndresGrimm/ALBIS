@@ -56,6 +56,11 @@ Read the root [AGENTS.md](../AGENTS.md) first; this adds what applies inside
   `sanitize_log_value` (`services/log_safety.py`) first.
 - **Docstrings on handlers** are the OpenAPI description; write them for the
   person calling the endpoint.
+- **A changed pin in `backend/requirements.txt`** is followed by
+  `python scripts/sync_licence_table.py`: the versions in
+  `THIRD_PARTY_LICENSES.md` are derived from the pins, and
+  `tests/test_shipped_dependency_parity.py` fails until they match. Every
+  Dependabot pull request for Python needs this commit before its CI passes.
 
 ## Tests
 
