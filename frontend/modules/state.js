@@ -61,6 +61,8 @@ export function createAnalysisState() {
     geometryOverrideActive: false,
     rings: [1, 3.67, 11.01],
     ringCount: 3,
+    // A reference material's id (calibrant_data.js) whose rings are drawn too, or "".
+    ringReference: "",
     peaksEnabled: false,
     peakCount: 25,
     peakMinSnr: 5,

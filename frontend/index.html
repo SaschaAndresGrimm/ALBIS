@@ -1415,13 +1415,12 @@
                   <div class="ring-values">
                     <div class="ring-list" id="ring-list"></div>
                     <button type="button" class="btn btn-secondary ring-add" id="ring-add" data-i18n="rings.add">+ Add ring</button>
+                    <button type="button" class="btn btn-secondary" id="ring-clear" data-i18n="rings.clear">Clear</button>
                   </div>
-                  <div class="ring-presets">
-                    <span data-i18n="rings.presets">Presets</span>
-                    <button type="button" class="btn btn-secondary inpaint-value-btn" id="ring-preset-ice"
-                      data-i18n="rings.preset.ice" data-i18n-title="rings.preset.ice_title" title="Add the hexagonal ice rings">Ice rings</button>
-                    <button type="button" class="btn btn-secondary inpaint-value-btn" id="ring-clear" data-i18n="rings.clear">Clear</button>
-                  </div>
+                  <label class="ring-reference">
+                    <span data-i18n="rings.reference" data-i18n-title="rings.reference_title" title="Also draw the rings of a reference material">Reference</span>
+                    <select id="ring-reference" data-i18n-aria-label="rings.reference_title" aria-label="Also draw the rings of a reference material"></select>
+                  </label>
                 </div>
               </div>
             </section>

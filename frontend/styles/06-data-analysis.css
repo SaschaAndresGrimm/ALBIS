@@ -383,14 +383,18 @@
   background: rgba(229, 72, 77, 0.35);
 }
 
-.ring-presets {
+.ring-reference {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   margin-top: 6px;
   font-size: var(--font-size-md);
   color: var(--muted);
+}
+
+.ring-reference select {
+  flex: 1;
+  min-width: 0;
 }
 
 .panel-section[data-section="resolution-rings"] .ring-center {

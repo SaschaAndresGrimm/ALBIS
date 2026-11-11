@@ -35,13 +35,16 @@ const LINE_BASELINE = {
   // +12 for the Min/Max Finder's wiring, after the 22 blank lines it was cut by;
   // +1 to hand the BG/FG count rows to the statistics; -5 for formatValue's
   // body, now formatLevelValue in format_utils.js; -1 for the Min/Max
-  // Finder's beta note.
-  "frontend/app.js": 3510,
+  // Finder's beta note; -5 for the ring list's elements, now in app_elements.js.
+  "frontend/app.js": 3505,
   // +17 in the stylesheet split: one <link> per part in frontend/styles/.
   // +45 for the Min/Max Finder section and its opt-in: markup lives here.
   // +3 for the Below BG / BG to FG / Above FG rows of the statistics.
   // +4 for the update dialog's "Don't check for updates at startup".
-  "frontend/index.html": 2661,
+  // +4 for the Resolution Rings section's Reference menu, whose options
+  // ring_list_controller.js builds from calibrant_data.js; -5 for the Presets
+  // row it replaced (Ice rings is now a reference, Clear sits by Add ring).
+  "frontend/index.html": 2660,
 };
 
 // The only modules that call fetch() themselves: http.js, which every other

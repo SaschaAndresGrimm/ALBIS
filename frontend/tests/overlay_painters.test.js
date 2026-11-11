@@ -154,6 +154,65 @@ describe("paintResolutionRings", () => {
   });
 });
 
+describe("reference material rings", () => {
+  const view = regionView({ x: 0, y: 0, width: 1000, height: 1000 }, 1000, 1000);
+  const reference = {
+    id: "Al",
+    lines: [
+      { d: 2.338, hkl: "111", label: "Al 111" },
+      { d: 2.025, hkl: "200", label: "Al 200" },
+    ],
+  };
+  const SCREEN = { referenceRing: "rgba(210, 50, 210, 0.95)", ring: "rgba(20, 80, 170, 0.95)" };
+
+  it("draws each in its own colour, solid, under the user's dashed rings", () => {
+    const ctx = recordingContext();
+    paintResolutionRings(ctx, { params: { ...RING_PARAMS, reference }, view });
+    expect(ctx.of("ellipse")).toHaveLength(3);
+    const strokes = ctx.of("stroke").map(([, , style]) => style);
+    const firstUser = strokes.indexOf(SCREEN.ring);
+    const lastReference = strokes.lastIndexOf(SCREEN.referenceRing);
+    expect(strokes.filter((style) => style === SCREEN.referenceRing)).toHaveLength(2);
+    expect(lastReference).toBeLessThan(firstUser);
+    // Solid for the reference rings, dashed again for the user's.
+    const dashes = ctx.of("setLineDash").map(([, pattern]) => pattern.length);
+    expect(dashes).toContain(0);
+    expect(dashes.at(-2)).toBeGreaterThan(0);
+  });
+
+  it("labels them with the material and hkl, after the user's ring", () => {
+    const ctx = recordingContext();
+    paintResolutionRings(ctx, { params: { ...RING_PARAMS, reference }, view });
+    const texts = ctx.of("fillText").map(([, text]) => text);
+    expect(texts).toEqual(["3 Å", "Al 111", "Al 200"]);
+  });
+
+  it("labels a dense set sparsely, but draws every ring", () => {
+    // Silver behenate's orders: 58.38 / n, closest together far out.
+    const lines = Array.from({ length: 30 }, (_, i) => {
+      const order = i + 1;
+      return { d: 58.38 / order, hkl: `00${order}`, label: `AgBh 00${order}` };
+    });
+    const ctx = recordingContext();
+    paintResolutionRings(ctx, { params: { ...RING_PARAMS, rings: [], reference: { id: "AgBh", lines } }, view });
+    expect(ctx.of("ellipse")).toHaveLength(30);
+    const labelled = ctx.of("fillText").length;
+    expect(labelled).toBeGreaterThan(3);
+    expect(labelled).toBeLessThan(30);
+  });
+
+  it("draws them with no ring of the user's at all", () => {
+    const ctx = recordingContext();
+    expect(paintResolutionRings(ctx, { params: { ...RING_PARAMS, rings: [], reference }, view })).toBe(true);
+    expect(ctx.of("ellipse")).toHaveLength(2);
+  });
+
+  it("has an opaque colour of its own in the GIF palette", () => {
+    const [r, g, b] = OPAQUE_OVERLAY_COLORS.referenceRing.match(/\d+/g).map(Number);
+    expect(OPAQUE_OVERLAY_RGB[nearestOverlayColorIndex(r, g, b)]).toEqual([r, g, b]);
+  });
+});
+
 describe("paintPeakMarkers", () => {
   const view = regionView({ x: 0, y: 0, width: 100, height: 100 }, 100, 100);
 

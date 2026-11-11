@@ -446,7 +446,8 @@ can be recomputed from the exported columns.
 **In short:**
 
 1. Open the **Analysis** tab and switch on **Resolution Rings**.
-2. Type the d-spacings you want in **Rings (Å)**, or press **Ice rings**.
+2. Type the d-spacings you want in **Rings (Å)**, or pick a material such as
+   ice under **Reference**.
 3. Switch on **Peak Finder** to circle the reflections and list them.
 
 Both need the [detector geometry](#detector-geometry); it is usually read from
@@ -458,8 +459,20 @@ shows them, and **Edit** goes there.
 
 Enter the ring positions you want in **Rings (Å)**, as many as you need (up
 to 16): **+ Add ring** adds a field, **×** removes one, and the list is sorted
-by d when you leave it. **Ice rings** adds the ten rings of hexagonal ice, the
-quickest way to see whether ice is on an image, and **Clear** removes them all.
+by d when you leave it. **Clear** removes them all.
+**Reference** draws the rings of a known material on top of yours: hexagonal
+ice, first in the list and the quickest way to see whether ice is on an image;
+a calibrant (Si, LaB6, CeO2 and their NIST SRM issues); a small-angle
+calibrant (silver behenate, tetradecanol, PBBA); a metal (Al, Au, Ni, Pt); an
+oxide or a mineral. Its rings are solid and magenta, labelled with the
+material and hkl ("Al 111"); yours stay dashed and blue. Use it to check the
+geometry on a calibrant image (the measured rings should sit on the drawn
+ones) or to name rings that should not be there, such as those of an aluminium
+window. Only the rings that fall on the detector are drawn, at most 60, nearest
+the beam first. They cannot be dragged, **Clear** does not remove them, and
+they are not part of the 16. Choose **None** to hide them. The d-spacings come
+from [pyFAI](https://github.com/silx-kit/pyFAI)'s calibrant library.
+
 The rings are remembered for the next session. On the image, a ring can also be
 dragged to a new radius, on a multi-panel or tilted detector as on a flat one. Once rings are on, the cursor readout gains a **d**
 value, so pointing at a feature tells you its resolution.
