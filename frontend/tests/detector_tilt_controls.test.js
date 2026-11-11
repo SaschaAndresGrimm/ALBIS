@@ -96,7 +96,7 @@ describe("the Detector 2θ row", () => {
     expect(row.previousElementSibling.contains(document.getElementById("cx"))).toBe(true);
     expect(row.textContent).toContain(EN["geometry.two_theta.label"]);
     expect([...direction.options].map((o) => o.value)).toEqual(["", "+x", "-x", "+y", "-y"]);
-    expect(angle.closest(".num-stepper")).not.toBeNull();
+    expect(angle.closest(".num-stepper")).toBeNull();
   });
 
   it("shows a file's angle and asks for the direction before applying it", async () => {
