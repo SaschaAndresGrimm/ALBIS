@@ -11,6 +11,10 @@ import {
   findByValue,
 } from "../modules/pixel_mask_find.js";
 
+// The frame past 2^24 pixels takes about 2 s here and over 5 s, the default
+// limit, on GitHub's runners, where it failed main's CI now and then.
+const LARGE_FRAME_TIMEOUT_MS = 30_000;
+
 // A flat image: Poisson-like noise around `level`, the same every run.
 function flat(width, height, level) {
   const data = new Uint32Array(width * height);
@@ -143,7 +147,7 @@ describe("finding bad pixels", () => {
     applyValueRule(found, { on: true, text: "0", mode: "gte", data, width, height: width });
     expect(found.value).toHaveLength(width * width);
     expect(found.hot).toEqual([]);
-  });
+  }, LARGE_FRAME_TIMEOUT_MS);
 
   it("leaves negative flags alone unless the value asked for is negative", () => {
     const data = new Int32Array([-1, -2, 0, 3]);

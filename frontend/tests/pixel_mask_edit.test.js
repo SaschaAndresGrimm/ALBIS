@@ -14,6 +14,10 @@ import {
   linePoints,
 } from "../modules/pixel_mask_edit.js";
 
+// The frame past 2^24 pixels takes about 2 s here and over 5 s, the default
+// limit, on GitHub's runners, where it failed main's CI now and then.
+const LARGE_FRAME_TIMEOUT_MS = 30_000;
+
 function covered(width, height, cover) {
   const out = [];
   cover(width, height, (index) => out.push([index % width, Math.floor(index / width)]));
@@ -184,5 +188,5 @@ describe("pixels changed by hand", () => {
     expect(data[n - 1]).toBe(0);
     changed.track(data, base, record.idx);
     expect(changed.size).toBe(0);
-  });
+  }, LARGE_FRAME_TIMEOUT_MS);
 });
