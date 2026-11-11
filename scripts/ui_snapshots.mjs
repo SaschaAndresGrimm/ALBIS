@@ -3,7 +3,10 @@
  * Screenshots of every window ALBIS has, for checking a UI change by eye:
  * the main view, each Settings tab, About, Check for Updates, the backend log,
  * the command palette, the file browser, the menus and toolbar popovers, and
- * -- with an image loaded -- the export dialogs.
+ * -- with an image loaded -- the export dialogs and each section of the side
+ * panel, opened on its own. A section a feature switch hides is skipped:
+ * start ALBIS with ALBIS_UI_PIXEL_MASK=true and ALBIS_UI_DETECTOR_CONTROL=true
+ * to include the beta ones.
  *
  * It drives a headless Chrome over the DevTools protocol against an ALBIS
  * that is already running, and opens the image from the data folder through
@@ -106,6 +109,36 @@ const closeAll = `
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   document.body.click();`;
 
+// Each section of the side panel, tab by tab, opened alone and scrolled into
+// view: the panel is taller than the window, so one shot cannot show it all.
+// Sections and tabs that are hidden (a beta switched off) are left out.
+async function shootPanelSections() {
+  await evaluate(`(() => {
+    const panel = document.querySelector('.panel');
+    if (panel?.classList.contains('is-collapsed')) document.getElementById('panel-fab')?.click();
+  })()`);
+  await sleep(600);
+  const sections = await evaluate(`[...document.querySelectorAll('.panel-tab-content')]
+    .filter((tab) => !document.querySelector('.panel-tab[data-panel-tab="' + tab.dataset.panelTab + '"]')?.hidden)
+    .flatMap((tab) => [...tab.querySelectorAll('.panel-section[data-section]')]
+      .filter((section) => !section.hidden)
+      .map((section) => [tab.dataset.panelTab, section.dataset.section]))`);
+  for (const [tab, name] of sections || []) {
+    await evaluate(`(() => {
+      document.querySelector('.panel-tab[data-panel-tab="${tab}"]')?.click();
+      const content = document.querySelector('.panel-tab-content[data-panel-tab="${tab}"]');
+      for (const section of content.querySelectorAll('.panel-section[data-section]')) {
+        const open = !section.classList.contains('is-collapsed');
+        const wanted = section.dataset.section === '${name}';
+        if (open !== wanted) section.querySelector('[data-section-toggle]')?.click();
+      }
+      content.querySelector('.panel-section[data-section="${name}"]')?.scrollIntoView({ block: 'start' });
+    })()`);
+    await sleep(700);
+    await shot(`panel-${tab}-${name}`);
+  }
+}
+
 async function main() {
   let targets = [];
   for (let i = 0; i < 60 && !targets.length; i += 1) {
@@ -202,6 +235,7 @@ async function main() {
       await evaluate(closeAll);
       await sleep(500);
     }
+    await shootPanelSections();
   }
 
   for (const menu of ["file", "settings", "help"]) {

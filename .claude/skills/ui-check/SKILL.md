@@ -41,6 +41,19 @@ npm run ui:snapshots -- --out /tmp/albis-ui/after
 - `ALBIS_DATA_ROOT=testdata` serves the files tracked in the repository. Never
   open a file by uploading it through the page: an upload copies it into the
   data folder.
+- With a file open, each section of the side panel gets a shot of its own
+  (`panel-<tab>-<section>.png`), opened alone and scrolled into view. The
+  beta parts are hidden unless switched on; add
+  `ALBIS_UI_PIXEL_MASK=true ALBIS_UI_DETECTOR_CONTROL=true` in front of the
+  server command, for the before run as well, to include Pixel Mask and the
+  Detector tab.
+- The shots do not set up a state: a section shows its defaults. To see one
+  with a control switched on, or the image covered by an overlay, drive the
+  page the way `scripts/ui_snapshots.mjs` does (`evaluate()` in the page,
+  `Input.dispatchMouseEvent` for the mouse) from a copy of it.
+- `in16c_010001.cbf` in `testdata/` is the one frame large enough (over
+  20,000 pixels) for Find bad pixels to paint rather than ring, and it
+  carries detector geometry for the resolution rings.
 - Pass the same `--file`, `--width` and `--height` to both runs, or the pairs
   do not compare. `--width 1100` shows the layout with the side panel
   collapsed; check that too when the change touches the panel or toolbar.
