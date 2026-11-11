@@ -11,6 +11,7 @@ import {
   prepareRingGeometry,
 } from "./ring_geometry_utils.js";
 import { buildTiltedPanelGeometry } from "./detector_tilt_utils.js";
+import { detectorMinDSpacing, getCalibrant, selectReferenceRings } from "./calibrant_utils.js";
 import { setControlAvailability } from "./control_availability.js";
 import { buildCsvTable, csvProvenanceLines } from "./csv_export_utils.js";
 
@@ -61,18 +62,42 @@ export function createAnalysisOverlayController({
   let manualTiltKey = "";
   let manualTiltGeometry = null;
 
-  function getDefaultCenter() {
+  function getImageSize() {
     if (Array.isArray(state.shape) && state.shape.length >= 2) {
       const width = state.shape[state.shape.length - 1];
       const height = state.shape[state.shape.length - 2];
-      if (Number.isFinite(width) && Number.isFinite(height)) {
-        return { x: width / 2, y: height / 2 };
-      }
+      if (Number.isFinite(width) && Number.isFinite(height)) return { width, height };
     }
-    if (state.width && state.height) {
-      return { x: state.width / 2, y: state.height / 2 };
+    if (state.width && state.height) return { width: state.width, height: state.height };
+    return null;
+  }
+
+  function getDefaultCenter() {
+    const size = getImageSize();
+    return size ? { x: size.width / 2, y: size.height / 2 } : { x: 0, y: 0 };
+  }
+
+  // The reference material's rings that fall on the detector, or null when
+  // none is chosen. Recomputed only when what decides them changes: this runs
+  // for every redraw and every d readout.
+  let referenceKey = "";
+  let referenceGeometry = null;
+  let referenceRings = null;
+  function getReferenceRings(params) {
+    const calibrant = getCalibrant(analysisState.ringReference);
+    if (!calibrant) return null;
+    const size = getImageSize();
+    const key = [
+      calibrant.id, params.mode, params.energyEv, params.distanceMm, params.pixelSizeUm, params.centerX, params.centerY,
+      params.twoThetaDeg, size?.width, size?.height, state.pixelAspect,
+    ].join("|");
+    if (key !== referenceKey || params.geometry !== referenceGeometry) {
+      referenceKey = key;
+      referenceGeometry = params.geometry;
+      const dMin = detectorMinDSpacing(params, { ...size, pixelAspect: state.pixelAspect || 1 });
+      referenceRings = { id: calibrant.id, lines: selectReferenceRings(calibrant, dMin) };
     }
-    return { x: 0, y: 0 };
+    return referenceRings;
   }
 
   // A flat detector the user put on a 2θ arm (Data → Detector Geometry): the
@@ -142,7 +167,7 @@ export function createAnalysisOverlayController({
       );
       if (beam && Number.isFinite(beam.x) && Number.isFinite(beam.y)) marker = beam;
     }
-    return {
+    const params = {
       mode: geometryActive ? "geometry" : "planar",
       geometry: geometryActive ? ringGeometry : null,
       geometrySource: fileGeometry
@@ -159,6 +184,8 @@ export function createAnalysisOverlayController({
       centerKnown,
       rings,
     };
+    params.reference = getReferenceRings(params);
+    return params;
   }
 
   function getResolutionAtPixel(ix, iy, params = getRingParams()) {
@@ -218,7 +245,9 @@ export function createAnalysisOverlayController({
       setSummaryChip(ringsSummaryEl, t("rings.summary.missing_geometry"), "warning");
       return;
     }
-    if (!params.rings.length) {
+    // The reference material's rings count as rings shown, as the user's do.
+    const count = params.rings.length + (params.reference?.lines.length || 0);
+    if (!count) {
       setSectionBadgeState(ringsSectionStateEl, "empty", t("rings.state.no_rings"));
       setSummaryChip(ringsSummaryEl, t("rings.summary.no_rings"), "warning");
       return;
@@ -226,9 +255,9 @@ export function createAnalysisOverlayController({
     setSectionBadgeState(
       ringsSectionStateEl,
       "active",
-      t("rings.state.showing_count", { count: params.rings.length }),
+      t("rings.state.showing_count", { count }),
     );
-    setSummaryChip(ringsSummaryEl, t("rings.summary.count", { count: params.rings.length }), "active");
+    setSummaryChip(ringsSummaryEl, t("rings.summary.count", { count }), "active");
   }
 
   // Why the peak list cannot be exported, or "" when it can. The same three

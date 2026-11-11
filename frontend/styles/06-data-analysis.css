@@ -189,9 +189,48 @@
 }
 
 /* Data → Detector Geometry, and the one-line summary of it that the Rings and
-   Peak Finder sections show. */
+   Peak Finder sections show. The rows follow Data Source: the label on the
+   left, the value on the right. */
 .panel-section[data-section="detector-geometry"] {
   gap: 6px;
+  padding: 6px;
+}
+
+.panel-section[data-section="detector-geometry"] .section-title {
+  padding: 6px 8px;
+  margin: -6px -6px 0 -6px;
+  width: calc(100% + 12px);
+}
+
+.panel-section[data-section="detector-geometry"] [hidden] {
+  display: none;
+}
+
+/* What the state is, and the one thing to do about it. */
+.geometry-status-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.geometry-status-row .section-state {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+/* Missing values are a to-do, not an error: amber and quiet, not red. */
+.geometry-status-row .section-state.is-warning {
+  color: var(--muted-strong);
+  border-color: var(--tone-warning);
+  background: transparent;
+}
+
+.geometry-enter-manual {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .geometry-override-row {
@@ -199,6 +238,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-height: 24px;
 }
 
 .geometry-override-toggle {
@@ -217,8 +257,7 @@
 .geometry-override-hint {
   font-size: var(--font-size-sm);
   line-height: 1.3;
-  color: var(--muted, #9aa7b8);
-  margin-bottom: 4px;
+  color: var(--muted);
 }
 
 .geometry-override-hint.is-hidden {
@@ -232,8 +271,32 @@
   flex: 0 0 auto;
 }
 
-.panel-section[data-section="detector-geometry"] .geometry-grid {
-  margin-top: 2px;
+.geometry-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+
+.geometry-grid .field {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 2px 8px;
+  align-items: center;
+  margin: 0;
+}
+
+.geometry-grid .field > * {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.geometry-grid .field > :first-child {
+  grid-column: 1;
+  margin: 0;
+}
+
+.geometry-grid .field > .field-hint {
+  grid-column: 2;
 }
 
 /* The X and Y of a pair say which they are, filled in or not. */
@@ -250,27 +313,26 @@
   transform: translateY(-50%);
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--muted, #9aa7b8);
+  color: var(--muted);
   pointer-events: none;
 }
 
-.panel-section[data-section="detector-geometry"] .geometry-axis input {
-  padding-left: 24px;
-  padding-right: 8px;
-  /* Half-width fields: the spin arrows took a third of the width for values
-     that are typed anyway. */
+.geometry-grid input[type="number"] {
+  /* Typed, not stepped: no spinner on any field of the section, so the pairs
+     and the single values line up. */
   -moz-appearance: textfield;
   appearance: textfield;
 }
 
-.panel-section[data-section="detector-geometry"] .geometry-axis input::-webkit-outer-spin-button,
-.panel-section[data-section="detector-geometry"] .geometry-axis input::-webkit-inner-spin-button {
+.geometry-grid input[type="number"]::-webkit-outer-spin-button,
+.geometry-grid input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
 
-.panel-section[data-section="detector-geometry"] .geometry-grid {
-  gap: 6px 8px;
+.geometry-axis input {
+  padding-left: 24px;
+  padding-right: 8px;
 }
 
 .panel-section[data-section="detector-geometry"] .ring-center {
@@ -279,18 +341,61 @@
   gap: 6px;
 }
 
-/* Off: the values are the file's, shown but not editable. The section scope
-   outranks the Data tab's generic `.field input` rule. */
+/* Off: the values are the file's, shown but not editable. A solid cell, so it
+   reads as a value and not as a missing control; an empty one shows a dash.
+   The section scope outranks the Data tab's generic `.field input` rule. */
 .panel-section[data-section="detector-geometry"] .geometry-grid input[readonly] {
   background: transparent;
-  border-style: dashed;
   cursor: default;
 }
 
 /* On: what the user changed stands out from what still follows the file. */
 .panel-section[data-section="detector-geometry"] .geometry-grid input.is-overridden {
-  border-color: var(--warn, #e0a83b);
+  border-color: var(--tone-warning);
   box-shadow: 0 0 0 1px rgba(224, 168, 59, 0.25);
+}
+
+/* The geometry file: the clear button sits inside the field's right edge. */
+.geometry-file-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--control-h);
+  gap: 4px;
+  align-items: center;
+  position: relative;
+}
+
+.geometry-file-row input {
+  padding-right: 26px;
+}
+
+.geometry-file-clear {
+  position: absolute;
+  right: calc(var(--control-h) + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--font-size-xl);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.geometry-file-clear:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.geometry-file-clear:focus-visible {
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+.geometry-file-clear:disabled {
+  visibility: hidden;
 }
 
 .field-hint.is-info {
@@ -383,14 +488,18 @@
   background: rgba(229, 72, 77, 0.35);
 }
 
-.ring-presets {
+.ring-reference {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   margin-top: 6px;
   font-size: var(--font-size-md);
   color: var(--muted);
+}
+
+.ring-reference select {
+  flex: 1;
+  min-width: 0;
 }
 
 .panel-section[data-section="resolution-rings"] .ring-center {
