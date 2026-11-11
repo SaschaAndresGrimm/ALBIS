@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { COLD_BIT, DEAD_BIT, HOT_BIT, addFound, findBadPixels } from "../modules/pixel_mask_find.js";
+import { COLD_BIT, DEAD_BIT, HOT_BIT, VALUE_BIT, addFound, findBadPixels, findByValue } from "../modules/pixel_mask_find.js";
 
 // A flat image: Poisson-like noise around `level`, the same every run.
 function flat(width, height, level) {
@@ -98,8 +98,26 @@ describe("finding bad pixels", () => {
   });
 
   it("marks what was found with its own bit, leaving masked pixels alone", () => {
-    const mask = new Uint32Array([0, 0, 0, 1]);
-    expect(addFound(mask, { hot: [0, 3], dead: [1], cold: [2] })).toBe(3);
-    expect(Array.from(mask)).toEqual([HOT_BIT, DEAD_BIT, COLD_BIT, 1]);
+    const mask = new Uint32Array([0, 0, 0, 1, 0]);
+    expect(addFound(mask, { hot: [0, 3], dead: [1], cold: [2], value: [4] })).toBe(4);
+    expect(Array.from(mask)).toEqual([HOT_BIT, DEAD_BIT, COLD_BIT, 1, VALUE_BIT]);
+  });
+
+  it("finds pixels by value: exactly, at or above, at or below", () => {
+    const data = new Uint16Array([0, 5, 65535, 7, 0, 65535]);
+    const args = { data, width: 3, height: 2 };
+    expect(findByValue({ ...args, mode: "eq", limit: 0 })).toEqual([0, 4]);
+    expect(findByValue({ ...args, mode: "gte", limit: 65535 })).toEqual([2, 5]);
+    expect(findByValue({ ...args, mode: "lte", limit: 5 })).toEqual([0, 1, 4]);
+    expect(findByValue({ ...args, mode: "eq", limit: NaN })).toEqual([]);
+    // Masked pixels are left out.
+    expect(findByValue({ ...args, mask: new Uint32Array([2, 0, 0, 0, 0, 0]), mode: "eq", limit: 0 })).toEqual([4]);
+  });
+
+  it("leaves negative flags alone unless the value asked for is negative", () => {
+    const data = new Int32Array([-1, -2, 0, 3]);
+    const args = { data, width: 4, height: 1 };
+    expect(findByValue({ ...args, mode: "lte", limit: 2 })).toEqual([2]);
+    expect(findByValue({ ...args, mode: "eq", limit: -1 })).toEqual([0]);
   });
 });

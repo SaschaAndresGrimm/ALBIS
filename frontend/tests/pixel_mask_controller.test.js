@@ -51,6 +51,9 @@ function buildElements() {
     findHotSigma: Object.assign(make("input"), { value: "8" }),
     findCold: Object.assign(make("input"), { type: "checkbox", checked: true }),
     findColdPercent: Object.assign(make("input"), { value: "20" }),
+    findValue: Object.assign(make("input"), { type: "checkbox", checked: false }),
+    findValueLimit: Object.assign(make("input"), { value: "0" }),
+    findValueMode: Object.assign(make("select"), { value: "eq" }),
     findResultEl: make(),
     findAddBtn: make("button"),
     findCloseBtn: make("button"),
@@ -597,6 +600,37 @@ describe("Find bad pixels in the Pixel Mask section", () => {
     await wait(20);
     expect(elements.findResultEl.textContent).toBe("pixel_mask.find.none");
     expect(elements.findAddBtn.disabled).toBe(true);
+  });
+
+  it("masks pixels by value, and counts each pixel once", async () => {
+    const width = 64;
+    const height = 64;
+    const dataRaw = flatFrame(width, height, 1000);
+    dataRaw[5 * width + 9] = 0;
+    dataRaw[6 * width + 9] = 0;
+    dataRaw[7 * width + 9] = 65535;
+    const { controller, elements, callbacks } = setup({ state: { hasFrame: true, dataRaw, width, height } });
+    controller.setEnabled(true);
+    controller.openFind();
+    await wait(20);
+    expect(elements.findResultEl.textContent).toContain("pixel_mask.find.part.dead");
+
+    elements.findValue.checked = true;
+    elements.findValue.dispatchEvent(new Event("change"));
+    await wait(20);
+    // The zeros are now "value" pixels, no longer dead as well.
+    expect(elements.findResultEl.textContent).toContain("pixel_mask.find.part.value");
+    expect(elements.findResultEl.textContent).not.toContain("pixel_mask.find.part.dead");
+    expect(callbacks.setMarkers.mock.calls.at(-1)[0].groups[0].indices).toContain(5 * width + 9);
+
+    elements.findValueMode.value = "gte";
+    elements.findValueLimit.value = "65535";
+    elements.findValueLimit.dispatchEvent(new Event("input"));
+    await wait(300);
+    controller.addFoundToMask();
+    const pinned = controller.getPinnedMask();
+    expect(pinned.data[7 * width + 9]).toBe(0x10);
+    expect(pinned.data[5 * width + 9]).toBe(2);
   });
 
   it("needs an image", async () => {

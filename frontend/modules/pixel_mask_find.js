@@ -15,11 +15,15 @@
  *
  * This looks at a single image, so it cannot tell a hot pixel from a sharp
  * reflection one pixel wide; it is meant for flat and dark images.
+ *
+ * A third rule, findByValue, needs no statistics: every pixel at, above or
+ * below a value the user types.
  */
 
 export const DEAD_BIT = 0x2;
 export const COLD_BIT = 0x4;
 export const HOT_BIT = 0x8;
+export const VALUE_BIT = 0x10; // the user's own bit, as for pixels masked by hand
 export const BLOCK = 32;
 
 export const FIND_DEFAULTS = Object.freeze({
@@ -128,6 +132,47 @@ export async function findBadPixels({ data, width, height, mask = null, counts =
   return result;
 }
 
+const VALUE_TESTS = {
+  eq: (v, limit) => v === limit,
+  gte: (v, limit) => v >= limit,
+  lte: (v, limit) => v <= limit,
+};
+
+/**
+ * Every pixel whose value is exactly `limit` (mode "eq": zero, an overflow
+ * value), at or above it ("gte") or at or below it ("lte"). Unlike the search
+ * above this ignores the surroundings. Masked pixels and non-finite values are
+ * left out; so are the negative flags some files use, unless `limit` itself
+ * is negative.
+ */
+export function findByValue({ data, width, height, mask = null, mode = "eq", limit }) {
+  const test = VALUE_TESTS[mode];
+  const found = [];
+  if (!test || !data || !Number.isFinite(limit)) return found;
+  const n = Math.min(data.length, width * height);
+  const masked = mask && mask.length === data.length;
+  for (let i = 0; i < n; i += 1) {
+    const v = data[i];
+    if (!Number.isFinite(v) || (v < 0 && limit >= 0) || (masked && mask[i])) continue;
+    if (test(v, limit)) found.push(i);
+  }
+  return found;
+}
+
+/**
+ * Run the value rule (`on`, the typed `text`, `mode`) and put its pixels in
+ * `found.value`. A pixel it takes is dropped from hot, dead and cold, so each
+ * pixel is counted once. A blank or non-numeric `text` takes nothing.
+ */
+export function applyValueRule(found, { on, text, mode, ...image }) {
+  const trimmed = String(text ?? "").trim();
+  found.value = on && trimmed ? findByValue({ ...image, mode: mode || "eq", limit: Number(trimmed) }) : [];
+  if (!found.value.length) return found;
+  const taken = new Set(found.value);
+  for (const kind of ["hot", "dead", "cold"]) found[kind] = found[kind].filter((i) => !taken.has(i));
+  return found;
+}
+
 /** Mark what was found in `data` (a mask); returns how many pixels changed. */
 export function addFound(data, found) {
   let changed = 0;
@@ -141,5 +186,6 @@ export function addFound(data, found) {
   mark(found?.hot, HOT_BIT);
   mark(found?.dead, DEAD_BIT);
   mark(found?.cold, COLD_BIT);
+  mark(found?.value, VALUE_BIT);
   return changed;
 }
