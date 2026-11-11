@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { readAllCss } from "./stylesheets.js";
@@ -123,5 +126,38 @@ describe("style guard: rules without exceptions", () => {
     const root = rules.filter((rule) => /^:root\b/.test(rule.selector)).flatMap((rule) => rule.declarations);
     const cycles = root.filter((d) => d.prop.startsWith("--") && new RegExp(`var\\(\\s*${d.prop}\\s*[,)]`).test(d.value));
     expect(cycles.map((d) => d.prop)).toEqual([]);
+  });
+});
+
+// Containers whose dropdowns are styled as fields (border, corners, height,
+// text) by a rule of their own; `.field` is the usual one. A <select> in a
+// panel or dialog outside all of them got only the chevron: Find bad pixels'
+// "exactly / or more / or less" showed with the browser's border, square
+// corners and a larger text, the width of its row. docs/UI_GUIDE.md, Dropdowns.
+const SELECT_CONTAINERS = [".field", ".inpaint-method", ".pixel-mask-find-rules", ".browse-control", ".roi-plot-unit-row"];
+
+describe("style guard: dropdowns look like fields", () => {
+  const html = fs.readFileSync(path.join(process.cwd(), "frontend", "index.html"), "utf8");
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const selects = [...doc.querySelectorAll(".panel select, .modal select, .dialog-modal select")];
+
+  it("puts every dropdown in a panel or dialog in a container that styles it", () => {
+    expect(selects.length).toBeGreaterThan(10);
+    const bare = selects
+      .filter((select) => !SELECT_CONTAINERS.some((container) => select.closest(container)))
+      .map((select) => select.id || select.outerHTML.slice(0, 80));
+    expect(bare, "wrap it in label.field, or add its container to the shared field rule and SELECT_CONTAINERS").toEqual([]);
+  });
+
+  it("gives each of those containers' dropdowns a border of their own", () => {
+    const unstyled = SELECT_CONTAINERS.filter((container) => container !== ".field").filter(
+      (container) =>
+        !rules.some(
+          (rule) =>
+            rule.selector.split(",").some((part) => part.trim() === `${container} select`) &&
+            rule.declarations.some((d) => d.prop === "border"),
+        ),
+    );
+    expect(unstyled).toEqual([]);
   });
 });
