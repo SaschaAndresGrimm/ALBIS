@@ -720,12 +720,7 @@ core.minmaxFinder = createMinMaxFinderController({
 // The ring d-spacings: as many as wanted, the one list everything reads.
 const ringListController = createRingListController({
   analysisState,
-  elements: {
-    list: document.getElementById("ring-list"),
-    addBtn: document.getElementById("ring-add"),
-    iceBtn: document.getElementById("ring-preset-ice"),
-    clearBtn: document.getElementById("ring-clear"),
-  },
+  elements: appElements,
   callbacks: {
     onChange: () => {
       updateRingsSectionState();

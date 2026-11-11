@@ -220,8 +220,6 @@
 .toolbar-more-toggle:focus-visible,
 .toolbar-playback-btn:focus-visible,
 .series-sum-browse-btn:focus-visible,
-.rings-geometry-icon-btn:focus-visible,
-.rings-geometry-clear-btn:focus-visible,
 .log-viewer-follow-toggle:focus-visible,
 .autoload-action-btn:focus-visible {
   outline: none;

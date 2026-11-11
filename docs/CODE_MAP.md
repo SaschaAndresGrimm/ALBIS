@@ -173,7 +173,9 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
 - `frontend/modules/detector_tilt_controls.js`:
   - The Detector 2θ row of Data → Detector Geometry, made after the beam-centre field.
 - `frontend/modules/ring_geometry_utils.js`, `frontend/modules/ring_list_controller.js`, `frontend/modules/resolution_ring_interaction_controller.js`:
-  - Resolution ring geometry (including tilted and multi-panel detectors), the list of d-spacings with presets, and dragging the beam centre and rings on the canvas.
+  - Resolution ring geometry (including tilted and multi-panel detectors), the list of d-spacings with presets and the Reference menu, and dragging the beam centre and rings on the canvas.
+- `frontend/modules/calibrant_data.js`, `frontend/modules/calibrant_utils.js`:
+  - The reference materials' d-spacings and hkl, generated from pyFAI's calibrant library by `scripts/build_calibrant_data.py`, and which of their rings fall on the detector (pure).
 - `frontend/modules/geometry_params.js`, `frontend/modules/geometry_params_controller.js`, `frontend/modules/geometry_override_utils.js`:
   - The detector geometry ALBIS calculates with (the data's values and the user's override), Data → Detector Geometry, and geometry-file scoping per file or series.
 - `frontend/modules/roi_geometry_utils.js`, `frontend/modules/roi_controls_bindings.js`, `frontend/modules/roi_plot_bindings.js`:

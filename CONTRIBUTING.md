@@ -25,7 +25,8 @@ npm ci
 
 Default config uses `server.port: 0` (random free port), and the launcher opens the browser for you.
 For the backend on its own, without the browser launch, run `.venv/bin/python -m uvicorn backend.app:app`
-and open the URL Uvicorn prints.
+and open the URL Uvicorn prints. On Windows add `--timeout-graceful-shutdown 5`, or Ctrl-C can hang at
+"Shutting down" after a browser was closed mid-request.
 
 Before opening a pull request, `npm run check` runs every gate CI runs.
 
