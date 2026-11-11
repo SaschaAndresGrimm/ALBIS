@@ -178,6 +178,7 @@
 .inpaint-margin-field input[type="number"],
 .inpaint-value input[type="number"],
 .pixel-mask-find-rules input[type="number"],
+.pixel-mask-find-rules select,
 .inpaint-method select,
 .field select,
 .field input[type="number"],
@@ -195,6 +196,7 @@
 }
 
 .field select:hover,
+.pixel-mask-find-rules select:hover:not(:disabled),
 .field input[type="number"]:hover,
 .field input[type="text"]:hover,
 .range-row input:hover {
@@ -235,6 +237,7 @@ body.platform-windows select option:disabled {
 .field select:focus-visible,
 .field input[type="number"]:focus-visible,
 .pixel-mask-find-rules input[type="number"]:focus-visible,
+.pixel-mask-find-rules select:focus-visible,
 .field input[type="text"]:focus-visible,
 .range-row input:focus-visible {
   outline: none;

@@ -99,6 +99,14 @@
   -moz-appearance: textfield;
 }
 
+/* The value rule's "exactly / or more / or less": a field like the number
+   beside it, as tall, and as wide as its longest choice, not the row. */
+.pixel-mask-find-rules select {
+  justify-self: start;
+  min-height: 0;
+  padding: 3px 22px 3px 6px;
+}
+
 .pixel-mask-find-rules input[type="number"]::-webkit-inner-spin-button,
 .pixel-mask-find-rules input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
