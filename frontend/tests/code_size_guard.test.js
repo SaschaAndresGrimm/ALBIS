@@ -44,7 +44,7 @@ const LINE_BASELINE = {
   // +4 for the Resolution Rings section's Reference menu, whose options
   // ring_list_controller.js builds from calibrant_data.js; -5 for the Presets
   // row it replaced (Ice rings is now a reference, Clear sits by Add ring).
-  "frontend/index.html": 2660,
+  "frontend/index.html": 2634,
 };
 
 // The only modules that call fetch() themselves: http.js, which every other

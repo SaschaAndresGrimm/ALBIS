@@ -737,6 +737,10 @@ badge says whether they came from the metadata, are incomplete, or are manual.
 
 ![The Detector Geometry section: distance, pixel size, photon energy, beam centre and geometry file, from the metadata](images/user-guide/geometry-section.webp)
 
+A value ALBIS needs and the metadata lacks says **Not in the metadata** under
+its field, and **Enter manually** next to the status line switches the override
+on and takes you to the first of them.
+
 When the metadata is missing a value, or states a wrong one that you cannot fix
 at the detector, switch on **Override manually** and type the value in. A
 changed field is outlined, and the hint below it shows what the metadata says.

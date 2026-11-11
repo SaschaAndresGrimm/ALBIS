@@ -13,6 +13,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- **The Detector Geometry section is calmer and lines up with Data Source.** Each value is one row, with its label on the left, and the paired X/Y values (pixel size, beam centre) share a row. A value the metadata lacks now says **Not in the metadata** under its own field, and the red error banner is a quiet amber line with an **Enter manually** button that switches the override on and puts the cursor in the first missing field. The read-only values are solid, no longer dashed, so they do not look broken. **Reset to metadata** appears only while a manual value is in use, and the hint about what the override does only while it is on and empty. The geometry file's folder button is the same drawn icon as in Data Source, with a clear button inside the field in place of the text **Clear**. None of the fields has a stepper any more, so the single values and the pairs line up. They are typed, as before.
+
 - **Ice rings moved from a button to the top of the new Reference menu.** The **Ice rings** button copied the ten ice d-spacings into your ring list, where they took 10 of the 16 rings, could be dragged off their true radius, and went with **Clear**. As a reference, ice is labelled with hkl and drawn in its own colour, and your 16 rings stay yours. Choose **H₂O (ice Ih)**, directly under **None**. The Presets row is gone; **Clear** now sits next to **+ Add ring**. Ice rings you already added with the button stay in your list until you clear them.
 
 ## [0.43.0] - 2026-11-09

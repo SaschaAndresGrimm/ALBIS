@@ -8,7 +8,6 @@
  */
 
 import { applyI18nToDom } from "./i18n.js";
-import { attachNumberStepper } from "./number_stepper.js";
 
 const MARKUP = `
   <span data-i18n="geometry.two_theta.label">Detector 2θ (°)</span>
@@ -39,7 +38,6 @@ export function createDetectorTiltControls(afterField) {
   afterField.after(field);
   applyI18nToDom(field);
   const input = field.querySelector("#geometry-two-theta");
-  attachNumberStepper(input);
   return {
     field,
     input,
