@@ -135,14 +135,14 @@ describe("attachAllNumberSteppers", () => {
       <label class="field"><input id="plain" type="number" /></label>
       <input id="text" type="text" />
       <div class="pixel-mask-find-rules"><input id="rule" type="number" /></div>
-      <span class="geometry-axis"><input id="axis" type="number" /></span>`;
+      <div class="geometry-grid"><label class="field"><input id="axis" type="number" /></label></div>`;
     const wrappers = attachAllNumberSteppers(document);
     expect(wrappers).toHaveLength(2);
     const parent = (id) => document.getElementById(id).parentElement;
     expect(parent("frame").className).toBe("num-stepper num-stepper-compact");
     expect(parent("plain").className).toBe("num-stepper");
     expect(parent("rule").className).toBe("pixel-mask-find-rules");
-    expect(parent("axis").className).toBe("geometry-axis");
+    expect(parent("axis").className).toBe("field");
     expect(parent("text").tagName).toBe("BODY");
   });
 });

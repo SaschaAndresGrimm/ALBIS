@@ -110,9 +110,10 @@ export function attachNumberStepper(input, { variant = "" } = {}) {
   return wrapper;
 }
 
-// Fields that hide their spinner on purpose, for want of room: the pixel-mask
-// rules and the geometry axes, each behind a label of its own.
-const WITHOUT_STEPPER = ".pixel-mask-find-rules, .geometry-axis";
+// Fields that have no spinner on purpose: the pixel-mask rules, and the whole
+// Detector Geometry section, whose values are typed and whose pairs have no
+// room for one.
+const WITHOUT_STEPPER = ".pixel-mask-find-rules, .geometry-grid";
 
 /** Every number field under `root`, but those above; the toolbar's compact. */
 export function attachAllNumberSteppers(root = document) {

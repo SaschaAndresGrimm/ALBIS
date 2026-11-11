@@ -1,25 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-async function setup({ stored, rings } = {}) {
+async function setup({ stored, rings, storedReference } = {}) {
   vi.resetModules();
   localStorage.clear();
   if (stored !== undefined) localStorage.setItem("albis.rings", JSON.stringify(stored));
+  if (storedReference !== undefined) localStorage.setItem("albis.rings.reference", storedReference);
   globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => ({}) }));
   const i18n = await import("../modules/i18n.js");
   await i18n.initializeI18n({ backendLanguage: "en" });
   const mod = await import("../modules/ring_list_controller.js");
   document.body.innerHTML = `
-    <div id="list"></div><button id="add"></button><button id="ice"></button><button id="clear"></button>
-    <button id="outside"></button>`;
+    <div id="list"></div><button id="add"></button><button id="clear"></button>
+    <select id="reference"></select><button id="outside"></button>`;
   const analysisState = { rings: rings ?? mod.DEFAULT_RINGS.slice() };
   const onChange = vi.fn();
   const controller = mod.createRingListController({
     analysisState,
     elements: {
-      list: document.getElementById("list"),
-      addBtn: document.getElementById("add"),
-      iceBtn: document.getElementById("ice"),
-      clearBtn: document.getElementById("clear"),
+      ringList: document.getElementById("list"),
+      ringAddBtn: document.getElementById("add"),
+      ringClearBtn: document.getElementById("clear"),
+      ringReferenceSelect: document.getElementById("reference"),
     },
     callbacks: { onChange },
   });
@@ -91,10 +92,10 @@ describe("ring list", () => {
     expect(document.getElementById("clear").disabled).toBe(true);
   });
 
-  it("adds the ice rings to the ones there, without duplicates, sorted", async () => {
-    const { mod, analysisState } = await setup({ rings: [3.669, 11.01] });
-    document.getElementById("ice").click();
-    expect(analysisState.rings).toEqual([...mod.ICE_RINGS, 11.01].sort((a, b) => a - b));
+  it("sets rings from elsewhere without duplicates, sorted", async () => {
+    const { controller, analysisState } = await setup({ rings: [3.669, 11.01] });
+    controller.setRings([11.01, 3.897, 3.669, 3.6695]);
+    expect(analysisState.rings).toEqual([3.669, 3.897, 11.01]);
   });
 
   it("stops at the maximum number of rings", async () => {
@@ -118,5 +119,59 @@ describe("ring list", () => {
     controller.setRingValue(1, 9.87654);
     expect(analysisState.rings).toEqual([3.67, 9.877]);
     expect(fields()[2].value).toBe("9.877");
+  });
+  describe("reference material", () => {
+    const select = () => document.getElementById("reference");
+    const choose = (id) => {
+      select().value = id;
+      select().dispatchEvent(new Event("change", { bubbles: true }));
+    };
+
+    it("starts at None, and lists every material under its group", async () => {
+      const { analysisState } = await setup();
+      const { CALIBRANTS, CALIBRANT_GROUPS } = await import("../modules/calibrant_data.js");
+      expect(analysisState.ringReference).toBe("");
+      expect(select().value).toBe("");
+      const groups = Array.from(select().querySelectorAll("optgroup"));
+      expect(groups).toHaveLength(CALIBRANT_GROUPS.length);
+      // Ice first, under None and above the groups, where it is one click away.
+      const options = Array.from(select().options).map((option) => option.value);
+      expect(options.slice(0, 2)).toEqual(["", "ice_Ih"]);
+      expect(options).toHaveLength(CALIBRANTS.length + 1);
+      expect(groups[0].querySelector("option").value).toBe("Si");
+    });
+
+    it("draws the chosen material and remembers it, leaving the ring list alone", async () => {
+      const { analysisState, onChange } = await setup();
+      choose("Al");
+      expect(analysisState.ringReference).toBe("Al");
+      expect(onChange).toHaveBeenCalledTimes(1);
+      expect(localStorage.getItem("albis.rings.reference")).toBe("Al");
+      expect(analysisState.rings).toEqual([1, 3.67, 11.01]);
+      document.getElementById("clear").click();
+      expect(analysisState.ringReference).toBe("Al");
+    });
+
+    it("comes back after a reload, and ignores a material it does not know", async () => {
+      let { analysisState } = await setup({ storedReference: "LaB6" });
+      expect(analysisState.ringReference).toBe("LaB6");
+      expect(select().value).toBe("LaB6");
+      ({ analysisState } = await setup({ storedReference: "unobtainium" }));
+      expect(analysisState.ringReference).toBe("");
+    });
+
+    it("keeps the choice when the menu is rebuilt for another language", async () => {
+      const { controller } = await setup();
+      choose("CeO2");
+      controller.refresh();
+      expect(select().value).toBe("CeO2");
+    });
+
+    it("turns off with None", async () => {
+      const { analysisState } = await setup({ storedReference: "Si" });
+      choose("");
+      expect(analysisState.ringReference).toBe("");
+      expect(localStorage.getItem("albis.rings.reference")).toBe("");
+    });
   });
 });

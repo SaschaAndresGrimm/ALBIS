@@ -91,6 +91,8 @@ export function createGeometryParamsController({
     geometryStatusEl,
     inlineSummaries = [],
   } = elements;
+  const enterManualButton =
+    overrideToggle?.closest("section")?.querySelector("[data-geometry-enter-manual]") || null;
 
   const {
     onParamsChanged,
@@ -280,12 +282,12 @@ export function createGeometryParamsController({
 
   // ---- rendering -----------------------------------------------------------
 
-  function showHint(hintEl, inputEls, message, { isInvalid = false } = {}) {
+  function showHint(hintEl, inputEls, message, { isInvalid = false, isMissing = false } = {}) {
     inputEls.filter(Boolean).forEach((el) => el.classList.toggle("is-invalid", isInvalid));
     if (!hintEl) return;
     hintEl.textContent = message || "";
     hintEl.classList.toggle("is-hidden", !message);
-    hintEl.classList.toggle("is-info", Boolean(message) && !isInvalid);
+    hintEl.classList.toggle("is-info", Boolean(message) && !isInvalid && !isMissing);
   }
 
   function sourceText(keys) {
@@ -303,10 +305,16 @@ export function createGeometryParamsController({
       showHint(hintEl, inputEls, t(VALIDATION_KEYS[badKey]), { isInvalid: true });
       return;
     }
-    // Only an overridden field needs a line of its own, to say what the
-    // metadata had. A value the metadata lacks shows as "—" in the field.
+    // An overridden field says what the metadata had.
     const overridden = keys.some((key) => resolved.origins[key] === "override");
-    showHint(hintEl, inputEls, overridden ? sourceText(keys) : "");
+    if (overridden) {
+      showHint(hintEl, inputEls, sourceText(keys));
+      return;
+    }
+    // A value ALBIS needs and the file lacks says so on its own row.
+    const required = requiredKeys();
+    const missing = hasSource() && keys.some((key) => required.includes(key) && resolved.values[key] === null);
+    showHint(hintEl, inputEls, missing ? t("geometry.field.not_in_metadata") : "", { isMissing: missing });
   }
 
   function hasSource() {
@@ -397,21 +405,26 @@ export function createGeometryParamsController({
     geometryStatusEl.classList.remove("is-hidden");
   }
 
-  function missingRequired() {
-    const values = resolved.values;
+  /** The values ALBIS cannot work without: a geometry file states most of them itself. */
+  function requiredKeys() {
     const geometryActive = analysisState.ringMode === "geometry" && analysisState.ringGeometry;
-    const required = geometryActive
-      ? ["energyEv"]
-      : ["distanceMm", "pixelSizeXUm", "energyEv", "centerX", "centerY"];
-    return required.some((key) => values[key] === null);
+    return geometryActive ? ["energyEv"] : ["distanceMm", "pixelSizeXUm", "energyEv", "centerX", "centerY"];
+  }
+
+  function missingRequired() {
+    return requiredKeys().some((key) => resolved.values[key] === null);
   }
 
   function renderState() {
     if (overrideToggle) overrideToggle.checked = override().enabled;
-    // What the switch does is worth saying while it is off; once it is on,
-    // the state line above says the same thing.
-    overrideHint?.classList.toggle("is-hidden", override().enabled);
-    if (resetButton) resetButton.disabled = !overrideInEffect();
+    // What a switched-on override does is worth saying until a value is
+    // entered; from then on the state line says the same thing.
+    overrideHint?.classList.toggle("is-hidden", !override().enabled || overrideInEffect());
+    // Reset and the shortcut to the override only show while they can act.
+    if (resetButton) resetButton.hidden = !overrideInEffect();
+    if (enterManualButton) {
+      enterManualButton.hidden = override().enabled || !hasSource() || !missingRequired();
+    }
     if (overrideInEffect()) {
       setSectionBadgeState?.(sectionStateEl, "active", t("geometry.state.override"));
       setSummaryChip?.(summaryChipEl, t("geometry.summary.override"), "warning");
@@ -506,6 +519,11 @@ export function createGeometryParamsController({
   directionSelect?.addEventListener("change", () => setTwoThetaDirection(directionSelect.value));
   overrideToggle?.addEventListener("change", () => setOverrideEnabled(overrideToggle.checked));
   resetButton?.addEventListener("click", () => resetOverride());
+  enterManualButton?.addEventListener("click", () => {
+    setOverrideEnabled(true);
+    const firstMissing = requiredKeys().find((key) => resolved.values[key] === null);
+    inputs[firstMissing]?.focus({ preventScroll: true });
+  });
 
   function applyPickedGeometryFile(path) {
     const picked = String(path || "").trim();

@@ -36,6 +36,10 @@ function buildElements() {
     <button data-geometry-edit></button>`;
   const overrideToggle = input();
   overrideToggle.type = "checkbox";
+  const section = document.createElement("section");
+  const enterManual = document.createElement("button");
+  enterManual.setAttribute("data-geometry-enter-manual", "");
+  section.append(overrideToggle, enterManual);
   return {
     sectionStateEl: div(),
     summaryChipEl: div(),
@@ -167,9 +171,12 @@ describe("geometry_params_controller", () => {
     controller.setSource({ energyEv: 8048 }, "image");
 
     expect(elements.summaryChipEl.textContent).toBe("Incomplete");
-    // A missing value shows as "—" in its field, so it needs no hint line.
+    // A missing value shows as "—" in its field and says so on its own row.
     expect(elements.inputs.distanceMm.value).toBe("");
-    expect(elements.hints.distanceMm.classList.contains("is-hidden")).toBe(true);
+    expect(elements.hints.distanceMm.textContent).toBe("Not in the metadata");
+    expect(elements.hints.distanceMm.classList.contains("is-info")).toBe(false);
+    // What the file does state needs no line.
+    expect(elements.hints.energyEv.classList.contains("is-hidden")).toBe(true);
 
     controller.setOverrideValues({ distanceMm: 120, pixelSizeXUm: 75, centerX: 500, centerY: 510 });
     expect(analysisState.distanceMm).toBe(120);
@@ -177,13 +184,46 @@ describe("geometry_params_controller", () => {
     expect(analysisState.pixelSizeYUm).toBe(75);
   });
 
-  it("says what the switch does only while it is off", async () => {
+  it("says what the switch does only once it is on and nothing is entered yet", async () => {
     const { controller, elements } = await setup();
     controller.setSource(HEADER, "image");
-    expect(elements.overrideHint.classList.contains("is-hidden")).toBe(false);
+    expect(elements.overrideHint.classList.contains("is-hidden")).toBe(true);
 
     controller.setOverrideEnabled(true);
+    expect(elements.overrideHint.classList.contains("is-hidden")).toBe(false);
+
+    // From the first value on, the state line says it.
+    controller.setOverrideValues({ distanceMm: 305 });
     expect(elements.overrideHint.classList.contains("is-hidden")).toBe(true);
+  });
+
+  it("shows Reset only while an override is in effect", async () => {
+    const { controller, elements } = await setup();
+    controller.setSource(HEADER, "image");
+    expect(elements.resetButton.hidden).toBe(true);
+
+    controller.setOverrideValues({ distanceMm: 305 });
+    expect(elements.resetButton.hidden).toBe(false);
+
+    controller.resetOverride();
+    expect(elements.resetButton.hidden).toBe(true);
+  });
+
+  it("offers to enter missing values by hand, and takes you to the first one", async () => {
+    const { controller, elements } = await setup();
+    const button = elements.overrideToggle.parentElement.querySelector("[data-geometry-enter-manual]");
+    document.body.append(elements.overrideToggle.parentElement);
+    document.body.append(elements.inputs.distanceMm);
+    controller.setSource(HEADER, "image");
+    expect(button.hidden).toBe(true);
+
+    controller.setSource({ energyEv: 8048 }, "image");
+    expect(button.hidden).toBe(false);
+
+    button.click();
+    expect(elements.overrideToggle.checked).toBe(true);
+    expect(button.hidden).toBe(true);
+    expect(document.activeElement).toBe(elements.inputs.distanceMm);
   });
 
   it("says the metadata has nothing when an overridden value had no counterpart", async () => {

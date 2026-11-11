@@ -278,6 +278,7 @@ export function createOverlayRenderController({
       Number.isFinite(params.centerX) ? Number(params.centerX).toFixed(4) : "",
       Number.isFinite(params.centerY) ? Number(params.centerY).toFixed(4) : "",
       params.rings.map((value) => Number(value).toFixed(6)).join(","),
+      (params.reference?.lines || []).map((line) => Number(line.d).toFixed(6)).join(","),
     ].join("|");
   }
 

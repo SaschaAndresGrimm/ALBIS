@@ -1,7 +1,7 @@
 /**
  * The Resolution Rings section's list of d-spacings: as many rings as the
  * user wants, up to MAX_RINGS, each a field with a remove button, plus Add
- * ring and the presets.
+ * ring and Clear.
  *
  * `analysisState.rings` is the one source of truth -- the valid values, in the
  * list's order -- and everything that draws or drags rings reads it by index.
@@ -11,17 +11,26 @@
  * The list is sorted by d, and drafts dropped, when focus leaves it rather
  * than on every keystroke, so nothing moves under the cursor. It is kept in
  * localStorage, like the sections' open state, so the rings outlast a reload.
+ *
+ * Beside the list, the Reference menu picks a material (ice, a calibrant, a
+ * metal) whose rings are drawn as a set of their own: `analysisState.ringReference`
+ * holds its id, or "" for none. Those rings are not part of the list -- they
+ * cannot be dragged, Clear leaves them, and they do not count against
+ * MAX_RINGS. The choice is kept in localStorage too, which a new window shares.
+ * Ice used to be a preset that copied its d-spacings into the list; as a
+ * reference it is labelled with hkl, cannot be dragged off its true radius,
+ * and leaves all 16 rings to the user.
  */
 
 import { t } from "./i18n.js";
 import { attachNumberStepper } from "./number_stepper.js";
+import { CALIBRANTS, CALIBRANT_GROUPS } from "./calibrant_data.js";
+import { getCalibrant } from "./calibrant_utils.js";
 
 export const MAX_RINGS = 16;
 export const DEFAULT_RINGS = [1.0, 3.67, 11.01];
 const STORAGE_KEY = "albis.rings";
-
-/** Hexagonal ice (Ih) d-spacings in Å: the rings ice puts on a diffraction image. */
-export const ICE_RINGS = [3.897, 3.669, 3.441, 2.671, 2.249, 2.072, 1.948, 1.918, 1.883, 1.721];
+const REFERENCE_STORAGE_KEY = "albis.rings.reference";
 
 export function parseRing(raw) {
   const text = String(raw ?? "").trim();
@@ -58,8 +67,58 @@ function store(rings) {
   }
 }
 
+function readStoredReference() {
+  try {
+    const id = window.localStorage?.getItem(REFERENCE_STORAGE_KEY) || "";
+    return getCalibrant(id) ? id : "";
+  } catch {
+    return "";
+  }
+}
+
+function storeReference(id) {
+  try {
+    window.localStorage?.setItem(REFERENCE_STORAGE_KEY, id);
+  } catch {
+    // The menu then starts at None after a reload.
+  }
+}
+
+function calibrantOption(calibrant) {
+  const option = document.createElement("option");
+  option.value = calibrant.id;
+  option.textContent = calibrant.label;
+  if (calibrant.ref) option.title = calibrant.ref;
+  return option;
+}
+
+/**
+ * The Reference menu's options: None, the materials in no group (ice, the
+ * one most often wanted, where the Ice rings button used to be one click),
+ * then each group of materials.
+ */
+function renderReferenceOptions(select, selectedId) {
+  const none = document.createElement("option");
+  none.value = "";
+  none.textContent = t("common.none");
+  const top = CALIBRANTS.filter((entry) => !entry.group).map(calibrantOption);
+  const groups = CALIBRANT_GROUPS.map((group) => {
+    const optgroup = document.createElement("optgroup");
+    optgroup.label = t(`rings.reference.group.${group}`);
+    optgroup.append(...CALIBRANTS.filter((entry) => entry.group === group).map(calibrantOption));
+    return optgroup;
+  });
+  select.replaceChildren(none, ...top, ...groups);
+  select.value = selectedId;
+}
+
 export function createRingListController({ analysisState, elements, callbacks = {} }) {
-  const { list, addBtn, iceBtn, clearBtn } = elements;
+  const {
+    ringList: list,
+    ringAddBtn: addBtn,
+    ringClearBtn: clearBtn,
+    ringReferenceSelect: referenceSelect,
+  } = elements;
   const { onChange } = callbacks;
 
   // What the fields hold, drafts included.
@@ -161,13 +220,27 @@ export function createRingListController({ analysisState, elements, callbacks = 
       commit();
     }
   });
+  /** The material whose rings are drawn, by id; "" or an unknown id for none. */
+  function setReference(id) {
+    analysisState.ringReference = getCalibrant(id) ? id : "";
+    if (referenceSelect) referenceSelect.value = analysisState.ringReference;
+    storeReference(analysisState.ringReference);
+    onChange?.();
+  }
+
+  referenceSelect?.addEventListener("change", () => setReference(referenceSelect.value));
   addBtn?.addEventListener("click", addRing);
-  iceBtn?.addEventListener("click", () => setRings([...entries, ...ICE_RINGS]));
   clearBtn?.addEventListener("click", () => setRings([]));
 
   // Values only: what draws the rings may not exist yet when this is created.
-  render();
+  analysisState.ringReference = readStoredReference();
+  // The menu's group names are translated: rebuilt with the list on a refresh.
+  function refresh() {
+    if (referenceSelect) renderReferenceOptions(referenceSelect, analysisState.ringReference);
+    render();
+  }
+  refresh();
   publish(false);
 
-  return { setRings, setRingValue, commit, refresh: render };
+  return { setRings, setRingValue, setReference, commit, refresh };
 }
