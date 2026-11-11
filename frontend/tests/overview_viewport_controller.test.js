@@ -79,6 +79,9 @@ async function createController({
   if (panelRect) {
     toolsPanel = document.createElement("div");
     toolsPanel.style.position = "absolute";
+    // In the document, as the real panel is: jsdom 31 gives a detached
+    // element an empty computed style, which would read as a docked panel.
+    document.body.append(toolsPanel);
     toolsPanel.getBoundingClientRect = () => ({ ...panelRect, width: panelRect.right - panelRect.left });
   }
   let appChrome = null;
