@@ -139,23 +139,33 @@ const VALUE_TESTS = {
 };
 
 /**
+ * Whether pixel `i` passes the value rule, or null for a rule that takes
+ * nothing. One test, shared by the search and by the clean-up after it, so the
+ * two cannot disagree. Masked pixels and non-finite values never pass; nor do
+ * the negative flags some files use, unless `limit` itself is negative.
+ */
+function valueMatcher({ data, mask = null, mode = "eq", limit }) {
+  const test = VALUE_TESTS[mode];
+  if (!test || !data || !Number.isFinite(limit)) return null;
+  const masked = mask && mask.length === data.length;
+  return (i) => {
+    const v = data[i];
+    if (!Number.isFinite(v) || (v < 0 && limit >= 0) || (masked && mask[i])) return false;
+    return test(v, limit);
+  };
+}
+
+/**
  * Every pixel whose value is exactly `limit` (mode "eq": zero, an overflow
  * value), at or above it ("gte") or at or below it ("lte"). Unlike the search
- * above this ignores the surroundings. Masked pixels and non-finite values are
- * left out; so are the negative flags some files use, unless `limit` itself
- * is negative.
+ * above this ignores the surroundings.
  */
 export function findByValue({ data, width, height, mask = null, mode = "eq", limit }) {
-  const test = VALUE_TESTS[mode];
+  const matches = valueMatcher({ data, mask, mode, limit });
   const found = [];
-  if (!test || !data || !Number.isFinite(limit)) return found;
+  if (!matches) return found;
   const n = Math.min(data.length, width * height);
-  const masked = mask && mask.length === data.length;
-  for (let i = 0; i < n; i += 1) {
-    const v = data[i];
-    if (!Number.isFinite(v) || (v < 0 && limit >= 0) || (masked && mask[i])) continue;
-    if (test(v, limit)) found.push(i);
-  }
+  for (let i = 0; i < n; i += 1) if (matches(i)) found.push(i);
   return found;
 }
 
@@ -163,13 +173,19 @@ export function findByValue({ data, width, height, mask = null, mode = "eq", lim
  * Run the value rule (`on`, the typed `text`, `mode`) and put its pixels in
  * `found.value`. A pixel it takes is dropped from hot, dead and cold, so each
  * pixel is counted once. A blank or non-numeric `text` takes nothing.
+ *
+ * The drop asks the rule again of each hot, dead and cold pixel -- a few
+ * thousand -- rather than looking them up in a set of what the rule took: that
+ * can be every pixel of the image, and a Set holds at most 2^24 (an EIGER2 16M
+ * frame has 18 million pixels).
  */
 export function applyValueRule(found, { on, text, mode, ...image }) {
   const trimmed = String(text ?? "").trim();
-  found.value = on && trimmed ? findByValue({ ...image, mode: mode || "eq", limit: Number(trimmed) }) : [];
+  const rule = { ...image, mode: mode || "eq", limit: Number(trimmed) };
+  found.value = on && trimmed ? findByValue(rule) : [];
   if (!found.value.length) return found;
-  const taken = new Set(found.value);
-  for (const kind of ["hot", "dead", "cold"]) found[kind] = found[kind].filter((i) => !taken.has(i));
+  const matches = valueMatcher(rule);
+  for (const kind of ["hot", "dead", "cold"]) found[kind] = found[kind].filter((i) => !matches(i));
   return found;
 }
 

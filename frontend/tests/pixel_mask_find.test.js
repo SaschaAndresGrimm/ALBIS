@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { COLD_BIT, DEAD_BIT, HOT_BIT, VALUE_BIT, addFound, findBadPixels, findByValue } from "../modules/pixel_mask_find.js";
+import {
+  COLD_BIT,
+  DEAD_BIT,
+  HOT_BIT,
+  VALUE_BIT,
+  addFound,
+  applyValueRule,
+  findBadPixels,
+  findByValue,
+} from "../modules/pixel_mask_find.js";
 
 // A flat image: Poisson-like noise around `level`, the same every run.
 function flat(width, height, level) {
@@ -112,6 +121,28 @@ describe("finding bad pixels", () => {
     expect(findByValue({ ...args, mode: "eq", limit: NaN })).toEqual([]);
     // Masked pixels are left out.
     expect(findByValue({ ...args, mask: new Uint32Array([2, 0, 0, 0, 0, 0]), mode: "eq", limit: 0 })).toEqual([4]);
+  });
+
+  it("drops what the value rule took from hot, dead and cold, and only that", () => {
+    const data = new Uint32Array([0, 9, 70000, 3, 0, 65535]);
+    const found = { hot: [2, 5], dead: [0, 4], cold: [3] };
+    applyValueRule(found, { on: true, text: " 0 ", mode: "eq", data, width: 3, height: 2 });
+    expect(found).toEqual({ hot: [2, 5], dead: [], cold: [3], value: [0, 4] });
+
+    const off = { hot: [2], dead: [0], cold: [] };
+    applyValueRule(off, { on: false, text: "0", mode: "eq", data, width: 3, height: 2 });
+    expect(off).toEqual({ hot: [2], dead: [0], cold: [], value: [] });
+  });
+
+  it("takes every pixel of a frame larger than a Set can hold", () => {
+    // 4097 x 4097 is past 2^24 pixels, the most a Set holds; an EIGER2 16M
+    // frame (4148 x 4362) is too. The rule used to collect its pixels in one.
+    const width = 4097;
+    const data = new Uint8Array(width * width).fill(1);
+    const found = { hot: [7], dead: [], cold: [] };
+    applyValueRule(found, { on: true, text: "0", mode: "gte", data, width, height: width });
+    expect(found.value).toHaveLength(width * width);
+    expect(found.hot).toEqual([]);
   });
 
   it("leaves negative flags alone unless the value asked for is negative", () => {
