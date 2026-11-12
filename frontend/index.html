@@ -441,6 +441,7 @@
         </main>
 
         <aside class="panel is-collapsed" id="side-panel">
+          <script>/* The stored panel state before the first paint, or the image resizes once app.js loads; panel_layout_controller.js applies it again. */ (() => { try { const open = localStorage.getItem("albis.panelCollapsed") === "false"; document.body.classList.toggle("panel-collapsed", !open); if (!open || !matchMedia("(pointer: fine), (min-width: 768px)").matches) return; const width = Number(localStorage.getItem("albis.panelWidth")) || 440; document.currentScript.parentElement.classList.remove("is-collapsed"); document.documentElement.style.setProperty("--panel-width", `${Math.max(220, Math.min(900, innerWidth - 24, width))}px`); } catch { /* no storage: the controller decides */ } })();</script>
           <div class="panel-sheet-handle" id="panel-sheet-handle" aria-hidden="true">
             <span class="panel-sheet-grip"></span>
           </div>
@@ -1847,11 +1848,8 @@
           <div class="about-banner">
             <div class="about-wordmark" aria-hidden="true">ALBIS</div>
           </div>
-          <p class="about-lead" data-i18n="about.lead">
-            ALBIS is a free, open-source viewer for DECTRIS detector data, in the style of ALBULA. It opens HDF5 stacks, TIFF, CBF, EDF and MYTHEN acquisitions, follows a running experiment live, and runs on your own computer or on the machine that holds the data, viewed from a browser elsewhere.
-          </p>
+          <p class="about-lead" data-i18n="about.lead">ALBIS is a free, open-source viewer for DECTRIS detector data, in the style of ALBULA. It opens HDF5 stacks, TIFF, CBF, EDF and MYTHEN acquisitions, follows a running experiment live, and runs on your own computer or on the machine that holds the data, viewed from a browser elsewhere.</p>
           <p id="about-version" class="about-version">Version -</p>
-          <button class="btn btn-secondary about-copy-build" id="about-copy-build" type="button" data-i18n="toolbar.footer.copy_build">Copy build info</button>
           <div class="about-facts">
             <div class="about-fact"><span data-i18n="about.fact.author">Author</span><strong>Sascha Andres Grimm</strong><em class="about-fact-sub">DECTRIS AG</em></div>
             <div class="about-fact"><span data-i18n="about.fact.rendering">Rendering</span><strong>WebGL2 + CPU fallback</strong></div>
@@ -1860,13 +1858,14 @@
             <div class="about-fact"><span data-i18n="about.fact.licence">Licence</span><strong>MIT</strong></div>
             <div class="about-fact"><span data-i18n="about.fact.citation">Cite as</span><strong><a class="about-doi-link" href="https://doi.org/10.5281/zenodo.22046648" target="_blank" rel="noopener">10.5281/zenodo.22046648</a></strong></div>
           </div>
-          <a class="about-repo-link" href="https://github.com/SaschaAndresGrimm/ALBIS" target="_blank" rel="noopener" data-i18n="about.repo_link">
-            Open ALBIS on GitHub
-          </a>
+        </div>
+        <div class="modal-footer about-modal-footer">
           <a class="about-dectris" href="https://www.dectris.com" target="_blank" rel="noopener">
             <img src="assets/dectris_logo.svg" alt="DECTRIS" width="120" height="14" />
           </a>
           <p class="about-copyright">© 2026 Sascha Andres Grimm and DECTRIS AG</p>
+          <button class="btn btn-secondary about-copy-build" id="about-copy-build" type="button" data-i18n="toolbar.footer.copy_build">Copy build info</button>
+          <a class="btn btn-secondary about-repo-link" href="https://github.com/SaschaAndresGrimm/ALBIS" target="_blank" rel="noopener" data-i18n-aria-label="about.repo_link" data-i18n-title="about.repo_link" aria-label="Open ALBIS on GitHub" title="Open ALBIS on GitHub"></a>
         </div>
       </div>
     </div>
