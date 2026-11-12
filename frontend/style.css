@@ -97,7 +97,7 @@
   --motion-ease-emphasized: cubic-bezier(0.2, 0.8, 0.2, 1);
   --overlay-anchor-top: 62px;
   --overlay-gutter: 12px;
-  /* The workspace layout (styles/18-workspace.css): one header row, a docked
+  /* The workspace layout (styles/19-workspace.css): one header row, a docked
      side panel, a timeline and a status strip around the image. Flat
      surfaces told apart by tone and hairlines, not by gradients and glows. */
   --ws-header-h: 40px;
@@ -312,7 +312,7 @@ optgroup {
 
 /* Touch screens: the phone's bottom sheet spans the width, a tablet's panel
    is 360px. The rest of the phone layout is in 04-panel.css (.is-mobile-sheet);
-   the docked desktop layout is in styles/18-workspace.css. */
+   the docked desktop layout is in styles/19-workspace.css. */
 @media (hover: none) and (pointer: coarse) {
   :root {
     --panel-width: 100vw;

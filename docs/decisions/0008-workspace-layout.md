@@ -23,7 +23,7 @@ gave:
 ## Decision
 
 Keep `body.canvas-first` and its controllers, and override its layout in one
-stylesheet, `styles/18-workspace.css`, the last in the cascade:
+stylesheet, `styles/19-workspace.css`, the last in the cascade:
 
 - One header row of `--ws-header-h`: the menus, the file and frame
   (`#toolbar-path`, hidden before), the view tools and the panel toggle
