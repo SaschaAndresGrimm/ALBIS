@@ -1557,7 +1557,6 @@
   "toolbar.play.stop_live_title": "Dejar de seguir la transmisión en vivo",
   "toolbar.play.toggle": "Reproducir o pausar",
   "toolbar.playback.closed": "Reproducción ▾",
-  "toolbar.playback.export_gif": "Exportar GIF...",
   "toolbar.playback.fps_option": "{{value}} fps",
   "toolbar.playback.open": "Reproducción ▴",
   "toolbar.playback.options": "Opciones de reproducción",

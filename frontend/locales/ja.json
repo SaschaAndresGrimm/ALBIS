@@ -1557,7 +1557,6 @@
   "toolbar.play.stop_live_title": "ライブストリームの追従を停止",
   "toolbar.play.toggle": "再生/一時停止",
   "toolbar.playback.closed": "再生 ▾",
-  "toolbar.playback.export_gif": "GIF をエクスポート...",
   "toolbar.playback.fps_option": "{{value}} フレーム/秒",
   "toolbar.playback.open": "再生 ▴",
   "toolbar.playback.options": "再生オプション",

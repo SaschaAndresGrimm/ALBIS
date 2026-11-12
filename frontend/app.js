@@ -167,7 +167,7 @@ const appElements = queryAppElements();
 // The elements app.js works with itself; controllers get them all as
 // `...appElements` and take what they need.
 const {
-  datasetSelect, thresholdSelect, toolbarThresholdSelect, toolbarPlaybackToggle, toolbarPlaybackPopover,
+  datasetSelect, thresholdSelect, toolbarThresholdSelect,
   toolbarMoreStep, toolbarMoreFps, viewerSyncWrap, viewerSyncToggle, viewerSyncOptionsToggle,
   viewerSyncPopover, viewerSyncPositionToggle, viewerSyncContrastToggle, viewerSyncRoiToggle, frameRange,
   frameIndex, frameStep, fpsSelect, autoScaleToggle, minInput, maxInput, statusEl, loadingEl, metaRenderer,
@@ -194,7 +194,7 @@ const {
   animationExportOverlaysField, animationExportPixelValues, animationExportPixelValuesField,
   animationExportOverlaysHint, animationExportPixelValuesHint, animationExportSummary,
   animationExportProgress, animationExportProgressFill, animationExportProgressText, animationExportStart,
-  animationExportCancel, toolbarPlaybackExportGif, settingsModal, settingsLanguage, fileInput, uploadBar,
+  animationExportCancel, settingsModal, settingsLanguage, fileInput, uploadBar,
   uploadBarFill, uploadBarText, commandModal, browseModal, maskEditBar,
 } = appElements;
 const splashHint = document.querySelector(".splash-hint");
@@ -1045,17 +1045,7 @@ function syncFileCommandAvailability() {
   // children are, so it greys out with them rather than opening a submenu of
   // three disabled entries.
   setControlAvailability(saveAsParent, fileCommandUnavailableReason("save-full"));
-  // The playback popover's GIF button is the one entry point outside the menu
-  // that can be greyed out the same way.
-  setControlAvailability(toolbarPlaybackExportGif, fileCommandUnavailableReason("export-animation"));
 }
-
-toolbarPlaybackExportGif?.addEventListener("click", () => {
-  // Collapse the playback popover before raising the modal on top of it.
-  toolbarPlaybackPopover?.setAttribute("aria-hidden", "true");
-  toolbarPlaybackToggle?.setAttribute("aria-expanded", "false");
-  openAnimationExportDialog();
-});
 
 function setLoading(show) {
   if (!loadingEl) return;

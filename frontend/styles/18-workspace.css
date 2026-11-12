@@ -587,13 +587,40 @@
 
   /* ---- Start screen: recent files under "Open file" --------------------- */
 
+  /* Clear of the status strip, which lies over the bottom of the viewer. */
+  body.canvas-first .splash {
+    padding-bottom: calc(var(--ws-status-h) + var(--space-wide));
+  }
+
+  /* With a list under it, the artwork gives up height so that the list fits
+     on a laptop screen instead of running under the status strip. */
+  body.canvas-first .splash:has(.splash-recent:not([hidden])) {
+    gap: var(--space-base);
+  }
+
+  /* Scaled as a whole, by height, so the picture shrinks rather than being
+     cropped: cropped, the DECTRIS wordmark was cut off on a 720px screen. */
+  body.canvas-first .splash:has(.splash-recent:not([hidden])) .splash-art {
+    width: auto;
+    height: clamp(120px, calc(100vh - var(--ws-header-h) - var(--ws-status-h) - 400px), 68vh);
+    max-width: min(960px, 86vw);
+    flex: 0 0 auto;
+  }
+
+  /* The file has nothing to show while the start screen is up -- after a
+     failed open it still named the file beside "File not found". */
+  body.canvas-first:has(#splash:not(.is-hidden)) .toolbar-path {
+    visibility: hidden;
+  }
+
   .splash-recent {
     display: grid;
-    gap: 2px;
-    width: min(360px, 80vw);
+    gap: 0;
+    width: min(560px, 86vw);
     margin-top: var(--space-wide);
     letter-spacing: normal;
     text-align: left;
+    text-shadow: none;
   }
 
   .splash-recent[hidden] {
@@ -609,18 +636,24 @@
     letter-spacing: 0.06em;
   }
 
+  /* Name on the left, its folder in a right-aligned column, one line each:
+     long names are cut with an ellipsis, the full path is the tooltip. */
   .splash-recent-item {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, max-content);
     align-items: baseline;
-    gap: var(--space-tight);
+    gap: var(--space-wide);
     min-height: 30px;
-    padding: 4px var(--space-tight);
+    padding: 5px var(--space-tight);
     border: none;
     border-radius: var(--radius-md);
     background: transparent;
     color: var(--text);
     font-size: var(--font-size-lg);
+    font-weight: 400;
+    letter-spacing: normal;
     text-align: left;
+    text-shadow: none;
     cursor: pointer;
   }
 
@@ -633,7 +666,8 @@
     box-shadow: var(--focus-ring);
   }
 
-  .splash-recent-item .recent-file-name {
+  .splash-recent-item .recent-file-name,
+  .splash-recent-folder {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -641,14 +675,10 @@
   }
 
   .splash-recent-folder {
-    margin-left: auto;
-    flex: 0 1 auto;
-    min-width: 0;
-    overflow: hidden;
+    max-width: 22ch;
     color: var(--muted);
     font-size: var(--font-size-sm);
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    text-align: right;
   }
 
   /* ---- Dialogs: flat card, header and footer split by hairlines ---------- */

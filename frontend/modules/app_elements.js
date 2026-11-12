@@ -444,7 +444,6 @@ export function queryAppElements(doc = document) {
     animationExportProgressText: byId("animation-export-progress-text"),
     animationExportStart: byId("animation-export-start"),
     animationExportCancel: byId("animation-export-cancel"),
-    toolbarPlaybackExportGif: byId("toolbar-playback-export-gif"),
     settingsModal: byId("settings-modal"),
     settingsClose: byId("settings-close"),
     settingsCancel: byId("settings-cancel"),

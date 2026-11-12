@@ -1557,7 +1557,6 @@
   "toolbar.play.stop_live_title": "Sluta följa liveströmmen",
   "toolbar.play.toggle": "Spela eller pausa",
   "toolbar.playback.closed": "Uppspelning ▾",
-  "toolbar.playback.export_gif": "Exportera GIF...",
   "toolbar.playback.fps_option": "{{value}} fps",
   "toolbar.playback.open": "Uppspelning ▴",
   "toolbar.playback.options": "Uppspelningsalternativ",

@@ -1557,7 +1557,6 @@
   "toolbar.play.stop_live_title": "停止跟随实时流",
   "toolbar.play.toggle": "播放或暂停",
   "toolbar.playback.closed": "播放 ▾",
-  "toolbar.playback.export_gif": "导出 GIF...",
   "toolbar.playback.fps_option": "{{value}} 帧/秒",
   "toolbar.playback.open": "播放 ▴",
   "toolbar.playback.options": "播放选项",

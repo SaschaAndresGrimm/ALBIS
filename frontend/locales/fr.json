@@ -1557,7 +1557,6 @@
   "toolbar.play.stop_live_title": "Arrêter de suivre le flux en direct",
   "toolbar.play.toggle": "Lecture ou pause",
   "toolbar.playback.closed": "Lecture ▾",
-  "toolbar.playback.export_gif": "Exporter en GIF...",
   "toolbar.playback.fps_option": "{{value}} fps",
   "toolbar.playback.open": "Lecture ▴",
   "toolbar.playback.options": "Options de lecture",
