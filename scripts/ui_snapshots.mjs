@@ -26,6 +26,7 @@
  *             (default: the first one listed)
  *   --width, --height   viewport (default 1400 x 1000; below about 1500
  *             wide the side panel starts collapsed)
+ *   --theme   dark, light or system (default: none set, so dark)
  *   --chrome  Chrome or Chromium binary (default: $CHROME, else the usual
  *             install path for this platform)
  *
@@ -51,6 +52,7 @@ const DEFAULT_CHROME = {
 const url = arg("url", "http://127.0.0.1:8731/");
 const outDir = path.resolve(arg("out", "ui-snapshots"));
 const wantedFile = arg("file", "");
+const theme = arg("theme", "");
 const width = Number(arg("width", 1400));
 const height = Number(arg("height", 1000));
 const chromePath = arg("chrome", process.env.CHROME || DEFAULT_CHROME[process.platform] || "google-chrome");
@@ -167,6 +169,13 @@ async function main() {
   await send("Runtime.enable");
   await send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
   await send("Page.navigate", { url });
+  if (theme) {
+    // The theme is a per-browser preference (modules/theme.js) until the
+    // config arrives; set it and load again, so the first paint has it.
+    await sleep(800);
+    await evaluate(`localStorage.setItem("albis.theme", ${JSON.stringify(theme)})`);
+    await send("Page.navigate", { url });
+  }
   await sleep(5000);
   await shot("main");
 

@@ -8,6 +8,8 @@ import { ANALYSIS_TOOLS, TOOL_PRESETS, normalizeHiddenTools } from "./analysis_t
 import { chooseNativePath } from "./native_picker.js";
 import { failureDetail, fetchJSON, fetchJSONWithInit } from "./http.js";
 import { notifyWarning } from "./toast.js";
+import { getThemeController } from "./theme.js";
+import { normalizeThemePreference } from "./theme_utils.js";
 
 export function createSettingsController({
   apiBase,
@@ -56,6 +58,7 @@ export function createSettingsController({
     settingsPixelLabelMax,
     settingsFrameCache,
     settingsPixelLabelFormat,
+    settingsTheme,
     settingsPixelLabelDrag,
     settingsDataRoot,
     settingsAllowAbs,
@@ -458,6 +461,11 @@ export function createSettingsController({
     if (settingsPixelLabelFormat) {
       settingsPixelLabelFormat.value = String(config?.ui?.pixel_label_format ?? state.pixelLabelFormat ?? "auto");
     }
+    // Not in the config: the theme is this browser's, as the panel width is,
+    // so two people on one shared ALBIS server each keep their own.
+    if (settingsTheme) {
+      settingsTheme.value = getThemeController().getPreference();
+    }
     if (settingsPixelLabelDrag) {
       settingsPixelLabelDrag.checked = Boolean(
         config?.ui?.pixel_label_show_during_drag ?? state.pixelLabelShowDuringDrag
@@ -677,6 +685,7 @@ export function createSettingsController({
       applyEnvOverrides(data?.env_overrides);
       applyConfigLoadError(data?.load_error, data?.path);
       applyUiSettings(data?.config?.ui || config?.ui, { source: "user" });
+      if (settingsTheme) getThemeController().applyPreference(normalizeThemePreference(settingsTheme.value));
       core.overlayRender.schedulePixelOverlay();
       updateExternalAccessUi();
       setStatus(t("status.settings.saved"), { tone: "success" });
