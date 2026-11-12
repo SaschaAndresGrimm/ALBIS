@@ -56,6 +56,8 @@
   --plot-line-glow: rgba(102, 178, 255, 0.2);
   --plot-marker-outline: rgba(8, 14, 22, 0.85);
   --plot-peak: rgba(255, 196, 110, 0.95);
+  /* Behind a caption on a plot (the histogram's BG and FG). */
+  --plot-label-bg: rgba(13, 19, 28, 0.82);
   /* Two rings, not one. The old value was a 34%-alpha accent, which
      composited to 1.83:1 against --panel-mid and 1.39:1 against the toolbar --
      both under the 3:1 that WCAG 1.4.11 asks of a focus indicator, and it is
@@ -203,6 +205,7 @@
   --plot-line-glow: rgba(31, 111, 209, 0.14);
   --plot-marker-outline: rgba(255, 255, 255, 0.9);
   --plot-peak: rgba(199, 119, 0, 0.95);
+  --plot-label-bg: rgba(255, 255, 255, 0.88);
   /* --ws-canvas is left dark on purpose (see above). */
   --ws-chrome: #f7f8fa;
   --ws-chrome-raised: #ffffff;
@@ -313,7 +316,7 @@ body {
 
 body {
   margin: 0;
-  background: radial-gradient(circle at 12% 0%, #273346 0%, #1a2130 38%, #121721 100%);
+  background: var(--ws-canvas);
   color: var(--text);
   font-family: var(--font-ui);
   /* Inter 4 carries an optical-size axis; almost all of this interface is set

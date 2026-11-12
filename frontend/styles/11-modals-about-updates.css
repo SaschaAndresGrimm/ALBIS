@@ -3,6 +3,35 @@
    Part of the stylesheet split from style.css; the files load in the order of
    their numbers (index.html), and that order is the cascade. */
 
+/* Component tokens. The About banner keeps the start screen's black art in
+   both themes, so its wordmark stays light on it. */
+:root {
+  /* The drop shadow under a dialog card. */
+  --modal-shadow: 0 20px 40px rgba(4, 8, 16, 0.56);
+  /* The About banner: the black start-screen picture, in both themes. */
+  --about-banner-bg: #000;
+  --about-wordmark-text: #edf3ff;
+  --about-wordmark-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+  /* An opaque stop in a fade mask: only its alpha counts, not its colour. */
+  --fade-mask-solid: #000;
+  /* The percentage over a download bar: kept readable on fill and well alike. */
+  --update-progress-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  /* A verified checksum or signature. */
+  --update-verified-text: #7fd6a0;
+}
+
+:root[data-theme="light"] {
+  --modal-shadow: 0 20px 40px rgba(20, 30, 45, 0.22);
+  --update-progress-text-shadow: 0 0 2px rgba(255, 255, 255, 0.9);
+  --update-verified-text: #23703f;
+}
+
+/* The DECTRIS logo is turned white for the dark card; on the light card its
+   own navy artwork is the right one. */
+:root[data-theme="light"] .about-dectris img {
+  filter: none;
+}
+
 /* Above the collapsed panel and its "Open menu" button (62-82), which showed
    over a dialog's corner; below confirmations, toasts and tooltips. */
 .modal {
@@ -32,17 +61,17 @@
 .modal-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--scrim);
 }
 
 .modal-card {
   position: relative;
   z-index: 1;
   width: 360px;
-  background: linear-gradient(to bottom, var(--surface-2), var(--surface-1));
+  background: var(--surface-2);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
-  box-shadow: 0 20px 40px rgba(4, 8, 16, 0.56);
+  box-shadow: var(--modal-shadow);
   color: var(--text);
 }
 
@@ -51,7 +80,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 8px 10px;
-  background: linear-gradient(to bottom, #2f3c52, #232d3d);
+  background: var(--surface-3);
   border-bottom: 1px solid var(--border);
   border-top-left-radius: var(--radius-lg);
   border-top-right-radius: var(--radius-lg);
@@ -62,26 +91,26 @@
 .modal-close {
   background: transparent;
   border: none;
-  color: #dce8ff;
+  color: var(--muted-strong);
   border-radius: var(--radius-sm);
   cursor: pointer;
   padding: 2px 6px;
 }
 
 .modal-close:hover {
-  background: rgba(91, 122, 173, 0.22);
+  background: var(--ws-pressed);
 }
 
 .modal-close:focus-visible {
-  outline: 2px solid rgba(134, 188, 255, 0.92);
+  outline: 2px solid var(--accent-strong);
   outline-offset: 1px;
-  background: rgba(91, 122, 173, 0.3);
+  background: var(--ws-pressed);
 }
 
 .modal-body {
   padding: 12px;
   font-size: var(--font-size-md);
-  color: #dce8ff;
+  color: var(--text);
 }
 
 .modal-body p {
@@ -111,19 +140,19 @@
   /* From below the picture's DECTRIS wordmark (10-16 %) to past the wave
      line (57 %): the ALBIS wordmark sits in the dark above the first
      contour (37 %). */
-  background: #000 url("../resources/splash.webp") 50% 38% / cover no-repeat;
-  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 64%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 0%, #000 64%, transparent 100%);
+  background: var(--about-banner-bg) url("../resources/splash.webp") 50% 38% / cover no-repeat;
+  -webkit-mask-image: linear-gradient(to bottom, var(--fade-mask-solid) 0%, var(--fade-mask-solid) 64%, transparent 100%);
+  mask-image: linear-gradient(to bottom, var(--fade-mask-solid) 0%, var(--fade-mask-solid) 64%, transparent 100%);
 }
 
 .about-wordmark {
   margin: 0;
-  color: var(--text);
+  color: var(--about-wordmark-text);
   font-family: var(--font-wordmark);
   font-size: 30px;
   font-weight: 400;
   letter-spacing: 0.08em;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+  text-shadow: var(--about-wordmark-shadow);
 }
 
 .about-lead {
@@ -259,7 +288,7 @@
 
 .update-check-message {
   min-height: 16px;
-  color: #dce8ff;
+  color: var(--text);
   line-height: 1.45;
 }
 
@@ -270,19 +299,19 @@
   height: 10px;
   margin-right: 6px;
   border-radius: 50%;
-  border: 2px solid rgba(150, 176, 220, 0.45);
-  border-top-color: rgba(224, 236, 255, 0.95);
+  border: 2px solid var(--border-bold);
+  border-top-color: var(--text);
   animation: splash-spin 0.8s linear infinite;
   vertical-align: -1px;
 }
 
 .update-check-message.is-error {
-  color: #ffadad;
+  color: var(--tone-error-text);
 }
 
 .update-check-detail {
   font-size: var(--font-size-sm);
-  color: #9fb8df;
+  color: var(--muted);
   line-height: 1.45;
 }
 
@@ -308,13 +337,13 @@
   gap: 3px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: rgba(15, 23, 34, 0.72);
+  background: var(--surface-well);
   padding: 8px 9px;
 }
 
 .update-check-version-row > span {
   font-size: var(--font-size-xs);
-  color: #9fb8df;
+  color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -335,13 +364,13 @@
   gap: 3px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: rgba(15, 23, 34, 0.72);
+  background: var(--surface-well);
   padding: 8px 9px;
 }
 
 .update-check-download > span {
   font-size: var(--font-size-xs);
-  color: #9fb8df;
+  color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -360,7 +389,7 @@
   gap: 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: rgba(15, 23, 34, 0.72);
+  background: var(--surface-well);
   padding: 8px 9px;
 }
 
@@ -399,7 +428,7 @@
   left: 0;
   bottom: 0;
   width: 0%;
-  background: linear-gradient(90deg, #2b78d4, #6eb5ff);
+  background: var(--accent);
   transition: width var(--motion-med) linear;
 }
 
@@ -411,10 +440,10 @@
   align-items: center;
   justify-content: center;
   padding: 0 8px;
-  color: #f0f0f0;
+  color: var(--text);
   font-size: var(--font-size-sm);
   text-align: center;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  text-shadow: var(--update-progress-text-shadow);
   white-space: nowrap;
 }
 
@@ -423,7 +452,7 @@
   gap: 3px;
   font-size: var(--font-size-sm);
   line-height: 1.45;
-  color: #9fb8df;
+  color: var(--muted);
 }
 
 .update-check-verify[hidden] {
@@ -431,11 +460,11 @@
 }
 
 .update-check-verify .is-verified {
-  color: #7fd6a0;
+  color: var(--update-verified-text);
 }
 
 .update-check-verify .is-warning {
-  color: #e8c66a;
+  color: var(--tone-warning-text);
 }
 
 .update-check-verify code {
@@ -455,11 +484,11 @@
 .update-check-apply-note {
   font-size: var(--font-size-sm);
   line-height: 1.45;
-  color: #9fb8df;
+  color: var(--muted);
 }
 
 .update-check-apply-note.is-warning {
-  color: #e8c66a;
+  color: var(--tone-warning-text);
 }
 
 .log-viewer-modal-card {
@@ -478,7 +507,7 @@
 
 .log-viewer-message {
   min-height: 16px;
-  color: #dce8ff;
+  color: var(--text);
   line-height: 1.45;
 }
 
@@ -489,14 +518,14 @@
   height: 10px;
   margin-right: 6px;
   border-radius: 50%;
-  border: 2px solid rgba(150, 176, 220, 0.45);
-  border-top-color: rgba(224, 236, 255, 0.95);
+  border: 2px solid var(--border-bold);
+  border-top-color: var(--text);
   animation: splash-spin 0.8s linear infinite;
   vertical-align: -1px;
 }
 
 .log-viewer-message.is-error {
-  color: #ffadad;
+  color: var(--tone-error-text);
 }
 
 .log-viewer-controls {
@@ -515,7 +544,7 @@
 }
 
 .log-viewer-lines-field > span {
-  color: #9fb8df;
+  color: var(--muted);
   font-size: var(--font-size-sm);
 }
 
@@ -532,7 +561,7 @@
   gap: 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: rgba(15, 23, 34, 0.72);
+  background: var(--surface-well);
   padding: 9px 10px;
 }
 
@@ -543,7 +572,7 @@
 
 .log-viewer-meta-row > span {
   font-size: var(--font-size-xs);
-  color: #9fb8df;
+  color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -563,7 +592,7 @@
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: rgba(10, 15, 23, 0.98);
+  background: var(--surface-well);
   color: var(--text);
   font: 12px/1.5 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   white-space: pre-wrap;
@@ -571,7 +600,7 @@
 }
 
 .log-viewer-content.is-empty {
-  color: #9fb8df;
+  color: var(--muted);
 }
 
 .log-viewer-download {

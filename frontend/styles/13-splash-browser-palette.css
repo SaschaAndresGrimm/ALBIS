@@ -4,10 +4,60 @@
    Part of the stylesheet split from style.css; the files load in the order of
    their numbers (index.html), and that order is the cascade. */
 
+/* Component tokens. The start screen is the black picture in both themes, so
+   its colours are fixed: they have no light values. */
+:root {
+  --splash-bg: #000;
+  --splash-text: #edf3ff;
+  --splash-muted: #b4bfd4;
+  --splash-muted-strong: #cad6ec;
+  --splash-hover: rgba(255, 255, 255, 0.05);
+  --splash-pressed: rgba(255, 255, 255, 0.09);
+  --splash-title-glow: 0 0 18px rgba(60, 120, 220, 0.5);
+  --splash-sub-text: #b9c9ea;
+  --splash-sub-glow: 0 0 8px rgba(20, 40, 90, 0.6);
+  --splash-hint-text: #9db2d9;
+  --splash-spinner-track: rgba(134, 172, 228, 0.35);
+  --splash-spinner-head: rgba(220, 236, 255, 0.95);
+  /* The hairline groove between the file browser's two panes. */
+  --browse-splitter-edge: rgba(9, 14, 22, 0.8);
+  --browse-splitter-hover: rgba(74, 136, 222, 0.42);
+  /* The selected file or folder row. */
+  --browse-selected-bg: rgba(91, 143, 221, 0.45);
+  /* The pill beside a series name ("12 frames"). */
+  --browse-badge-border: rgba(123, 174, 245, 0.48);
+  --browse-badge-text: #d3e8ff;
+  --browse-retry-border: rgba(109, 179, 255, 0.5);
+  /* The command palette's highlighted entry. */
+  --command-active-border: rgba(113, 159, 229, 0.72);
+  /* The loading placeholder lines and their moving highlight. */
+  --skeleton-base: rgba(132, 156, 196, 0.16);
+  --skeleton-shine: rgba(132, 156, 196, 0.34);
+}
+
+:root[data-theme="light"] {
+  --browse-splitter-edge: rgba(28, 42, 66, 0.14);
+  --browse-splitter-hover: rgba(31, 111, 209, 0.28);
+  --browse-selected-bg: rgba(31, 111, 209, 0.16);
+  --browse-badge-border: rgba(31, 111, 209, 0.35);
+  --browse-badge-text: #1559b0;
+  --browse-retry-border: rgba(31, 111, 209, 0.45);
+  --command-active-border: rgba(31, 111, 209, 0.5);
+  --skeleton-base: rgba(28, 42, 66, 0.07);
+  --skeleton-shine: rgba(28, 42, 66, 0.15);
+}
+
 .splash {
   position: absolute;
   inset: 0;
-  background: #000;
+  background: var(--splash-bg);
+  /* Dark in both themes: what is drawn on it (the recent list, the Open file
+     button) takes the dark interface's text and tints. */
+  --text: var(--splash-text);
+  --muted: var(--splash-muted);
+  --muted-strong: var(--splash-muted-strong);
+  --ws-hover: var(--splash-hover);
+  --ws-pressed: var(--splash-pressed);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -38,17 +88,17 @@
   max-height: 68vh;
   border-radius: var(--radius-lg);
   border: none;
-  background: #000 url("../resources/splash.webp") center/cover no-repeat;
+  background: var(--splash-bg) url("../resources/splash.webp") center/cover no-repeat;
   /* The picture fades into the black splash on every side, instead of ending
      in a straight line where the waves run off its edges. Narrow enough at
      the top and right to leave the DECTRIS wordmark untouched. */
   -webkit-mask-image:
-    linear-gradient(to right, transparent 0%, #000 9%, #000 94%, transparent 100%),
-    linear-gradient(to bottom, transparent 0%, #000 8%, #000 80%, transparent 100%);
+    linear-gradient(to right, transparent 0%, var(--fade-mask-solid) 9%, var(--fade-mask-solid) 94%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, var(--fade-mask-solid) 8%, var(--fade-mask-solid) 80%, transparent 100%);
   -webkit-mask-composite: source-in;
   mask-image:
-    linear-gradient(to right, transparent 0%, #000 9%, #000 94%, transparent 100%),
-    linear-gradient(to bottom, transparent 0%, #000 8%, #000 80%, transparent 100%);
+    linear-gradient(to right, transparent 0%, var(--fade-mask-solid) 9%, var(--fade-mask-solid) 94%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, var(--fade-mask-solid) 8%, var(--fade-mask-solid) 80%, transparent 100%);
   mask-composite: intersect;
 }
 
@@ -63,7 +113,7 @@
      get the same tracking; an em value would re-resolve against each child's
      own size and pull the title four times wider than the hint. */
   letter-spacing: 2.2px;
-  text-shadow: 0 0 18px rgba(60, 120, 220, 0.5);
+  text-shadow: var(--splash-title-glow);
 }
 
 .splash-title {
@@ -81,10 +131,10 @@
   justify-content: center;
   gap: 8px;
   min-height: 18px;
-  color: #b9c9ea;
+  color: var(--splash-sub-text);
   font-size: clamp(14px, 1.6vw, 18px);
   letter-spacing: 0.03em;
-  text-shadow: 0 0 8px rgba(20, 40, 90, 0.6);
+  text-shadow: var(--splash-sub-glow);
   /* Most statuses are a few words, but a failure here explains itself -- a
      master file whose data files are missing names one of them. Unbounded,
      that ran the full width of the viewer, which on a wide monitor is a single
@@ -106,7 +156,7 @@
 }
 
 .splash-hint {
-  color: #9db2d9;
+  color: var(--splash-hint-text);
   font-size: var(--font-size-md);
   /* Cancels the 2.2px inherited from .splash-label. At 12px that is 0.18em,
      which spaces a sentence out until it reads as monospaced. */
@@ -118,8 +168,8 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  border: 2px solid rgba(134, 172, 228, 0.35);
-  border-top-color: rgba(220, 236, 255, 0.95);
+  border: 2px solid var(--splash-spinner-track);
+  border-top-color: var(--splash-spinner-head);
   animation: splash-spin 0.8s linear infinite;
   opacity: 0;
   transition: opacity var(--motion-fast) var(--motion-ease-standard);
@@ -377,13 +427,13 @@
 
 .browse-splitter {
   cursor: col-resize;
-  background: linear-gradient(to right, rgba(10, 14, 19, 0.68), rgba(84, 105, 139, 0.16));
-  border-left: 1px solid rgba(9, 14, 22, 0.8);
-  border-right: 1px solid rgba(9, 14, 22, 0.8);
+  background: var(--surface-0);
+  border-left: 1px solid var(--browse-splitter-edge);
+  border-right: 1px solid var(--browse-splitter-edge);
 }
 
 .browse-splitter:hover {
-  background: linear-gradient(to right, rgba(74, 136, 222, 0.42), rgba(36, 76, 124, 0.3));
+  background: var(--browse-splitter-hover);
 }
 
 .browse-splitter.is-disabled {
@@ -404,7 +454,7 @@
 
 .browse-section-title {
   padding: 6px 8px;
-  background: rgba(37, 49, 67, 0.88);
+  background: var(--surface-3);
   border-bottom: 1px solid var(--border);
   font-size: var(--font-size-sm);
   font-weight: 600;
@@ -420,7 +470,7 @@
 
 .browse-empty {
   padding: 8px;
-  color: #93a2bc;
+  color: var(--muted);
   font-size: var(--font-size-sm);
 }
 
@@ -454,8 +504,8 @@
 
 .browse-item.is-selected,
 .browse-item.is-selected:hover {
-  background: rgba(91, 143, 221, 0.45);
-  color: #fff;
+  background: var(--browse-selected-bg);
+  color: var(--text);
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
@@ -494,7 +544,7 @@
   top: 0;
   z-index: 1;
   padding: 6px 8px;
-  background: rgba(24, 33, 47, 0.97);
+  background: var(--surface-1);
   border-bottom: 1px solid var(--border);
 }
 
@@ -503,7 +553,7 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #9fb3d6;
+  color: var(--muted);
 }
 
 button.browse-details-header-cell {
@@ -523,7 +573,7 @@ button.browse-details-header-cell {
 }
 
 button.browse-details-header-cell:hover:not(:disabled) {
-  color: #cfe0ff;
+  color: var(--muted-strong);
 }
 
 button.browse-details-header-cell:disabled {
@@ -533,7 +583,7 @@ button.browse-details-header-cell:disabled {
 
 button.browse-details-header-cell[aria-sort="ascending"],
 button.browse-details-header-cell[aria-sort="descending"] {
-  color: #cfe0ff;
+  color: var(--muted-strong);
 }
 
 .browse-sort-caret {
@@ -562,7 +612,7 @@ button.browse-details-header-cell[aria-sort="descending"] {
 
 .browse-details-col-type,
 .browse-details-col-modified {
-  color: #b9cae8;
+  color: var(--muted);
 }
 
 .browse-details-col-size,
@@ -575,9 +625,9 @@ button.browse-details-header-cell[aria-sort="descending"] {
   flex: 0 0 auto;
   padding: 2px 7px;
   border-radius: 999px;
-  border: 1px solid rgba(123, 174, 245, 0.48);
-  background: rgba(61, 102, 161, 0.28);
-  color: #d3e8ff;
+  border: 1px solid var(--browse-badge-border);
+  background: var(--accent-soft);
+  color: var(--browse-badge-text);
   font-size: var(--font-size-xs);
   line-height: 1.2;
   white-space: nowrap;
@@ -606,7 +656,7 @@ button.browse-details-header-cell[aria-sort="descending"] {
 .browse-path input {
   flex: 1;
   background: var(--surface-well);
-  border: 1px solid rgba(48, 64, 89, 0.92);
+  border: 1px solid var(--control-border);
   padding: 4px 6px;
   color: var(--text);
   font-size: var(--font-size-sm);
@@ -621,7 +671,7 @@ button.browse-details-header-cell[aria-sort="descending"] {
 .browse-status {
   min-height: 16px;
   font-size: var(--font-size-sm);
-  color: #b8c8e4;
+  color: var(--muted);
 }
 
 .browse-status.is-loading::before {
@@ -631,29 +681,29 @@ button.browse-details-header-cell[aria-sort="descending"] {
   height: 10px;
   margin-right: 6px;
   border-radius: 50%;
-  border: 2px solid rgba(150, 176, 220, 0.45);
-  border-top-color: rgba(224, 236, 255, 0.95);
+  border: 2px solid var(--border-bold);
+  border-top-color: var(--text);
   animation: splash-spin 0.8s linear infinite;
   vertical-align: -1px;
 }
 
 .browse-status.is-error {
-  color: #ff9a9a;
+  color: var(--tone-error-text);
 }
 
 .browse-retry-btn {
   margin-left: 6px;
   padding: 1px 8px;
   font: inherit;
-  color: var(--accent, #6db3ff);
+  color: var(--accent);
   background: transparent;
-  border: 1px solid rgba(109, 179, 255, 0.5);
+  border: 1px solid var(--browse-retry-border);
   border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
 .browse-retry-btn:hover {
-  background: rgba(109, 179, 255, 0.14);
+  background: var(--accent-soft);
 }
 
 @media (max-width: 760px) {
@@ -684,21 +734,21 @@ button.browse-details-header-cell[aria-sort="descending"] {
   justify-content: flex-end;
   gap: 8px;
   padding: 10px 12px;
-  background: rgba(20, 27, 37, 0.92);
+  background: var(--surface-0);
   border-top: 1px solid var(--border);
   border-bottom-left-radius: var(--radius-lg);
   border-bottom-right-radius: var(--radius-lg);
 }
 
 .btn-secondary {
-  background: linear-gradient(to bottom, rgba(30, 39, 54, 0.9), rgba(19, 26, 37, 0.9));
+  background: var(--control-bg);
   border-color: var(--border);
-  color: #d9e8ff;
+  color: var(--text);
 }
 
 .btn-secondary:hover:not(:disabled):not(.is-disabled) {
-  background: linear-gradient(to bottom, rgba(40, 53, 74, 0.94), rgba(24, 33, 47, 0.94));
-  border-color: rgba(101, 127, 170, 0.68);
+  background: var(--control-hover);
+  border-color: var(--border-bold);
 }
 
 .command-modal-card {
@@ -728,7 +778,7 @@ button.browse-details-header-cell[aria-sort="descending"] {
 
 .command-search input {
   width: 100%;
-  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.98), rgba(10, 15, 24, 0.98));
+  background: var(--control-bg);
   color: var(--text);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
@@ -766,7 +816,7 @@ button.browse-details-header-cell[aria-sort="descending"] {
   width: 100%;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  background: rgba(14, 20, 30, 0.75);
+  background: var(--surface-well);
   color: var(--text);
   padding: 8px 10px;
   display: grid;
@@ -782,8 +832,8 @@ button.browse-details-header-cell[aria-sort="descending"] {
 
 .command-item:hover,
 .command-item.is-active {
-  border-color: rgba(113, 159, 229, 0.72);
-  background: rgba(36, 54, 82, 0.78);
+  border-color: var(--command-active-border);
+  background: var(--accent-soft);
 }
 
 .command-label {
@@ -793,7 +843,7 @@ button.browse-details-header-cell[aria-sort="descending"] {
 
 .command-shortcut {
   font-size: var(--font-size-xs);
-  color: #9fb8df;
+  color: var(--muted);
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 2px 7px;
@@ -803,7 +853,7 @@ button.browse-details-header-cell[aria-sort="descending"] {
 
 .command-empty {
   padding: 14px 10px;
-  color: #b8c8e2;
+  color: var(--muted);
   font-size: var(--font-size-md);
 }
 
@@ -817,9 +867,9 @@ button.browse-details-header-cell[aria-sort="descending"] {
   border-radius: 999px;
   background: linear-gradient(
     90deg,
-    rgba(132, 156, 196, 0.16) 0%,
-    rgba(132, 156, 196, 0.34) 38%,
-    rgba(132, 156, 196, 0.16) 72%
+    var(--skeleton-base) 0%,
+    var(--skeleton-shine) 38%,
+    var(--skeleton-base) 72%
   );
   transform: translateX(-100%);
   animation: sectionShimmer 1.15s ease-in-out infinite;

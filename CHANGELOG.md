@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **A light theme.** **Settings → Viewer → Appearance** offers **Dark** (the default, as before), **Light** and **System**, which follows the computer's light or dark setting and switches with it. Light suits a bright room or a projector, where the dark panels were hard to read. The area around the image stays dark in both, because a bright surround makes faint signal in a frame harder to see; the image, the colour map and the overlays look the same in either. The choice belongs to the browser, like the side panel's width, so people sharing one ALBIS server each keep their own.
+
 ### Changed
 
 - **The window is laid out as a workspace: one header, the image, a docked side panel and a timeline.** The side panel floated over the image as a card, covered part of the frame and left an empty band under itself; it now fills the right side of the window from the header to the bottom, and the image uses exactly the rest, so **Fit to Window** fits what you can see. Drag the panel's left edge to resize it. The menu bar and the toolbar are one header row, with the file and frame in its middle and the panel button (it replaces **Open menu**) at its right end. The frame buttons, the frame slider and **Playback** moved into a timeline under the image whose slider runs the full width, instead of 120 pixels, so a series of thousands of frames can be scrubbed; a single image has no timeline. **Playback** now holds only the step and the rate; **Export GIF…** left it, as **File → Export Animation…** (⌘G) opens the same dialog. The status line below it is plain text. The bars no longer blur the image behind them, which the browser had to redo on every repaint.

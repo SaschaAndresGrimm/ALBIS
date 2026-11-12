@@ -3,6 +3,15 @@
    Part of the stylesheet split from style.css; the files load in the order of
    their numbers (index.html), and that order is the cascade. */
 
+/* The drop shadow under an open menu, lighter on the light theme. */
+:root {
+  --menu-shadow: 0 14px 30px rgba(4, 8, 16, 0.45);
+}
+
+:root[data-theme="light"] {
+  --menu-shadow: 0 10px 24px rgba(20, 30, 45, 0.16);
+}
+
 .page {
   height: 100vh;
   display: flex;
@@ -15,10 +24,10 @@
   position: sticky;
   top: 0;
   z-index: 20;
-  background: linear-gradient(to bottom, rgba(8, 13, 21, 0.82), rgba(8, 13, 21, 0.74));
+  background: color-mix(in srgb, var(--ws-chrome) 80%, transparent);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
-  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 -1px 0 var(--ws-divider);
 }
 
 .menu-bar {
@@ -54,14 +63,14 @@
 
 .menu-item:hover {
   border-color: var(--border-strong);
-  background: rgba(102, 134, 184, 0.14);
+  background: var(--ws-hover);
 }
 
 /* Lit while its menu is open. Not .is-active: that stays on the last menu
    opened after it closes, so File looked pressed from the first load on. */
 .menu-item[aria-expanded="true"] {
-  border-color: rgba(96, 140, 213, 0.62);
-  background: linear-gradient(to bottom, rgba(94, 136, 206, 0.32), rgba(40, 68, 112, 0.3));
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  background: var(--accent-soft);
 }
 
 .menu-item:focus-visible {
@@ -84,13 +93,13 @@
 .dropdown-panel {
   display: none;
   min-width: 180px;
-  background: rgba(17, 22, 31, 0.96);
+  background: color-mix(in srgb, var(--ws-chrome-raised) 96%, transparent);
   /* Frosted, as the bars it opens from: the toolbar under it read through. */
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
-  box-shadow: 0 14px 30px rgba(4, 8, 16, 0.45);
+  box-shadow: var(--menu-shadow);
   padding: 4px 0;
 }
 
@@ -119,16 +128,16 @@
 }
 
 .dropdown-submenu-parent:hover {
-  background: rgba(91, 122, 173, 0.22);
+  background: var(--accent-soft);
 }
 
 .dropdown-submenu-parent.is-open {
-  background: rgba(91, 122, 173, 0.22);
+  background: var(--accent-soft);
 }
 
 .submenu-caret {
   margin-left: auto;
-  color: #9a9a9a;
+  color: var(--muted);
   font-size: var(--font-size-sm);
 }
 
@@ -137,10 +146,10 @@
   top: -4px;
   left: calc(100% - 2px);
   min-width: 180px;
-  background: rgba(17, 22, 31, 0.96);
+  background: color-mix(in srgb, var(--ws-chrome-raised) 96%, transparent);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
-  box-shadow: 0 14px 30px rgba(4, 8, 16, 0.45);
+  box-shadow: var(--menu-shadow);
   padding: 4px 0;
   display: none;
   z-index: 30;
@@ -160,7 +169,7 @@
 }
 
 .dropdown-item:hover {
-  background: rgba(91, 122, 173, 0.22);
+  background: var(--accent-soft);
 }
 
 /* Open Recent: a file name is what a person recognises, so it gets the width,
@@ -168,7 +177,7 @@
 .dropdown-separator {
   height: 1px;
   margin: 4px 6px;
-  background: rgba(88, 112, 150, 0.4);
+  background: var(--border-strong);
 }
 
 #recent-files-submenu {
@@ -192,7 +201,7 @@
 }
 
 .shortcut {
-  color: #a5b6d4;
+  color: var(--muted);
   font-size: var(--font-size-md);
 }
 

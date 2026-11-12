@@ -28,6 +28,28 @@ All shared values live in `:root` at the top of `frontend/style.css`. Use the
 token; if none fits, add one there with a comment saying what it is *for* —
 not just its value — and use it.
 
+### Light and dark
+
+ALBIS has two themes: dark (the default) and light, chosen in **Settings →
+Viewer → Appearance** and set as `data-theme` on `<html>`
+(`modules/theme.js`). Each token has its dark value in `:root` and its light
+value in `:root[data-theme="light"]`, so anything coloured through tokens
+follows the theme without a rule of its own; a colour written as a literal
+stays the same in both and is the one thing that breaks the light theme.
+
+- A token only one area needs goes in a `:root` block at the top of that
+  area's stylesheet, with a matching `:root[data-theme="light"]` block. The
+  style guard does not count literals in either.
+- The image area stays dark in both themes, and so does everything over it:
+  the cursor readout, the magnifier, the mask-editing bar, the loading badge,
+  the start screen. Their tokens have the same value in both blocks.
+- Colours that are data -- colour maps, the mask legend, ring and peak
+  overlays -- do not change with the theme.
+- Plots drawn on canvas read their colours from the `--plot-*` tokens through
+  `modules/plot_theme.js` and are drawn again on `albis:themechange`.
+- Check a change in both: `npm run ui:snapshots -- --theme light` and
+  `--theme dark`.
+
 ## Where a style goes
 
 `frontend/style.css` holds the tokens, the fonts and the base rules. Everything
@@ -292,7 +314,8 @@ makes it.
 ## Checklist
 
 - [ ] Colours, sizes, corners and borders come from `:root` tokens; any new
-      token has a comment saying what it is for.
+      token has a comment saying what it is for, and a light value.
+- [ ] Looked at in both themes (`ui:snapshots --theme light` and `--theme dark`).
 - [ ] Floating surfaces are nearly opaque and frosted; wells only inside panels.
 - [ ] Existing controls reused: drawn checkbox, dropdown, chevron, stepper,
       toggle; one primary button per dialog, rightmost.

@@ -3,6 +3,16 @@
    Part of the stylesheet split from style.css; the files load in the order of
    their numbers (index.html), and that order is the cascade. */
 
+/* The page behind the "ALBIS has stopped" notice: nearly opaque, as nothing
+   behind it works any more. */
+:root {
+  --albis-stopped-backdrop: rgba(8, 12, 18, 0.88);
+}
+
+:root[data-theme="light"] {
+  --albis-stopped-backdrop: rgba(226, 231, 238, 0.9);
+}
+
 /* Toast / notification system ------------------------------------------------ */
 /* Bottom-right, standing above the viewer's footer: toast.js sets
    --toast-bottom from where the footer is, so a toast never covers its server
@@ -234,7 +244,7 @@
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(8, 12, 18, 0.88);
+  background: var(--albis-stopped-backdrop);
   -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
 }

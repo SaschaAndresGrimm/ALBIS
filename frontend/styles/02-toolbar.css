@@ -5,14 +5,48 @@
    Part of the stylesheet split from style.css; the files load in the order of
    their numbers (index.html), and that order is the cascade. */
 
+/* Colours of this file that no shared token covers; each has a light value
+   below. The upload bar sits over the image, which stays dark in both themes,
+   so its tokens keep their dark values there. */
+:root {
+  /* The well behind a cluster of toolbar controls and the file path. */
+  --toolbar-well-bg: rgba(7, 14, 22, 0.2);
+  --toolbar-well-border: rgba(9, 18, 29, 0.36);
+  /* The upload progress bar, over the image. */
+  --upload-bar-bg: rgba(8, 14, 23, 0.9);
+  --upload-bar-border: rgba(104, 126, 163, 0.6);
+  --upload-bar-text: #e6e6e6;
+  --upload-bar-text-shadow: 0 1px 0 #000;
+  --upload-bar-shadow: inset 0 1px 0 rgba(187, 214, 255, 0.08), 0 4px 12px rgba(4, 8, 16, 0.3);
+  /* The slider thumb: at rest, pressed, disabled, and its drop shadow. */
+  --range-thumb: #eaf3ff;
+  --range-thumb-active: #ffffff;
+  --range-thumb-disabled: #5d6a80;
+  --range-thumb-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  /* The live badge's "receiving" dot and text. */
+  --live-badge-ok: #43d66d;
+  --live-badge-ok-text: #9bd49f;
+}
+
+:root[data-theme="light"] {
+  --toolbar-well-bg: rgba(15, 30, 55, 0.05);
+  --toolbar-well-border: rgba(28, 42, 66, 0.16);
+  --range-thumb: #ffffff;
+  --range-thumb-active: #ffffff;
+  --range-thumb-disabled: #b7c0cc;
+  --range-thumb-shadow: 0 1px 3px rgba(20, 30, 45, 0.35);
+  --live-badge-ok: #23a04c;
+  --live-badge-ok-text: #1d6b3a;
+}
+
 .toolbar {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 8px 10px;
   background: linear-gradient(to bottom, var(--toolbar-blue), var(--toolbar-blue-dark));
-  border-top: 1px solid rgba(154, 195, 255, 0.12);
-  border-bottom: 1px solid rgba(11, 18, 27, 0.62);
+  border-top: 1px solid var(--ws-divider);
+  border-bottom: 1px solid var(--border-strong);
   position: relative;
 }
 
@@ -30,14 +64,12 @@
   max-width: calc(100vw - 24px);
   height: 18px;
   margin: 6px 0 0 10px;
-  background: rgba(8, 14, 23, 0.9);
-  border: 1px solid var(--border-bold);
+  background: var(--upload-bar-bg);
+  border: 1px solid var(--upload-bar-border);
   border-radius: 999px;
   display: none;
   overflow: hidden;
-  box-shadow:
-    inset 0 1px 0 rgba(187, 214, 255, 0.08),
-    0 4px 12px rgba(4, 8, 16, 0.3);
+  box-shadow: var(--upload-bar-shadow);
 }
 
 .upload-bar.is-active {
@@ -47,7 +79,7 @@
 .upload-bar-fill {
   height: 100%;
   width: 0%;
-  background: linear-gradient(to right, #3a8bd9, #1f6fb8);
+  background: var(--accent);
   transition: width var(--motion-fast) linear;
 }
 
@@ -62,8 +94,8 @@
   display: grid;
   place-items: center;
   font-size: var(--font-size-xs);
-  color: #e6e6e6;
-  text-shadow: 0 1px 0 #000;
+  color: var(--upload-bar-text);
+  text-shadow: var(--upload-bar-text-shadow);
   pointer-events: none;
 }
 
@@ -93,8 +125,8 @@
   gap: 6px;
   padding: 2px 5px;
   border-radius: var(--radius-md);
-  background: rgba(7, 14, 22, 0.2);
-  border: 1px solid rgba(9, 18, 29, 0.36);
+  background: var(--toolbar-well-bg);
+  border: 1px solid var(--toolbar-well-border);
 }
 
 .toolbar-cluster-frame {
@@ -130,7 +162,7 @@
    panels. The track fills up to the thumb, from ::-moz-range-progress in
    Firefox and from --range-fill elsewhere (modules/range_fill.js). */
 input[type="range"] {
-  --range-track: rgba(104, 126, 163, 0.3);
+  --range-track: var(--border);
   -webkit-appearance: none;
   appearance: none;
   height: 18px;
@@ -173,9 +205,9 @@ input[type="range"]::-webkit-slider-thumb {
   height: 14px;
   margin-top: -5px;
   border-radius: 50%;
-  background: #eaf3ff;
+  background: var(--range-thumb);
   border: 2px solid var(--accent);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--range-thumb-shadow);
   transition:
     box-shadow var(--motion-fast) var(--motion-ease-standard),
     transform var(--motion-fast) var(--motion-ease-standard);
@@ -186,9 +218,9 @@ input[type="range"]::-moz-range-thumb {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #eaf3ff;
+  background: var(--range-thumb);
   border: 2px solid var(--accent);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--range-thumb-shadow);
   transition:
     box-shadow var(--motion-fast) var(--motion-ease-standard),
     transform var(--motion-fast) var(--motion-ease-standard);
@@ -197,29 +229,29 @@ input[type="range"]::-moz-range-thumb {
 input[type="range"]:hover::-webkit-slider-thumb {
   box-shadow:
     0 0 0 4px var(--accent-soft),
-    0 1px 3px rgba(0, 0, 0, 0.55);
+    var(--range-thumb-shadow);
 }
 
 input[type="range"]:hover::-moz-range-thumb {
   box-shadow:
     0 0 0 4px var(--accent-soft),
-    0 1px 3px rgba(0, 0, 0, 0.55);
+    var(--range-thumb-shadow);
 }
 
 input[type="range"]:active::-webkit-slider-thumb {
-  background: #fff;
+  background: var(--range-thumb-active);
   transform: scale(1.15);
   box-shadow:
-    0 0 0 6px rgba(78, 161, 255, 0.28),
-    0 1px 3px rgba(0, 0, 0, 0.55);
+    0 0 0 6px color-mix(in srgb, var(--accent) 28%, transparent),
+    var(--range-thumb-shadow);
 }
 
 input[type="range"]:active::-moz-range-thumb {
-  background: #fff;
+  background: var(--range-thumb-active);
   transform: scale(1.15);
   box-shadow:
-    0 0 0 6px rgba(78, 161, 255, 0.28),
-    0 1px 3px rgba(0, 0, 0, 0.55);
+    0 0 0 6px color-mix(in srgb, var(--accent) 28%, transparent),
+    var(--range-thumb-shadow);
 }
 
 input[type="range"]:focus-visible::-webkit-slider-thumb {
@@ -231,7 +263,7 @@ input[type="range"]:focus-visible::-moz-range-thumb {
 }
 
 input[type="range"]:disabled {
-  --range-track: rgba(104, 126, 163, 0.16);
+  --range-track: var(--border-subtle);
   cursor: default;
 }
 
@@ -244,15 +276,15 @@ input[type="range"]:disabled::-moz-range-progress {
 }
 
 input[type="range"]:disabled::-webkit-slider-thumb {
-  background: #5d6a80;
-  border-color: #5d6a80;
+  background: var(--range-thumb-disabled);
+  border-color: var(--range-thumb-disabled);
   box-shadow: none;
   transform: none;
 }
 
 input[type="range"]:disabled::-moz-range-thumb {
-  background: #5d6a80;
-  border-color: #5d6a80;
+  background: var(--range-thumb-disabled);
+  border-color: var(--range-thumb-disabled);
   box-shadow: none;
   transform: none;
 }
@@ -377,8 +409,8 @@ input[type="range"]:disabled::-moz-range-thumb {
 }
 
 .num-stepper-btn:active {
-  background: rgba(78, 161, 255, 0.34);
-  color: #fff;
+  background: color-mix(in srgb, var(--accent) 34%, transparent);
+  color: var(--text);
 }
 
 .toolbar-frame input[type="range"] {
@@ -400,9 +432,9 @@ input[type="range"]:disabled::-moz-range-thumb {
 .toolbar-frame-index input[type="number"] {
   width: calc(max(3, var(--frame-digits, 3)) * 1ch + 32px);
   font-variant-numeric: tabular-nums;
-  background: rgba(11, 18, 28, 0.82);
+  background: var(--control-bg);
   color: var(--text);
-  border: 1px solid rgba(12, 20, 32, 0.62);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-sm);
   padding: 2px 6px;
   font-size: var(--font-size-md);
@@ -419,9 +451,9 @@ input[type="range"]:disabled::-moz-range-thumb {
 }
 
 .toolbar-step select {
-  background: rgba(11, 18, 28, 0.82);
+  background: var(--control-bg);
   color: var(--text);
-  border: 1px solid rgba(12, 20, 32, 0.62);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-sm);
   padding: 2px 6px;
   font-size: var(--font-size-md);
@@ -439,9 +471,9 @@ input[type="range"]:disabled::-moz-range-thumb {
 }
 
 .toolbar-fps select {
-  background: rgba(11, 18, 28, 0.82);
+  background: var(--control-bg);
   color: var(--text);
-  border: 1px solid rgba(12, 20, 32, 0.62);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-sm);
   padding: 2px 6px;
   font-size: var(--font-size-md);
@@ -461,9 +493,9 @@ input[type="range"]:disabled::-moz-range-thumb {
 }
 
 .toolbar-threshold select {
-  background: rgba(11, 18, 28, 0.82);
+  background: var(--control-bg);
   color: var(--text);
-  border: 1px solid rgba(12, 20, 32, 0.62);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-sm);
   padding: 2px 6px;
   font-size: var(--font-size-md);
@@ -499,7 +531,7 @@ input[type="range"]:disabled::-moz-range-thumb {
   padding: 8px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-soft);
-  background: linear-gradient(to bottom, rgba(17, 24, 35, 0.98), rgba(12, 18, 27, 0.98));
+  background: var(--ws-chrome-raised);
   box-shadow: var(--shadow-soft);
   gap: 8px;
   opacity: 0;
@@ -525,7 +557,7 @@ input[type="range"]:disabled::-moz-range-thumb {
 
 .toolbar-playback.is-open .toolbar-playback-btn {
   border-color: var(--border-strong);
-  box-shadow: inset 0 0 0 1px rgba(120, 170, 255, 0.2);
+  box-shadow: inset 0 0 0 1px var(--accent-soft);
 }
 
 .toolbar-playback-popover .toolbar-step,
@@ -545,9 +577,9 @@ input[type="range"]:disabled::-moz-range-thumb {
 }
 
 .tool-btn {
-  background: linear-gradient(to bottom, rgba(23, 33, 49, 0.95), rgba(13, 20, 32, 0.95));
+  background: var(--control-bg);
   color: var(--text);
-  border: 1px solid rgba(10, 19, 31, 0.68);
+  border: 1px solid var(--control-border);
   padding: 2px 8px;
   font-size: var(--font-size-md);
   border-radius: var(--radius-sm);
@@ -560,8 +592,8 @@ input[type="range"]:disabled::-moz-range-thumb {
 }
 
 .tool-btn:hover:not(:disabled):not(.is-disabled) {
-  border-color: rgba(118, 154, 214, 0.7);
-  background: linear-gradient(to bottom, rgba(33, 48, 70, 0.98), rgba(18, 29, 45, 0.98));
+  border-color: var(--border-bold);
+  background: var(--control-hover);
 }
 
 .tool-btn:disabled,
@@ -571,18 +603,18 @@ input[type="range"]:disabled::-moz-range-thumb {
 }
 
 .tool-btn.is-active {
-  background: linear-gradient(to bottom, #68aeff, #3a81da);
-  border-color: rgba(121, 181, 255, 0.9);
-  color: #08131f;
+  background: var(--accent);
+  border-color: var(--accent-strong);
+  color: var(--text-on-accent);
 }
 
 .tool-btn:focus-visible {
   outline: none;
-  box-shadow: var(--focus-ring), inset 0 1px 0 rgba(200, 232, 255, 0.2);
+  box-shadow: var(--focus-ring);
 }
 
 .tool-close {
-  background: #1f1f1f;
+  background: var(--surface-1);
 }
 
 .toolbar-path {
@@ -593,9 +625,9 @@ input[type="range"]:disabled::-moz-range-thumb {
   font-weight: 500;
   letter-spacing: 0.01em;
   padding: 4px 10px;
-  background: rgba(8, 15, 24, 0.28);
+  background: var(--toolbar-well-bg);
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(11, 20, 32, 0.5);
+  border: 1px solid var(--toolbar-well-border);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -633,7 +665,7 @@ input[type="range"]:disabled::-moz-range-thumb {
 .toolbar-sync-options-toggle {
   min-width: 24px;
   padding-inline: 5px;
-  border-left-color: rgba(148, 163, 184, 0.18);
+  border-left-color: var(--border-subtle);
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
 }
@@ -649,7 +681,7 @@ input[type="range"]:disabled::-moz-range-thumb {
   padding: 8px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-soft);
-  background: linear-gradient(to bottom, rgba(17, 24, 35, 0.98), rgba(12, 18, 27, 0.98));
+  background: var(--ws-chrome-raised);
   box-shadow: var(--shadow-soft);
   opacity: 0;
   transform: translateY(-4px);
@@ -693,7 +725,7 @@ input[type="range"]:disabled::-moz-range-thumb {
   padding: 8px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-soft);
-  background: linear-gradient(to bottom, rgba(17, 24, 35, 0.98), rgba(12, 18, 27, 0.98));
+  background: var(--ws-chrome-raised);
   box-shadow: var(--shadow-soft);
   opacity: 0;
   transform: translateY(-4px);
@@ -762,9 +794,9 @@ input[type="range"]:disabled::-moz-range-thumb {
   font-size: var(--font-size-lg);
   font-weight: 600;
   letter-spacing: 0.05em;
-  background: rgba(9, 18, 29, 0.45);
-  border: 1px solid rgba(12, 22, 35, 0.65);
-  color: #9bd4ff;
+  background: var(--surface-well);
+  border: 1px solid var(--border);
+  color: var(--accent-strong);
   opacity: 0;
   transform: translateY(-4px);
   transition:
@@ -782,8 +814,8 @@ input[type="range"]:disabled::-moz-range-thumb {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #5bb9ff;
-  box-shadow: 0 0 6px rgba(90, 180, 255, 0.7);
+  background: var(--accent);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 70%, transparent);
 }
 
 .backend-badge.is-active {
@@ -792,12 +824,12 @@ input[type="range"]:disabled::-moz-range-thumb {
 }
 
 .backend-badge.is-off {
-  color: #f0a0a0;
+  color: var(--tone-error-text);
 }
 
 .backend-badge.is-off::before {
-  background: #e05d5d;
-  box-shadow: 0 0 6px rgba(224, 93, 93, 0.7);
+  background: var(--tone-error);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--tone-error) 70%, transparent);
 }
 
 .backend-badge[aria-hidden="true"] {
@@ -813,9 +845,9 @@ input[type="range"]:disabled::-moz-range-thumb {
   font-size: var(--font-size-lg);
   font-weight: 600;
   letter-spacing: 0.05em;
-  background: rgba(9, 18, 29, 0.45);
-  border: 1px solid rgba(12, 22, 35, 0.65);
-  color: #9bd49f;
+  background: var(--surface-well);
+  border: 1px solid var(--border);
+  color: var(--live-badge-ok-text);
   opacity: 0;
   transform: translateY(-4px);
   transition:
@@ -832,8 +864,8 @@ input[type="range"]:disabled::-moz-range-thumb {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #43d66d;
-  box-shadow: 0 0 6px rgba(67, 214, 109, 0.8);
+  background: var(--live-badge-ok);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--live-badge-ok) 80%, transparent);
   display: inline-block;
 }
 
@@ -843,21 +875,21 @@ input[type="range"]:disabled::-moz-range-thumb {
 }
 
 .live-badge.is-wait {
-  color: #f2d38b;
+  color: var(--tone-warning-text);
 }
 
 .live-badge.is-wait::before {
-  background: #e0b24a;
-  box-shadow: 0 0 6px rgba(224, 178, 74, 0.7);
+  background: var(--tone-warning);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--tone-warning) 70%, transparent);
 }
 
 .live-badge.is-paused {
-  color: #d7e1ef;
+  color: var(--muted-strong);
 }
 
 .live-badge.is-paused::before {
-  background: #9fb0c9;
-  box-shadow: 0 0 6px rgba(159, 176, 201, 0.55);
+  background: var(--muted);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--muted) 55%, transparent);
 }
 
 .live-badge[aria-hidden="true"] {

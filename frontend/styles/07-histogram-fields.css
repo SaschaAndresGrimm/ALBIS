@@ -4,6 +4,34 @@
    Part of the stylesheet split from style.css; the files load in the order of
    their numbers (index.html), and that order is the cascade. */
 
+:root {
+  /* Tooltips: the histogram readout, help tips and the "?" bubbles. */
+  --tooltip-bg: rgba(13, 19, 28, 0.96);
+  --tooltip-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  /* Behind a field the browser has autofilled: opaque, to cover its tint. */
+  --field-autofill-bg: rgba(10, 15, 24, 0.96);
+  /* A disabled entry in a dropdown list (Linux draws the list from CSS). */
+  --option-disabled: #8896ad;
+  /* Windows draws dropdown lists light whatever the theme: dark text on white. */
+  --option-windows-bg: #ffffff;
+  --option-windows-text: #111a27;
+  --option-windows-disabled: #6d7483;
+  /* The floating panel button where the workspace layout does not apply. */
+  --panel-fab-bg: #34445e;
+  --panel-fab-hover: #3f5375;
+  --panel-fab-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme="light"] {
+  --tooltip-bg: rgba(255, 255, 255, 0.98);
+  --tooltip-shadow: 0 2px 8px rgba(20, 30, 45, 0.18);
+  --field-autofill-bg: #ffffff;
+  --option-disabled: #9aa3b0;
+  --panel-fab-bg: #ffffff;
+  --panel-fab-hover: #eef1f5;
+  --panel-fab-shadow: 0 2px 6px rgba(20, 30, 45, 0.16);
+}
+
 #overview-canvas {
   width: 100%;
   height: 100%;
@@ -48,7 +76,7 @@
   top: 6px;
   left: 6px;
   padding: 4px 6px;
-  background: rgba(13, 19, 28, 0.95);
+  background: var(--tooltip-bg);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   color: var(--text);
@@ -67,14 +95,14 @@
   position: fixed;
   z-index: 3000;
   padding: 5px 8px;
-  background: rgba(13, 19, 28, 0.95);
+  background: var(--tooltip-bg);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  color: #f2f2f2;
+  color: var(--text);
   font-size: var(--font-size-sm);
   line-height: 1.2;
   max-width: 260px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--tooltip-shadow);
   pointer-events: none;
   opacity: 0;
   transform: translate3d(0, 0, 0);
@@ -101,10 +129,10 @@
   height: 15px;
   min-width: 0;
   padding: 0;
-  border: 1px solid var(--muted, #9aa7b8);
+  border: 1px solid var(--muted);
   border-radius: 50%;
   background: transparent;
-  color: var(--muted, #9aa7b8);
+  color: var(--muted);
   font-size: var(--font-size-xs);
   font-weight: 700;
   line-height: 1;
@@ -120,8 +148,8 @@
 .info-tip:focus-visible,
 .info-tip[aria-expanded="true"] {
   opacity: 1;
-  color: #f2f2f2;
-  border-color: #f2f2f2;
+  color: var(--text);
+  border-color: var(--text);
 }
 
 .info-tip-bubble {
@@ -129,11 +157,11 @@
   z-index: 3001;
   max-width: 300px;
   padding: 7px 9px;
-  background: rgba(13, 19, 28, 0.97);
+  background: var(--tooltip-bg);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
-  color: #f2f2f2;
+  box-shadow: var(--tooltip-shadow);
+  color: var(--text);
   font-size: var(--font-size-sm);
   line-height: 1.4;
   white-space: pre-line;
@@ -183,7 +211,7 @@
 .field select,
 .field input[type="number"],
 .field input[type="text"] {
-  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
+  background: var(--control-bg);
   color: var(--text);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
@@ -207,31 +235,31 @@
 .field input:-webkit-autofill:hover,
 .field input:-webkit-autofill:focus-visible {
   border-color: var(--border-soft);
-  -webkit-text-fill-color: #f2f7ff;
-  box-shadow: 0 0 0 1000px rgba(10, 15, 24, 0.96) inset;
-  caret-color: #f2f7ff;
+  -webkit-text-fill-color: var(--text);
+  box-shadow: 0 0 0 1000px var(--field-autofill-bg) inset;
+  caret-color: var(--text);
 }
 
 body.platform-linux select option,
 body.platform-linux select optgroup {
-  background: #111a27;
+  background: var(--surface-0);
   color: var(--text);
-  -webkit-text-fill-color: #e8f0ff;
+  -webkit-text-fill-color: var(--text);
 }
 
 body.platform-linux select option:disabled {
-  color: #8896ad;
-  -webkit-text-fill-color: #8896ad;
+  color: var(--option-disabled);
+  -webkit-text-fill-color: var(--option-disabled);
 }
 
 body.platform-windows select option,
 body.platform-windows select optgroup {
-  background: #ffffff;
-  color: #111a27;
+  background: var(--option-windows-bg);
+  color: var(--option-windows-text);
 }
 
 body.platform-windows select option:disabled {
-  color: #6d7483;
+  color: var(--option-windows-disabled);
 }
 
 .field select:focus-visible,
@@ -248,9 +276,9 @@ body.platform-windows select option:disabled {
 .field input:-webkit-autofill:focus,
 .field input:-webkit-autofill:focus-visible {
   border-color: var(--accent);
-  -webkit-text-fill-color: #f2f7ff;
-  box-shadow: 0 0 0 1000px rgba(10, 15, 24, 0.96) inset, var(--focus-ring);
-  caret-color: #f2f7ff;
+  -webkit-text-fill-color: var(--text);
+  box-shadow: 0 0 0 1000px var(--field-autofill-bg) inset, var(--focus-ring);
+  caret-color: var(--text);
 }
 
 .panel-fab {
@@ -261,24 +289,24 @@ body.platform-windows select option:disabled {
   width: 28px;
   height: 80px;
   border-radius: 14px;
-  background: linear-gradient(to bottom, #41526f, #27344a);
-  border: 1px solid rgba(14, 22, 35, 0.9);
-  color: #f7f7f7;
+  background: var(--panel-fab-bg);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
   font-size: var(--font-size-lg);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--panel-fab-shadow);
   z-index: 5;
 }
 
 .panel-fab:hover {
-  background: linear-gradient(to bottom, #4b6388, #324361);
+  background: var(--panel-fab-hover);
 }
 
 .panel-fab.is-collapsed {
-  box-shadow: 0 0 0 1px rgba(120, 170, 255, 0.35), 0 2px 6px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 0 0 1px var(--accent-soft), var(--panel-fab-shadow);
 }
 
 @media (max-width: 900px) {
@@ -602,7 +630,7 @@ body.platform-windows select option:disabled {
     display: flex;
     margin: -8px -8px 6px -8px;
     padding: 8px 0;
-    background: linear-gradient(to bottom, rgba(37, 48, 66, 0.84), rgba(25, 35, 50, 0.76));
+    background: var(--panel-light);
     border-bottom: 1px solid var(--border-subtle);
     border-top-left-radius: 10px;
     border-top-right-radius: 10px;
