@@ -3,6 +3,19 @@
    Part of the stylesheet split from style.css; the files load in the order of
    their numbers (index.html), and that order is the cascade. */
 
+/* Component tokens: the dark value first, the light theme's below. */
+:root {
+  /* The Search button beside the inspector's field, on hover. */
+  --inspector-button-hover: #33415a;
+  /* The selected node in the HDF5 tree. */
+  --inspector-row-selected: rgba(64, 123, 211, 0.35);
+}
+
+:root[data-theme="light"] {
+  --inspector-button-hover: #d5dce6;
+  --inspector-row-selected: rgba(31, 111, 209, 0.2);
+}
+
 .image-header-loading {
   min-height: 98px;
 }
@@ -12,7 +25,7 @@
 }
 
 .image-header-empty {
-  color: #b8c8e2;
+  color: var(--muted);
   font-size: var(--font-size-sm);
   padding: 6px 4px;
 }
@@ -20,14 +33,14 @@
 .image-header-text {
   max-height: 220px;
   overflow: auto;
-  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.98), rgba(10, 15, 24, 0.98));
-  border: 1px solid rgba(20, 31, 46, 0.95);
+  background: var(--surface-well);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   padding: 8px;
   font-family: var(--font-ui);
   font-size: var(--font-size-sm);
   line-height: 1.38;
-  color: #dfeeff;
+  color: var(--text);
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
@@ -41,9 +54,9 @@
 
 .inspector-search input {
   flex: 1;
-  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.98), rgba(10, 15, 24, 0.98));
+  background: var(--control-bg);
   color: var(--text);
-  border: 1px solid rgba(20, 31, 46, 0.95);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-sm);
   padding: 4px 6px;
   font-size: var(--font-size-md);
@@ -51,8 +64,8 @@
 
 .inspector-search button {
   min-width: 64px;
-  background: linear-gradient(to bottom, rgba(48, 61, 84, 0.96), rgba(30, 40, 57, 0.96));
-  border: 1px solid rgba(24, 35, 52, 0.95);
+  background: var(--surface-3);
+  border: 1px solid var(--control-border);
   color: var(--text);
   border-radius: var(--radius-sm);
   padding: 4px 8px;
@@ -65,8 +78,8 @@
 }
 
 .inspector-search button:hover {
-  background: linear-gradient(to bottom, rgba(58, 75, 103, 0.98), rgba(36, 48, 68, 0.98));
-  border-color: rgba(74, 103, 150, 0.88);
+  background: var(--inspector-button-hover);
+  border-color: var(--border-bold);
 }
 
 /* With results on show they stand in for the tree, so they get its height. */
@@ -101,12 +114,12 @@
 }
 
 .inspector-result:hover {
-  background: rgba(120, 170, 255, 0.2);
+  background: var(--accent-soft);
 }
 
 .inspector-result:focus-visible {
   outline: none;
-  background: rgba(120, 170, 255, 0.24);
+  background: var(--accent-soft);
   box-shadow: var(--focus-ring);
 }
 
@@ -186,7 +199,7 @@
 }
 
 .inspector-row:hover {
-  background: rgba(120, 170, 255, 0.15);
+  background: var(--accent-soft);
 }
 
 /* The "listing truncated" row states a fact about the group rather than naming
@@ -219,7 +232,7 @@
 }
 
 .inspector-row.is-selected {
-  background: rgba(64, 123, 211, 0.35);
+  background: var(--inspector-row-selected);
 }
 
 .inspector-toggle {
@@ -227,7 +240,7 @@
   height: 16px;
   border: none;
   background: transparent;
-  color: #d8e3f8;
+  color: var(--muted-strong);
   cursor: pointer;
   font-size: var(--font-size-sm);
   padding: 0;
@@ -290,7 +303,7 @@
 .inspector-children {
   margin: 2px 0 2px 16px;
   padding-left: 8px;
-  border-left: 1px dotted rgba(95, 119, 162, 0.52);
+  border-left: 1px dotted var(--border-strong);
   display: none;
 }
 
@@ -444,7 +457,7 @@
 .inspector-details .meta-row strong {
   text-align: right;
   font-weight: 600;
-  color: #f2f2f2;
+  color: var(--text);
   word-break: break-all;
 }
 
@@ -625,7 +638,7 @@
 }
 
 .inspector-preview-actions a {
-  color: #9cc6ff;
+  color: var(--accent-strong);
   text-decoration: none;
   font-size: var(--font-size-xs);
 }
@@ -668,8 +681,8 @@
 }
 
 .inspector-table th {
-  background: rgba(37, 49, 67, 0.88);
-  color: #dbe8ff;
+  background: var(--surface-3);
+  color: var(--muted-strong);
 }
 
 .thumb-view {
@@ -707,14 +720,14 @@
   padding: 0 8px;
   text-align: right;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(90, 140, 200, 0.35);
-  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(9, 14, 22, 0.95));
+  border: 1px solid var(--control-border);
+  background: var(--control-bg);
   color: var(--text);
 }
 
 .zoom-value-input:focus-visible {
   outline: none;
-  border-color: rgba(110, 181, 255, 0.75);
+  border-color: var(--accent);
   /* Was an 18%-alpha ring, fainter still than the token it bypassed. */
   box-shadow: var(--focus-ring);
 }

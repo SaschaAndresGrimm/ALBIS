@@ -80,7 +80,7 @@
 
 .detector-data-page:hover,
 .detector-data-page:focus-visible {
-  background: rgba(78, 161, 255, 0.16);
+  background: var(--accent-soft);
 }
 
 .detector-files-section > summary .detector-data-page {
@@ -162,28 +162,28 @@
 }
 
 .detector-feedback[data-state="done"] {
-  color: #4fd18b;
+  color: var(--detector-status-ok);
 }
 
 .detector-feedback[data-state="error"] {
-  color: #ff8f8f;
+  color: var(--detector-status-error-text);
 }
 
 /* Delete all files, armed by a first click: solid red until the second
    click or a few seconds pass; the note beside it says "Click again…". */
 .btn.is-danger.is-armed {
-  border-color: #ff6b6b;
-  background: rgba(255, 107, 107, 0.35);
-  color: #fff;
+  border-color: var(--detector-status-error);
+  background: var(--detector-danger-armed-bg);
+  color: var(--detector-danger-armed-text);
 }
 
 .detector-feedback[data-state="armed"] {
-  color: #ffb4b4;
+  color: var(--tone-error-text);
 }
 
 .detector-output-commands .btn.is-danger {
-  border-color: rgba(255, 107, 107, 0.55);
-  color: #ffb4b4;
+  border-color: var(--detector-status-error-line);
+  color: var(--tone-error-text);
 }
 
 /* Advanced: one line per setting, with room for longer choices. */
@@ -261,7 +261,7 @@
   padding: 4px 8px;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
-  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
+  background: var(--control-bg);
   color: var(--text);
   font-size: var(--font-size-md);
 }
@@ -281,8 +281,8 @@
 
 /* A hint rather than a fault: amber, like the "changed elsewhere" notice. */
 .detector-warning.is-caution {
-  background: rgba(242, 184, 75, 0.14);
-  color: #ffe1a3;
+  background: var(--detector-status-busy-soft);
+  color: var(--tone-warning-text);
 }
 
 /* Recovery under the sensors: a quiet link at the right while all is well. */
@@ -359,7 +359,7 @@
   padding: 4px 8px;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
-  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
+  background: var(--control-bg);
   color: var(--text);
   font-size: var(--font-size-md);
 }
@@ -381,7 +381,7 @@
 }
 
 .detector-field input[aria-invalid="true"] {
-  border-color: #ff6b6b;
+  border-color: var(--detector-status-error);
 }
 
 .detector-unit {
@@ -424,7 +424,7 @@
 }
 
 .detector-hint.is-error {
-  color: #ff8f8f;
+  color: var(--detector-status-error-text);
 }
 
 .detector-hint.is-changed {
@@ -493,7 +493,7 @@
 
 .detector-switch input:checked + span::after {
   transform: translateX(14px);
-  background: #fff;
+  background: var(--detector-switch-knob-on);
 }
 
 .detector-switch input:focus-visible + span {
@@ -518,20 +518,20 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #9aa9c4;
+  background: var(--detector-status-idle);
 }
 
 .detector-dot[data-tone="ok"]::before {
-  background: #4fd18b;
+  background: var(--detector-status-ok);
 }
 
 .detector-dot[data-tone="busy"]::before {
-  background: #f2b84b;
+  background: var(--detector-status-busy);
   animation: detector-pulse 1.1s ease-in-out infinite;
 }
 
 .detector-dot[data-tone="error"]::before {
-  background: #ff6b6b;
+  background: var(--detector-status-error);
 }
 
 .detector-note {
@@ -585,7 +585,7 @@
 }
 
 .detector-content .linkish.is-danger {
-  color: #ff8f8f;
+  color: var(--detector-status-error-text);
 }
 
 .detector-log {
@@ -612,11 +612,11 @@
 }
 
 .detector-log li.is-elsewhere span {
-  color: #ffe1a3;
+  color: var(--tone-warning-text);
 }
 
 .detector-log li.is-error span {
-  color: #ffb3b3;
+  color: var(--tone-error-text);
 }
 
 @media (prefers-reduced-motion: reduce) {

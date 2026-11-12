@@ -5,6 +5,75 @@
    Part of the stylesheet split from style.css; the files load in the order of
    their numbers (index.html), and that order is the cascade. */
 
+/* Component colours for the controls here; 06, 09 and 10 use some of them
+   too. Each has a light-theme value below. */
+:root {
+  /* A lit toggle (Auto, the chosen bin preset): accent-tinted fill and edge. */
+  --toggle-on-bg: rgba(45, 82, 118, 0.82);
+  --toggle-on-border: rgba(110, 181, 255, 0.72);
+  --toggle-on-hover-bg: rgba(55, 98, 140, 0.9);
+  --toggle-on-hover-border: rgba(130, 195, 255, 0.85);
+  /* The drawn checkbox, unticked. */
+  --checkbox-bg: rgba(8, 13, 21, 0.6);
+  --checkbox-border: rgba(160, 182, 214, 0.75);
+  --checkbox-border-hover: rgba(196, 214, 240, 0.95);
+  /* The section switch: track off and on, and its knob. */
+  --switch-track-bg: #222222;
+  --switch-track-border: #0f0f0f;
+  --switch-on-bg: #2d72b8;
+  --switch-knob: #d8d8d8;
+  --switch-knob-shadow: rgba(0, 0, 0, 0.6);
+  /* Secondary buttons (.btn). */
+  --btn-bg: rgba(39, 51, 70, 0.84);
+  --btn-bg-hover: rgba(47, 62, 86, 0.92);
+  --btn-border: var(--border-soft);
+  /* .btn-danger: its text, and its hover fill and edge. */
+  --btn-danger-text: #2a0c0c;
+  --btn-danger-hover-bg: #dd6868;
+  --btn-danger-hover-border: rgba(240, 130, 130, 0.95);
+  /* A field's note that something needs attention; unsaved mask edits. */
+  --field-hint-text: #f2c285;
+  /* Short status lines: a failed or a passed check. */
+  --status-error-text: #ff8f8f;
+  --status-ok-text: #7fd6a2;
+  /* The star of a kept detector. */
+  --kept-star: #f4c752;
+  /* A faint inset behind a group inside a panel (details, cards, chips). */
+  --surface-inset-faint: rgba(11, 17, 26, 0.45);
+  /* An accent-tinted edge: an indented group's rail, a clickable bar, chips. */
+  --accent-edge: rgba(102, 170, 255, 0.4);
+  /* The shadow under small menus and popovers. */
+  --popover-shadow-color: rgba(0, 0, 0, 0.45);
+}
+
+:root[data-theme="light"] {
+  --toggle-on-bg: rgba(31, 111, 209, 0.14);
+  --toggle-on-border: rgba(31, 111, 209, 0.6);
+  --toggle-on-hover-bg: rgba(31, 111, 209, 0.22);
+  --toggle-on-hover-border: rgba(31, 111, 209, 0.8);
+  --checkbox-bg: #ffffff;
+  --checkbox-border: rgba(28, 42, 66, 0.45);
+  --checkbox-border-hover: rgba(28, 42, 66, 0.7);
+  --switch-track-bg: #c3cad5;
+  --switch-track-border: rgba(28, 42, 66, 0.22);
+  --switch-on-bg: #1f6fd1;
+  --switch-knob: #ffffff;
+  --switch-knob-shadow: rgba(20, 30, 45, 0.35);
+  --btn-bg: #f4f6f9;
+  --btn-bg-hover: #e7ebf1;
+  --btn-border: var(--border-strong);
+  --btn-danger-text: #ffffff;
+  --btn-danger-hover-bg: #b33232;
+  --btn-danger-hover-border: #a52a2a;
+  --field-hint-text: #8a5300;
+  --status-error-text: #b42828;
+  --status-ok-text: #1f7a45;
+  --kept-star: #b98500;
+  --surface-inset-faint: rgba(28, 42, 66, 0.04);
+  --accent-edge: rgba(31, 111, 209, 0.4);
+  --popover-shadow-color: rgba(20, 30, 45, 0.16);
+}
+
 /* Auto, BG and FG on one row: the two fields share what Auto leaves, so
    neither is pushed past the panel's edge, whatever its width or language. */
 .contrast-row {
@@ -37,14 +106,14 @@
 }
 
 .auto-toggle:has(input:checked) {
-  border-color: rgba(110, 181, 255, 0.72);
-  background: rgba(45, 82, 118, 0.82);
+  border-color: var(--toggle-on-border);
+  background: var(--toggle-on-bg);
 }
 
 /* Outranks .btn:hover, so a click that turns Auto on or off shows at once. */
 .btn.auto-toggle:has(input:checked):hover:not(.is-disabled) {
-  border-color: rgba(130, 195, 255, 0.85);
-  background: rgba(55, 98, 140, 0.9);
+  border-color: var(--toggle-on-hover-border);
+  background: var(--toggle-on-hover-bg);
 }
 
 .auto-toggle:has(input:focus-visible) {
@@ -66,7 +135,7 @@
 .range-inline.compact input {
   width: 78px;
   min-width: 0;
-  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
+  background: var(--control-bg);
   color: var(--text);
   border: 1px solid var(--border-soft);
   padding: 6px 8px;
@@ -120,9 +189,9 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   width: 14px;
   height: 14px;
   padding: 0;
-  border: 1.5px solid rgba(160, 182, 214, 0.75);
+  border: 1.5px solid var(--checkbox-border);
   border-radius: 3px;
-  background: rgba(8, 13, 21, 0.6) center / 12px 12px no-repeat;
+  background: var(--checkbox-bg) center / 12px 12px no-repeat;
   cursor: pointer;
   transition:
     background-color var(--motion-fast) var(--motion-ease-standard),
@@ -130,7 +199,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 }
 
 input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch input):hover:not(:disabled) {
-  border-color: rgba(196, 214, 240, 0.95);
+  border-color: var(--checkbox-border-hover);
 }
 
 /* The tick dark on the blue, as .btn-primary's text is. */
@@ -179,8 +248,8 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   width: 100%;
   height: 100%;
   border-radius: 10px;
-  border: 1px solid #0f0f0f;
-  background: linear-gradient(to bottom, #2a2a2a, #191919);
+  border: 1px solid var(--switch-track-border);
+  background: var(--switch-track-bg);
   transition: background var(--motion-med) var(--motion-ease-standard);
 }
 
@@ -192,13 +261,13 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   top: 1px;
   left: 1px;
   border-radius: 50%;
-  background: #d8d8d8;
-  box-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
+  background: var(--switch-knob);
+  box-shadow: 0 0 2px var(--switch-knob-shadow);
   transition: transform var(--motion-med) var(--motion-ease-standard);
 }
 
 .section-switch input:checked + .section-switch-track {
-  background: linear-gradient(to bottom, #3a84d5, #205f9c);
+  background: var(--switch-on-bg);
 }
 
 .section-switch input:checked + .section-switch-track::after {
@@ -227,7 +296,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 
 .field-hint {
   font-size: var(--font-size-xs);
-  color: #f2c285;
+  color: var(--field-hint-text);
   line-height: 1.2;
 }
 
@@ -237,8 +306,8 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 
 .field input.is-invalid,
 .field select.is-invalid {
-  border-color: rgba(224, 93, 93, 0.72) !important;
-  box-shadow: 0 0 0 1px rgba(224, 93, 93, 0.22);
+  border-color: var(--tone-error) !important;
+  box-shadow: 0 0 0 1px var(--tone-error-soft);
 }
 
 .field.data-row {
@@ -355,7 +424,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 
 .detector-picker-error {
   padding: 6px 8px 2px;
-  color: #ff8f8f;
+  color: var(--status-error-text);
   font-size: var(--font-size-sm);
 }
 
@@ -431,7 +500,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 
 .detector-picker-icon.is-kept,
 .detector-content .detector-keep.is-kept {
-  color: #f4c752;
+  color: var(--kept-star);
 }
 
 @media (hover: none) {
@@ -479,18 +548,18 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   height: 9px;
   margin-right: 6px;
   border-radius: 50%;
-  border: 2px solid rgba(150, 176, 220, 0.45);
-  border-top-color: rgba(224, 236, 255, 0.95);
+  border: 2px solid var(--border-bold);
+  border-top-color: var(--text);
   animation: splash-spin 0.8s linear infinite;
   vertical-align: -1px;
 }
 
 .simplon-probe-message.is-ok {
-  color: #7fd6a2;
+  color: var(--status-ok-text);
 }
 
 .simplon-probe-message.is-error {
-  color: #ff8888;
+  color: var(--status-error-text);
 }
 
 #autoload-watch-options {
@@ -502,7 +571,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   margin: 0;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  background: rgba(11, 17, 26, 0.45);
+  background: var(--surface-inset-faint);
 }
 
 .advanced-details > summary {
@@ -619,14 +688,14 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 .pill {
   padding: 4px 8px;
   background: var(--surface-well);
-  border: 1px solid rgba(20, 32, 49, 0.92);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
 }
 
 .btn {
-  background: linear-gradient(to bottom, rgba(48, 61, 84, 0.84), rgba(30, 40, 57, 0.84));
-  border: 1px solid var(--border-soft);
+  background: var(--btn-bg);
+  border: 1px solid var(--btn-border);
   border-radius: var(--radius-sm);
   color: var(--text);
   padding: 6px 10px;
@@ -640,7 +709,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 }
 
 .btn:hover:not(:disabled):not(.is-disabled) {
-  background: linear-gradient(to bottom, rgba(58, 75, 103, 0.92), rgba(36, 48, 68, 0.92));
+  background: var(--btn-bg-hover);
   border-color: var(--border-strong);
 }
 
@@ -651,25 +720,25 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 }
 
 .btn-primary {
-  background: linear-gradient(to bottom, #74bbff, #3a80d9);
-  border-color: rgba(126, 187, 255, 0.9);
-  color: #06101d;
+  background: var(--accent);
+  border-color: var(--accent-strong);
+  color: var(--text-on-accent);
 }
 
 .btn-primary:hover:not(:disabled):not(.is-disabled) {
-  background: linear-gradient(to bottom, #86c6ff, #4a91e4);
-  border-color: rgba(150, 205, 255, 0.95);
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
 }
 
 .btn-danger {
-  background: linear-gradient(to bottom, #e06b6b, #c23f3f);
-  border-color: rgba(224, 93, 93, 0.9);
-  color: #2a0c0c;
+  background: var(--tone-error);
+  border-color: var(--tone-error);
+  color: var(--btn-danger-text);
 }
 
 .btn-danger:hover:not(:disabled):not(.is-disabled) {
-  background: linear-gradient(to bottom, #e98080, #d04f4f);
-  border-color: rgba(240, 130, 130, 0.95);
+  background: var(--btn-danger-hover-bg);
+  border-color: var(--btn-danger-hover-border);
 }
 
 .btn:focus-visible {
@@ -764,7 +833,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 
 .roi-mini-field input {
   width: 100%;
-  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
+  background: var(--control-bg);
   color: var(--text);
   border: 1px solid var(--border-soft);
   padding: 6px 8px;

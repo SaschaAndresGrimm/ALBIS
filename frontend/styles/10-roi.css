@@ -6,7 +6,7 @@
 #simplon-url,
 #simplon-version,
 #simplon-timeout {
-  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
+  background: var(--control-bg);
   color: var(--text);
   border: 1px solid var(--border-soft);
 }
@@ -14,7 +14,7 @@
 #simplon-url:focus,
 #simplon-version:focus,
 #simplon-timeout:focus {
-  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
+  background: var(--control-bg);
   color: var(--text);
 }
 
@@ -86,7 +86,7 @@
 
 .roi-plot-title {
   font-size: var(--font-size-sm);
-  color: #dce8fb;
+  color: var(--plot-text);
   margin-bottom: 3px;
   flex-shrink: 0;
 }
@@ -119,18 +119,18 @@
   display: inline-flex;
   align-items: center;
   padding: 1px 6px;
-  border: 1px solid rgba(110, 181, 255, 0.36);
+  border: 1px solid var(--accent-edge);
   border-radius: var(--radius-sm);
-  background: rgba(37, 67, 96, 0.6);
-  color: #dbeeff;
+  background: var(--accent-soft);
+  color: var(--text);
   font-size: var(--font-size-xs);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .roi-axis-limit-chip {
-  border-color: rgba(143, 196, 255, 0.32);
-  background: rgba(34, 52, 76, 0.62);
+  border-color: var(--accent-edge);
+  background: var(--accent-soft);
   font-family: inherit;
   cursor: pointer;
 }
@@ -158,7 +158,7 @@
   justify-content: center;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: rgba(16, 25, 38, 0.9);
+  background: var(--control-bg);
   color: var(--text);
   font-size: var(--font-size-lg);
   line-height: 1;
@@ -170,8 +170,8 @@
 
 .roi-plot-icon-btn:hover,
 .roi-plot-icon-btn[aria-expanded="true"] {
-  border-color: rgba(118, 154, 214, 0.75);
-  background: rgba(31, 47, 70, 0.96);
+  border-color: var(--border-bold);
+  background: var(--control-hover);
 }
 
 .roi-plot-icon-btn:focus-visible {
@@ -192,7 +192,7 @@
   padding: 8px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  background: linear-gradient(to bottom, rgba(17, 24, 35, 0.98), rgba(12, 18, 27, 0.98));
+  background: var(--surface-0);
   box-shadow: var(--shadow-soft);
   opacity: 0;
   transform: translateY(-4px);
@@ -231,7 +231,7 @@
 }
 
 .roi-plot-unit-row select {
-  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
+  background: var(--control-bg);
   color: var(--text);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
@@ -282,7 +282,7 @@
   gap: 8px;
   align-items: center;
   font-size: var(--font-size-sm);
-  color: #dce8fb;
+  color: var(--muted-strong);
 }
 
 .roi-histogram-bin-count-field input {
@@ -301,7 +301,7 @@
   min-height: 24px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: rgba(16, 25, 38, 0.86);
+  background: var(--control-bg);
   color: var(--text);
   font-size: var(--font-size-sm);
   font-variant-numeric: tabular-nums;
@@ -310,8 +310,8 @@
 
 .roi-histogram-bin-preset:hover,
 .roi-histogram-bin-preset.is-active {
-  border-color: rgba(110, 181, 255, 0.72);
-  background: rgba(45, 82, 118, 0.82);
+  border-color: var(--toggle-on-border);
+  background: var(--toggle-on-bg);
 }
 
 .roi-histogram-bin-preset:focus-visible {
@@ -339,7 +339,7 @@
   top: 8px;
   left: 8px;
   padding: 4px 6px;
-  background: rgba(13, 19, 28, 0.95);
+  background: var(--surface-well);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   color: var(--text);
@@ -365,12 +365,12 @@
   width: 16px;
   height: 16px;
   cursor: nwse-resize;
-  background: linear-gradient(135deg, transparent 50%, rgba(131, 157, 200, 0.55) 50%);
+  background: linear-gradient(135deg, transparent 50%, var(--border-bold) 50%);
   border-top: 1px solid var(--border-strong);
   border-left: 1px solid var(--border-strong);
   border-radius: 2px 0 0 0;
 }
 
 .roi-resize-handle:hover {
-  background: linear-gradient(135deg, transparent 50%, rgba(139, 180, 243, 0.8) 50%);
+  background: linear-gradient(135deg, transparent 50%, var(--muted) 50%);
 }

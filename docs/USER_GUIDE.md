@@ -41,6 +41,7 @@ reference of the same material.
 - [Pixel masks (beta)](#pixel-masks-beta)
 - [Test a detector (beta)](#test-a-detector-beta)
 - [Show only the tools you use](#show-only-the-tools-you-use)
+- [Light or dark](#light-or-dark)
 - [Work from another machine](#work-from-another-machine)
 
 **Reference**
@@ -1245,6 +1246,25 @@ which of them the tab shows; **Statistics and ROI** is always there.
 The choice is stored in the config file as `ui.hidden_tools`, so a facility can
 ship ALBIS set up for one kind of station (see the
 [Power User Guide](POWER_USER_GUIDE.md)).
+
+---
+
+## Light or dark
+
+**Settings → Viewer → Appearance** chooses the colours of the interface:
+
+- **Dark**, the default.
+- **Light**: light panels, menus and dialogs, for a bright room or a projector.
+- **System**: follows your computer's light or dark setting, and switches with
+  it while ALBIS is open.
+
+The choice applies when you click **Save**. The area around the image stays
+dark in both: a bright surround makes the eye adapt to it, and faint signal in
+a frame loses contrast. The image itself, the colour map and the overlays on it
+look the same in either.
+
+The choice belongs to the browser, like the side panel's width, not to the
+config file: when several people open one ALBIS server, each keeps their own.
 
 ---
 

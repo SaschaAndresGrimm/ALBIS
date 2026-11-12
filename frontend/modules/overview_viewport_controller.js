@@ -537,7 +537,7 @@ export function createOverviewViewportController({
     if (!state.hasFrame || !state.width || !state.height) {
       overviewCtx.strokeStyle = PLOT_THEME.frame;
       overviewCtx.strokeRect(0.5, 0.5, width - 1, height - 1);
-      overviewCtx.fillStyle = "rgba(220, 232, 250, 0.7)";
+      overviewCtx.fillStyle = PLOT_THEME.text;
       overviewCtx.font = canvasFont(10, 500);
       overviewCtx.textAlign = "center";
       overviewCtx.textBaseline = "middle";

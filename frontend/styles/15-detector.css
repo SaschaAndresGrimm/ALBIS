@@ -3,6 +3,44 @@
    Part of the stylesheet split from style.css; the files load in the order of
    their numbers (index.html), and that order is the cascade. */
 
+/* The detector's status colours, per theme: the state pill, the dots, the
+   sensor readings, the progress bar, and the warnings and danger buttons.
+   16-detector-output.css uses them too. */
+:root {
+  --detector-status-idle: #9aa9c4;
+  --detector-status-idle-soft: rgba(154, 169, 196, 0.14);
+  --detector-status-busy: #f2b84b;
+  --detector-status-busy-soft: rgba(242, 184, 75, 0.15);
+  --detector-status-ok: #4fd18b;
+  --detector-status-ok-soft: rgba(79, 209, 139, 0.16);
+  --detector-status-error: #ff6b6b;
+  --detector-status-error-soft: rgba(255, 107, 107, 0.14);
+  --detector-status-error-line: rgba(255, 107, 107, 0.5);
+  /* Error text in a plain line (feedback, field hints, a danger link). */
+  --detector-status-error-text: #ff8f8f;
+  /* The armed "Delete all files" button: solid red until confirmed. */
+  --detector-danger-armed-bg: rgba(255, 107, 107, 0.35);
+  --detector-danger-armed-text: #ffffff;
+  /* The knob of a switch that is on, over the filled track. */
+  --detector-switch-knob-on: #ffffff;
+}
+
+:root[data-theme="light"] {
+  --detector-status-idle: #5a6578;
+  --detector-status-idle-soft: rgba(90, 101, 120, 0.12);
+  --detector-status-busy: #8f5c05;
+  --detector-status-busy-soft: rgba(176, 111, 12, 0.12);
+  --detector-status-ok: #1f7a45;
+  --detector-status-ok-soft: rgba(46, 138, 85, 0.12);
+  --detector-status-error: #c03434;
+  --detector-status-error-soft: rgba(201, 60, 60, 0.1);
+  --detector-status-error-line: rgba(201, 60, 60, 0.5);
+  --detector-status-error-text: #b42727;
+  --detector-danger-armed-bg: #c93c3c;
+  --detector-danger-armed-text: #ffffff;
+  --detector-switch-knob-on: #ffffff;
+}
+
 /* ---------------------------------------------------------------------------
    Detector tab (beta): control a detector over SIMPLON.
    Its pieces set their own display, which would otherwise beat `hidden`.
@@ -86,8 +124,8 @@
 }
 
 .detector-state {
-  --tone: #9aa9c4;
-  --tone-soft: rgba(154, 169, 196, 0.14);
+  --tone: var(--detector-status-idle);
+  --tone-soft: var(--detector-status-idle-soft);
   display: inline-flex;
   flex: none;
   align-items: center;
@@ -116,18 +154,18 @@
 }
 
 .detector-state[data-tone="busy"] {
-  --tone: #f2b84b;
-  --tone-soft: rgba(242, 184, 75, 0.16);
+  --tone: var(--detector-status-busy);
+  --tone-soft: var(--detector-status-busy-soft);
 }
 
 .detector-state[data-tone="acquire"] {
-  --tone: #4fd18b;
-  --tone-soft: rgba(79, 209, 139, 0.16);
+  --tone: var(--detector-status-ok);
+  --tone-soft: var(--detector-status-ok-soft);
 }
 
 .detector-state[data-tone="error"] {
-  --tone: #ff6b6b;
-  --tone-soft: rgba(255, 107, 107, 0.16);
+  --tone: var(--detector-status-error);
+  --tone-soft: var(--detector-status-error-soft);
 }
 
 .detector-state[data-tone="busy"]::before,
@@ -177,7 +215,7 @@
   display: block;
   width: 0;
   height: 100%;
-  background: #4fd18b;
+  background: var(--detector-status-ok);
   /* Matches the 100 ms tick, so the bar glides between updates. */
   transition: width 100ms linear;
 }
@@ -195,21 +233,21 @@
   gap: 8px;
   align-items: flex-start;
   justify-content: space-between;
-  background: rgba(242, 184, 75, 0.14);
-  color: #ffe1a3;
+  background: var(--detector-status-busy-soft);
+  color: var(--tone-warning-text);
 }
 
 .detector-confirm {
   display: grid;
   gap: 8px;
-  border: 1px solid rgba(255, 107, 107, 0.45);
-  background: rgba(255, 107, 107, 0.12);
+  border: 1px solid var(--detector-status-error-line);
+  background: var(--detector-status-error-soft);
 }
 
 .detector-warning {
   margin: 0 0 8px;
-  background: rgba(255, 107, 107, 0.12);
-  color: #ffd0d0;
+  background: var(--detector-status-error-soft);
+  color: var(--tone-error-text);
 }
 
 .detector-actions {
@@ -222,9 +260,9 @@
 }
 
 .detector-btn-danger {
-  border-color: rgba(255, 107, 107, 0.5);
-  background: rgba(255, 107, 107, 0.14);
-  color: #ffd6d6;
+  border-color: var(--detector-status-error-line);
+  background: var(--detector-status-error-soft);
+  color: var(--tone-error-text);
 }
 
 /* The Detector header chip sums up a closed section; open, the state pill
@@ -258,11 +296,11 @@
 }
 
 .detector-sensor strong[data-tone="ok"] {
-  color: #4fd18b;
+  color: var(--detector-status-ok);
 }
 
 .detector-sensor strong[data-tone="warn"] {
-  color: #f2b84b;
+  color: var(--detector-status-busy);
 }
 
 .detector-group-label {
@@ -456,13 +494,13 @@
 /* What would make a series fail: a line each, amber, no box, as tall as
    the progress and result lines that take the same place. */
 .detector-issue {
-  color: #ffe1a3;
+  color: var(--tone-warning-text);
   font-size: var(--font-size-md);
 }
 
 .detector-issue::before {
   content: "⚠ ";
-  color: #f2b84b;
+  color: var(--detector-status-busy);
 }
 
 .detector-preflight:empty,

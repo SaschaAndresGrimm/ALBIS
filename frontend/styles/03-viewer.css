@@ -4,6 +4,73 @@
    Part of the stylesheet split from style.css; the files load in the order of
    their numbers (index.html), and that order is the cascade. */
 
+/* The image area and what floats over it stay dark in both themes (see
+   --ws-canvas in style.css), so these tokens have no light value. */
+:root {
+  /* Around the frame where the workspace layout does not apply (phone). */
+  --viewer-surround: #222b3a;
+  /* Behind the frame itself, inside the canvas shell. */
+  --viewer-image-bg: rgba(12, 18, 27, 0.96);
+  /* The loading badge and the cursor readout on the image. */
+  --viewer-readout-bg: rgba(13, 19, 28, 0.88);
+  /* Dragging a file over the image: the ring, the dimming and the message. */
+  --viewer-drop-ring: rgba(109, 179, 255, 0.62);
+  --viewer-drop-ring-blocked: rgba(245, 167, 66, 0.72);
+  --viewer-drop-shadow: 0 14px 28px rgba(5, 10, 18, 0.4);
+  --viewer-drop-scrim: rgba(7, 12, 20, 0.56);
+  --viewer-drop-message-bg: rgba(15, 22, 34, 0.92);
+  --viewer-drop-message-border: rgba(148, 177, 219, 0.36);
+  --viewer-drop-message-shadow: 0 18px 36px rgba(3, 7, 14, 0.38);
+  /* The mask-edit bar over the image. */
+  --mask-bar-bg: #1a5a94;
+  --mask-bar-border: rgba(154, 195, 255, 0.22);
+  --mask-bar-shadow: 0 8px 22px rgba(4, 8, 16, 0.45);
+  --mask-bar-flip-outline: rgba(255, 255, 255, 0.55);
+  --mask-bar-count: #dbe7fb;
+  --mask-bar-hint: rgba(219, 231, 251, 0.75);
+  /* The magnifier lens: a light rim that reads on any frame. */
+  --magnifier-rim: rgba(230, 240, 255, 0.85);
+  --magnifier-shadow: 0 6px 24px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.6);
+  /* The footer's status pill (phone layout): an accent-tinted field. */
+  --viewer-status-bg: rgba(22, 49, 84, 0.86);
+  /* The Versions popover's drop shadow. */
+  --viewer-popover-shadow: 0 12px 26px rgba(2, 8, 16, 0.56);
+  /* "Reload" in the Versions popover, on hover. */
+  --viewer-reload-hover: rgba(255, 216, 168, 0.2);
+}
+
+:root[data-theme="light"] {
+  --viewer-status-bg: rgba(31, 111, 209, 0.12);
+  --viewer-popover-shadow: 0 12px 26px rgba(20, 30, 45, 0.16);
+  --viewer-reload-hover: rgba(176, 111, 12, 0.18);
+}
+
+/* In the light theme the overlays on the image keep the dark theme's tokens,
+   so the text, edges and controls inside them stay readable on dark. */
+:root[data-theme="light"] :is(.loading, .cursor-overlay, .file-drop-message, .mask-edit-bar) {
+  color-scheme: dark;
+  --text: #edf3ff;
+  --muted: #b4bfd4;
+  --muted-strong: #cad6ec;
+  --border: rgba(104, 126, 163, 0.34);
+  --border-subtle: rgba(104, 126, 163, 0.22);
+  --border-soft: rgba(104, 126, 163, 0.28);
+  --border-strong: rgba(104, 126, 163, 0.44);
+  --border-bold: rgba(104, 126, 163, 0.6);
+  --accent: #4ea1ff;
+  --accent-strong: #79bbff;
+  --accent-soft: rgba(78, 161, 255, 0.18);
+  --text-on-accent: #08131f;
+  --control-bg: rgba(11, 18, 28, 0.82);
+  --control-border: rgba(104, 126, 163, 0.4);
+  --control-hover: rgba(33, 48, 70, 0.98);
+  --ws-hover: rgba(255, 255, 255, 0.05);
+  --ws-pressed: rgba(255, 255, 255, 0.09);
+  --ws-divider: rgba(255, 255, 255, 0.07);
+  --surface-well: rgba(13, 19, 28, 0.92);
+  --focus-ring: 0 0 0 1px rgba(6, 10, 18, 0.92), 0 0 0 3px #4ea1ff;
+}
+
 .app {
   flex: 1;
   display: grid;
@@ -14,7 +81,7 @@
 
 .viewer {
   padding: 12px;
-  background: linear-gradient(to bottom, #273243, #1c2432);
+  background: var(--viewer-surround);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -23,35 +90,35 @@
 .panel-resizer {
   width: 6px;
   cursor: col-resize;
-  background: linear-gradient(to right, rgba(10, 14, 19, 0.68), rgba(84, 105, 139, 0.14));
-  border-left: 1px solid rgba(9, 14, 22, 0.8);
-  border-right: 1px solid rgba(9, 14, 22, 0.8);
+  background: var(--surface-0);
+  border-left: 1px solid var(--border-strong);
+  border-right: 1px solid var(--border-strong);
 }
 
 .panel-resizer:hover {
-  background: linear-gradient(to right, rgba(74, 136, 222, 0.42), rgba(36, 76, 124, 0.3));
+  background: var(--accent-soft);
 }
 
 .canvas-shell {
   position: relative;
   width: 100%;
   height: 100%;
-  background: rgba(12, 18, 27, 0.96);
+  background: var(--viewer-image-bg);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
-  box-shadow: 0 8px 18px rgba(7, 11, 20, 0.24);
+  box-shadow: var(--shadow-soft);
 }
 
 .canvas-shell.is-file-drop-target {
   box-shadow:
-    0 0 0 2px rgba(109, 179, 255, 0.62),
-    0 14px 28px rgba(5, 10, 18, 0.4);
+    0 0 0 2px var(--viewer-drop-ring),
+    var(--viewer-drop-shadow);
 }
 
 .canvas-shell.is-file-drop-disabled {
   box-shadow:
-    0 0 0 2px rgba(245, 167, 66, 0.72),
-    0 14px 28px rgba(5, 10, 18, 0.4);
+    0 0 0 2px var(--viewer-drop-ring-blocked),
+    var(--viewer-drop-shadow);
 }
 
 .file-drop-overlay {
@@ -64,7 +131,7 @@
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
-  background: rgba(7, 12, 20, 0.56);
+  background: var(--viewer-drop-scrim);
   transition: opacity var(--motion-fast) var(--motion-ease-standard), visibility 0s linear var(--motion-fast);
 }
 
@@ -79,10 +146,10 @@
   display: none;
   max-width: min(480px, 92vw);
   padding: 18px 22px;
-  border: 1px solid rgba(148, 177, 219, 0.36);
+  border: 1px solid var(--viewer-drop-message-border);
   border-radius: var(--radius-sm);
-  background: rgba(15, 22, 34, 0.92);
-  box-shadow: 0 18px 36px rgba(3, 7, 14, 0.38);
+  background: var(--viewer-drop-message-bg);
+  box-shadow: var(--viewer-drop-message-shadow);
   text-align: center;
 }
 
@@ -93,7 +160,7 @@
 }
 
 .canvas-shell.is-file-drop-disabled .file-drop-message {
-  border-color: rgba(245, 167, 66, 0.54);
+  border-color: var(--viewer-drop-ring-blocked);
 }
 
 .file-drop-title {
@@ -117,7 +184,7 @@
   overflow: hidden;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.96), rgba(10, 15, 24, 0.96));
+  background: var(--viewer-image-bg);
   cursor: default;
   touch-action: none;
   overscroll-behavior: contain;
@@ -240,9 +307,9 @@
   max-width: calc(100% - 24px);
   padding: 6px 10px;
   border-radius: var(--radius-md);
-  background: linear-gradient(to bottom, var(--toolbar-blue), var(--toolbar-blue-dark));
-  border: 1px solid rgba(154, 195, 255, 0.22);
-  box-shadow: 0 8px 22px rgba(4, 8, 16, 0.45);
+  background: var(--mask-bar-bg);
+  border: 1px solid var(--mask-bar-border);
+  box-shadow: var(--mask-bar-shadow);
 }
 
 .mask-edit-bar[hidden] {
@@ -270,13 +337,13 @@
 
 /* Holding Alt flips Mask and Unmask for the next stroke: show which applies. */
 .mask-edit-bar.is-flipped .mask-edit-mode {
-  outline: 1px dashed rgba(255, 255, 255, 0.55);
+  outline: 1px dashed var(--mask-bar-flip-outline);
   outline-offset: 1px;
 }
 
 .mask-edit-count {
   min-width: 9em;
-  color: #dbe7fb;
+  color: var(--mask-bar-count);
   font-size: var(--font-size-sm);
   font-variant-numeric: tabular-nums;
 }
@@ -284,7 +351,7 @@
 .mask-edit-hint {
   flex-basis: 100%;
   text-align: center;
-  color: rgba(219, 231, 251, 0.75);
+  color: var(--mask-bar-hint);
   font-size: var(--font-size-sm);
 }
 
@@ -292,7 +359,7 @@
   display: block;
   transform-origin: 0 0;
   image-rendering: pixelated;
-  background: rgba(12, 18, 27, 0.96);
+  background: var(--viewer-image-bg);
   user-select: none;
   -webkit-user-drag: none;
 }
@@ -307,7 +374,7 @@
   right: 12px;
   padding: 8px 10px;
   font-size: var(--font-size-sm);
-  background: rgba(13, 19, 28, 0.84);
+  background: var(--viewer-readout-bg);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
 }
@@ -324,8 +391,8 @@
   gap: 12px;
   padding: 9px 12px;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(136, 170, 221, 0.44);
-  background: rgba(8, 14, 23, 0.78);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-well);
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
 }
@@ -353,8 +420,8 @@
 
 /* Inpainting on: the image holds values that were not measured. */
 .viewer-footer-pill.viewer-footer-inpainted {
-  border-color: rgba(242, 184, 75, 0.6);
-  color: #ffe1a3;
+  border-color: var(--tone-warning);
+  color: var(--tone-warning-text);
 }
 
 .viewer-footer-pill {
@@ -363,7 +430,7 @@
   max-width: 520px;
   padding: 5px 12px;
   border-radius: 999px;
-  background: rgba(18, 29, 45, 0.88);
+  background: var(--control-bg);
   border: 1px solid var(--border-bold);
   color: var(--text);
   font-size: var(--font-size-lg);
@@ -377,8 +444,8 @@
 
 .viewer-footer-status {
   color: var(--text);
-  border-color: rgba(132, 194, 255, 0.68);
-  background: rgba(22, 49, 84, 0.86);
+  border-color: var(--accent);
+  background: var(--viewer-status-bg);
   min-width: 78px;
   justify-content: center;
 }
@@ -402,9 +469,9 @@
   padding: 4px 9px;
   min-width: 68px;
   justify-content: center;
-  color: #cfe1ff;
+  color: var(--muted-strong);
   border-color: var(--border-strong);
-  background: rgba(14, 24, 37, 0.72);
+  background: var(--control-bg);
 }
 
 .viewer-footer-version-toggle {
@@ -415,8 +482,8 @@
 }
 
 .viewer-footer-version-toggle[aria-expanded="true"] {
-  border-color: rgba(126, 174, 238, 0.72);
-  background: rgba(26, 43, 68, 0.88);
+  border-color: var(--accent);
+  background: var(--control-hover);
 }
 
 .viewer-footer-version-popover {
@@ -428,10 +495,10 @@
   gap: 6px;
   padding: 8px 10px;
   border-radius: var(--radius-md);
-  border: 1px solid rgba(113, 145, 201, 0.56);
-  background: linear-gradient(to bottom, rgba(11, 18, 28, 0.98), rgba(8, 14, 22, 0.98));
-  box-shadow: 0 12px 26px rgba(2, 8, 16, 0.56);
-  color: #d7e9ff;
+  border: 1px solid var(--border-bold);
+  background: var(--surface-0);
+  box-shadow: var(--viewer-popover-shadow);
+  color: var(--text);
   font-size: var(--font-size-md);
   font-weight: 600;
   opacity: 0;
@@ -479,12 +546,12 @@
   margin: 0;
   font: inherit;
   text-align: left;
-  color: #9fb8da;
+  color: var(--muted);
   cursor: default;
 }
 
 .viewer-footer-version-update.is-actionable {
-  color: #8ecbff;
+  color: var(--accent-strong);
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -492,7 +559,7 @@
 
 .viewer-footer-version-copy {
   cursor: pointer;
-  color: #c6defd;
+  color: var(--muted-strong);
 }
 
 .viewer-footer-version-update.is-actionable:hover,
@@ -503,7 +570,7 @@
 .viewer-footer-version-update:focus-visible,
 .viewer-footer-version-copy:focus-visible,
 .viewer-footer-version-reload:focus-visible {
-  outline: 2px solid rgba(142, 203, 255, 0.9);
+  outline: 2px solid var(--accent-strong);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
@@ -514,10 +581,10 @@
   display: grid;
   gap: 4px;
   padding-top: 6px;
-  border-top: 1px solid rgba(113, 145, 201, 0.36);
+  border-top: 1px solid var(--border);
   white-space: normal;
   max-width: 240px;
-  color: #ffd8a8;
+  color: var(--tone-warning-text);
   font-weight: 600;
 }
 
@@ -528,9 +595,9 @@
 .viewer-footer-version-reload {
   appearance: none;
   justify-self: start;
-  border: 1px solid rgba(255, 216, 168, 0.5);
-  background: rgba(255, 216, 168, 0.12);
-  color: #ffe6c4;
+  border: 1px solid var(--tone-warning);
+  background: var(--tone-warning-soft);
+  color: var(--tone-warning-text);
   font: inherit;
   font-weight: 700;
   padding: 3px 10px;
@@ -539,7 +606,7 @@
 }
 
 .viewer-footer-version-reload:hover {
-  background: rgba(255, 216, 168, 0.2);
+  background: var(--viewer-reload-hover);
 }
 
 .cursor-overlay {
@@ -547,7 +614,7 @@
   left: 12px;
   top: 12px;
   padding: 4px 6px;
-  background: rgba(13, 19, 28, 0.9);
+  background: var(--viewer-readout-bg);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
   color: var(--text);
@@ -574,8 +641,8 @@
   position: absolute;
   z-index: 6;
   border-radius: 50%;
-  border: 2px solid rgba(230, 240, 255, 0.85);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.6);
+  border: 2px solid var(--magnifier-rim);
+  box-shadow: var(--magnifier-shadow);
   pointer-events: none;
   image-rendering: pixelated;
 }

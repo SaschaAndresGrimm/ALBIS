@@ -127,7 +127,7 @@ export function createHistogramRenderController({
           const pad = 4;
           // On a small dark backing, as the magnifier's caption: readable over
           // the bars too.
-          histCtx.fillStyle = "rgba(13, 19, 28, 0.82)";
+          histCtx.fillStyle = PLOT_THEME.labelBg;
           histCtx.beginPath();
           if (histCtx.roundRect) histCtx.roundRect(textX - pad, labelY - 2, metrics.width + pad * 2, 14, 3);
           else histCtx.rect(textX - pad, labelY - 2, metrics.width + pad * 2, 14);

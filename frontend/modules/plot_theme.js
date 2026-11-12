@@ -22,6 +22,7 @@ const TOKENS = {
   lineGlow: "--plot-line-glow",
   markerOutline: "--plot-marker-outline",
   peak: "--plot-peak",
+  labelBg: "--plot-label-bg",
 };
 
 // The dark values, for when no stylesheet answers (tests, a failed load).
@@ -36,6 +37,7 @@ const FALLBACK = {
   lineGlow: "rgba(102, 178, 255, 0.2)",
   markerOutline: "rgba(8, 14, 22, 0.85)",
   peak: "rgba(255, 196, 110, 0.95)",
+  labelBg: "rgba(13, 19, 28, 0.82)",
 };
 
 export function createPlotTheme({

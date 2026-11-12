@@ -3,6 +3,31 @@
    Part of the stylesheet split from style.css; the files load in the order of
    their numbers (index.html), and that order is the cascade. */
 
+/* Component tokens: the dark value first, the light theme's below. */
+:root {
+  /* The grip on the phone's bottom sheet, and the shadow that lifts it. */
+  --panel-grip: rgba(166, 191, 233, 0.58);
+  --panel-grip-shadow: 0 1px 4px rgba(6, 10, 18, 0.42);
+  /* The image's frame on a phone, lifted off the page. */
+  --panel-canvas-shadow: 0 16px 34px rgba(5, 9, 16, 0.35);
+  /* The phone's panel button: its bright edge and the shadows that float it. */
+  --panel-fab-edge: rgba(194, 220, 255, 0.86);
+  --panel-fab-shadow: 0 8px 18px rgba(2, 6, 12, 0.4), 0 0 0 1px rgba(120, 170, 255, 0.32);
+  --panel-fab-shadow-raised: 0 14px 28px rgba(2, 6, 12, 0.58), 0 0 0 1px rgba(142, 188, 255, 0.4);
+  /* The text of an "active" or "loaded" state chip, paler than the accent. */
+  --panel-state-info-text: #bad8ff;
+}
+
+:root[data-theme="light"] {
+  --panel-grip: rgba(28, 42, 66, 0.3);
+  --panel-grip-shadow: 0 1px 3px rgba(20, 30, 45, 0.16);
+  --panel-canvas-shadow: 0 12px 28px rgba(20, 30, 45, 0.22);
+  --panel-fab-edge: rgba(31, 111, 209, 0.55);
+  --panel-fab-shadow: 0 8px 18px rgba(20, 30, 45, 0.16), 0 0 0 1px rgba(31, 111, 209, 0.2);
+  --panel-fab-shadow-raised: 0 12px 24px rgba(20, 30, 45, 0.2), 0 0 0 1px rgba(31, 111, 209, 0.24);
+  --panel-state-info-text: #1559b0;
+}
+
 .panel {
   background: linear-gradient(to bottom, var(--panel-light), var(--panel-dark));
   border-left: 1px solid var(--border-subtle);
@@ -29,9 +54,9 @@
   width: 52px;
   height: 5px;
   border-radius: 999px;
-  background: rgba(166, 191, 233, 0.58);
+  background: var(--panel-grip);
   border: 1px solid var(--border-strong);
-  box-shadow: 0 1px 4px rgba(6, 10, 18, 0.42);
+  box-shadow: var(--panel-grip-shadow);
 }
 
 body.canvas-first {
@@ -67,7 +92,7 @@ body.canvas-first .upload-bar {
 body.canvas-first .menu-bar {
   border-top-left-radius: var(--radius-lg);
   border-top-right-radius: var(--radius-lg);
-  background: linear-gradient(to bottom, rgba(47, 62, 86, 0.88), rgba(22, 31, 45, 0.9));
+  background: color-mix(in srgb, var(--chrome-light) 90%, transparent);
   border: 1px solid var(--border-strong);
   box-shadow: var(--shadow-soft);
   -webkit-backdrop-filter: blur(10px);
@@ -80,7 +105,7 @@ body.canvas-first .toolbar {
   margin: 8px 0 0 0;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-strong);
-  background: linear-gradient(to bottom, rgba(34, 93, 145, 0.88), rgba(18, 66, 110, 0.9));
+  background: color-mix(in srgb, var(--toolbar-blue-dark) 90%, transparent);
   box-shadow: var(--shadow-soft);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
@@ -110,7 +135,7 @@ body.canvas-first .viewer {
 
 body.canvas-first .canvas-shell {
   border-radius: var(--radius-lg);
-  box-shadow: 0 16px 34px rgba(5, 9, 16, 0.35);
+  box-shadow: var(--panel-canvas-shadow);
 }
 
 body.canvas-first .panel-resizer {
@@ -122,14 +147,14 @@ body.canvas-first .panel-resizer {
   transform: translateX(-50%);
   border-radius: 999px;
   border: 1px solid var(--border-strong);
-  background: linear-gradient(to bottom, rgba(68, 112, 173, 0.58), rgba(34, 66, 108, 0.52));
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
   cursor: col-resize;
   z-index: 32;
 }
 
 body.canvas-first .panel-resizer:hover {
-  background: linear-gradient(to bottom, rgba(95, 153, 236, 0.68), rgba(44, 84, 136, 0.62));
-  border-color: rgba(123, 175, 255, 0.7);
+  background: color-mix(in srgb, var(--accent) 65%, transparent);
+  border-color: var(--accent-strong);
 }
 
 body.canvas-first .panel {
@@ -144,7 +169,7 @@ body.canvas-first .panel {
   z-index: 24;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: linear-gradient(to bottom, rgba(37, 48, 66, 0.78), rgba(19, 27, 39, 0.76));
+  background: color-mix(in srgb, var(--panel-mid) 80%, transparent);
   box-shadow: var(--shadow-soft);
   -webkit-backdrop-filter: blur(9px);
   backdrop-filter: blur(9px);
@@ -168,21 +193,21 @@ body.canvas-first .panel.is-collapsed {
 
 /* Content scrolls under the sticky tab bar: at 72% it showed through. */
 body.canvas-first .panel-topbar {
-  background: linear-gradient(to bottom, rgba(44, 58, 82, 0.97), rgba(24, 34, 49, 0.97));
+  background: color-mix(in srgb, var(--panel-light) 97%, transparent);
   -webkit-backdrop-filter: blur(9px);
   backdrop-filter: blur(9px);
 }
 
 body.canvas-first .panel-section {
-  background: rgba(28, 38, 54, 0.68);
+  background: color-mix(in srgb, var(--panel-mid) 68%, transparent);
 }
 
 body.canvas-first .section-title {
-  background: linear-gradient(to bottom, rgba(58, 73, 99, 0.78), rgba(35, 47, 67, 0.78));
+  background: color-mix(in srgb, var(--surface-3) 78%, transparent);
 }
 
 body.canvas-first .viewer-footer {
-  background: rgba(10, 17, 27, 0.86);
+  background: color-mix(in srgb, var(--surface-0) 86%, transparent);
   box-shadow: var(--shadow-soft);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
@@ -204,11 +229,9 @@ body.canvas-first .panel-fab {
   font-size: var(--font-size-lg);
   font-weight: 700;
   line-height: 1;
-  background: linear-gradient(to bottom, rgba(86, 135, 206, 0.9), rgba(48, 83, 130, 0.9));
-  border: 1px solid rgba(150, 195, 255, 0.72);
-  box-shadow:
-    0 8px 18px rgba(2, 6, 12, 0.4),
-    0 0 0 1px rgba(120, 170, 255, 0.32);
+  background: color-mix(in srgb, var(--accent) 55%, var(--toolbar-blue-dark));
+  border: 1px solid var(--accent-strong);
+  box-shadow: var(--panel-fab-shadow);
   z-index: 28;
 }
 
@@ -224,11 +247,9 @@ body.canvas-first .panel.is-collapsed .panel-fab {
   border-radius: var(--radius-md);
   font-size: 14px;
   color: var(--text);
-  background: linear-gradient(to bottom, rgba(13, 20, 31, 0.97), rgba(23, 34, 50, 0.97));
-  border: 1px solid rgba(194, 220, 255, 0.86);
-  box-shadow:
-    0 14px 28px rgba(2, 6, 12, 0.58),
-    0 0 0 1px rgba(142, 188, 255, 0.4);
+  background: var(--surface-1);
+  border: 1px solid var(--panel-fab-edge);
+  box-shadow: var(--panel-fab-shadow-raised);
   z-index: 70;
   pointer-events: auto;
 }
@@ -259,16 +280,15 @@ body.canvas-first.chrome-idle .viewer-footer:hover {
 }
 
 body.canvas-first .panel-fab:hover {
-  background: linear-gradient(to bottom, rgba(103, 158, 240, 0.95), rgba(58, 104, 163, 0.95));
-  border-color: rgba(186, 219, 255, 0.86);
+  background: color-mix(in srgb, var(--accent) 75%, var(--toolbar-blue-dark));
+  border-color: var(--panel-fab-edge);
 }
 
 body.canvas-first .panel-fab:focus-visible {
   outline: none;
   box-shadow:
     var(--focus-ring),
-    0 14px 28px rgba(2, 6, 12, 0.52),
-    0 0 0 1px rgba(152, 204, 255, 0.5);
+    var(--panel-fab-shadow-raised);
 }
 
 body.canvas-first .panel.is-collapsed .panel-resizer {
@@ -292,7 +312,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   position: sticky;
   top: 0;
   z-index: 6;
-  background: linear-gradient(to bottom, #2b364a, #1f2735);
+  background: var(--panel-light);
   padding: 8px;
   margin: -8px -8px 8px -8px;
   border-bottom: 1px solid var(--border-subtle);
@@ -311,8 +331,8 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   height: 28px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
-  background: rgba(12, 20, 32, 0.35);
-  color: rgba(220, 233, 255, 0.86);
+  background: color-mix(in srgb, var(--surface-0) 40%, transparent);
+  color: var(--muted-strong);
   font-size: var(--font-size-lg);
   font-weight: 700;
   line-height: 1;
@@ -327,8 +347,8 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 }
 
 .panel-collapse-btn:hover {
-  background: rgba(24, 39, 61, 0.55);
-  border-color: rgba(112, 152, 205, 0.58);
+  background: var(--control-hover);
+  border-color: var(--border-bold);
   color: var(--text);
 }
 
@@ -339,10 +359,10 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 
 .panel-tab {
   flex: 1 1 0;
-  background: linear-gradient(to bottom, rgba(41, 51, 70, 0.95), rgba(27, 35, 49, 0.95));
-  border: 1px solid rgba(20, 28, 40, 0.64);
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
   border-right-width: 0;
-  color: #dbe6fb;
+  color: var(--muted-strong);
   font-size: var(--font-size-md);
   font-weight: 600;
   padding: 8px;
@@ -355,7 +375,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 }
 
 .panel-tab:hover {
-  background: linear-gradient(to bottom, rgba(52, 67, 93, 0.96), rgba(35, 46, 65, 0.96));
+  background: var(--surface-3);
 }
 
 .panel-tab:last-child {
@@ -363,9 +383,9 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 }
 
 .panel-tab.is-active {
-  background: linear-gradient(to bottom, rgba(85, 122, 181, 0.55), rgba(38, 65, 106, 0.55));
-  box-shadow: inset 0 0 0 1px rgba(139, 189, 255, 0.35);
-  border-color: rgba(95, 138, 207, 0.66);
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-strong) 35%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 66%, transparent);
   color: var(--text);
 }
 
@@ -399,7 +419,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 }
 
 .panel-tab-card.flash {
-  box-shadow: 0 0 0 2px rgba(120, 170, 255, 0.6);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
 .panel-actions {
@@ -426,8 +446,8 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   font-weight: 600;
   font-size: var(--font-size-md);
   padding: 6px 8px;
-  background: linear-gradient(to bottom, #2f3b51, #212b3b);
-  border: 1px solid rgba(25, 34, 48, 0.95);
+  background: var(--surface-3);
+  border: 1px solid var(--border);
   color: var(--text);
   width: 100%;
   text-align: left;
@@ -481,13 +501,13 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 }
 
 .panel-section.flash {
-  box-shadow: 0 0 0 2px rgba(120, 170, 255, 0.6);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
 .section-title {
   font-size: var(--section-title-size);
   font-weight: 600;
-  background: linear-gradient(to bottom, rgba(47, 60, 82, 0.9), rgba(35, 45, 61, 0.9));
+  background: var(--surface-3);
   padding: 8px;
   margin: -8px -8px 8px -8px;
   border: none;
@@ -520,7 +540,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   padding: 2px 8px;
   border-radius: 999px;
   border: 1px solid var(--border-strong);
-  background: rgba(13, 21, 33, 0.65);
+  background: color-mix(in srgb, var(--surface-well) 70%, transparent);
   color: var(--muted-strong);
   font-size: var(--font-size-xs);
   font-weight: 600;
@@ -539,15 +559,15 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 }
 
 .section-summary.is-active {
-  border-color: rgba(102, 170, 255, 0.62);
-  background: rgba(24, 48, 76, 0.62);
+  border-color: color-mix(in srgb, var(--accent) 62%, transparent);
+  background: var(--accent-soft);
   color: var(--text);
 }
 
 .section-summary.is-warning {
-  border-color: rgba(224, 93, 93, 0.55);
-  background: rgba(67, 24, 24, 0.5);
-  color: #f7cccc;
+  border-color: color-mix(in srgb, var(--tone-error) 55%, transparent);
+  background: var(--tone-error-soft);
+  color: var(--tone-error-text);
 }
 
 .section-summary-status {
@@ -568,26 +588,26 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 
 .section-summary-status.is-empty {
   border-color: var(--border-strong);
-  background: rgba(13, 21, 33, 0.65);
+  background: color-mix(in srgb, var(--surface-well) 70%, transparent);
   color: var(--muted-strong);
 }
 
 .section-summary-status.is-loading {
-  border-color: rgba(224, 178, 74, 0.5);
-  background: rgba(60, 46, 20, 0.45);
-  color: #f2d38b;
+  border-color: color-mix(in srgb, var(--tone-warning) 50%, transparent);
+  background: var(--tone-warning-soft);
+  color: var(--tone-warning-text);
 }
 
 .section-summary-status.is-active {
-  border-color: rgba(78, 161, 255, 0.5);
-  background: rgba(18, 35, 58, 0.5);
-  color: #bad8ff;
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  background: var(--accent-soft);
+  color: var(--panel-state-info-text);
 }
 
 .section-summary-status.is-warning {
-  border-color: rgba(224, 93, 93, 0.52);
-  background: rgba(67, 24, 24, 0.48);
-  color: #f0b6b6;
+  border-color: color-mix(in srgb, var(--tone-error) 52%, transparent);
+  background: var(--tone-error-soft);
+  color: var(--tone-error-text);
 }
 
 .section-title:focus-visible {
@@ -661,7 +681,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   margin-bottom: 6px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-subtle);
-  background: rgba(11, 17, 26, 0.5);
+  background: color-mix(in srgb, var(--surface-well) 55%, transparent);
   color: var(--muted);
   font-size: var(--font-size-sm);
   line-height: 1.35;
@@ -678,21 +698,21 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 }
 
 .section-state.is-loading {
-  color: #f2d38b;
-  border-color: rgba(224, 178, 74, 0.4);
-  background: rgba(60, 46, 20, 0.3);
+  color: var(--tone-warning-text);
+  border-color: color-mix(in srgb, var(--tone-warning) 40%, transparent);
+  background: var(--tone-warning-soft);
 }
 
 .section-state.is-active {
-  color: #bad8ff;
-  border-color: rgba(78, 161, 255, 0.38);
-  background: rgba(18, 35, 58, 0.36);
+  color: var(--panel-state-info-text);
+  border-color: color-mix(in srgb, var(--accent) 38%, transparent);
+  background: var(--accent-soft);
 }
 
 .section-state.is-warning {
-  color: #f0b6b6;
-  border-color: rgba(224, 93, 93, 0.4);
-  background: rgba(67, 24, 24, 0.3);
+  color: var(--tone-error-text);
+  border-color: color-mix(in srgb, var(--tone-error) 40%, transparent);
+  background: var(--tone-error-soft);
 }
 
 .section-skeleton,
@@ -701,7 +721,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   padding: 8px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-subtle);
-  background: rgba(11, 17, 26, 0.45);
+  background: color-mix(in srgb, var(--surface-well) 50%, transparent);
   min-height: 56px;
   overflow: hidden;
 }

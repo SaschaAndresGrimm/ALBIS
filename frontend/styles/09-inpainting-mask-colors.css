@@ -5,6 +5,16 @@
    Part of the stylesheet split from style.css; the files load in the order of
    their numbers (index.html), and that order is the cascade. */
 
+/* The ring around a mask colour swatch, so a dark or a light colour still
+   shows its edge. */
+:root {
+  --swatch-ring: rgba(255, 255, 255, 0.32);
+}
+
+:root[data-theme="light"] {
+  --swatch-ring: rgba(28, 42, 66, 0.35);
+}
+
 /* Fill gaps and defective pixels (inpainting). */
 
 /* Inpainting: the margin around flagged pixels, a small number and its unit. */
@@ -91,8 +101,8 @@
   padding: 3px 9px 3px 5px;
   border: 1px solid var(--border-strong);
   border-radius: 999px;
-  background: rgba(12, 18, 27, 0.55);
-  color: var(--text, #e6edf7);
+  background: var(--surface-inset-faint);
+  color: var(--text);
   font-size: var(--font-size-sm);
   line-height: 1.2;
   cursor: pointer;
@@ -117,7 +127,7 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 0 0 1px var(--swatch-ring);
 }
 
 .mask-colors-auto {
@@ -136,8 +146,8 @@
   padding: 10px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  background: #121a26;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  background: var(--surface-0);
+  box-shadow: 0 10px 28px var(--popover-shadow-color);
   display: grid;
   gap: 6px;
   font-size: var(--font-size-sm);
@@ -147,7 +157,7 @@
 .mask-popover-title {
   font-size: var(--font-size-md);
   font-weight: 700;
-  color: var(--text, #e6edf7);
+  color: var(--text);
 }
 
 .mask-popover-label {
@@ -168,7 +178,7 @@
   width: 20px;
   height: 20px;
   padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--swatch-ring);
   border-radius: var(--radius-sm);
   cursor: pointer;
 }
@@ -180,7 +190,7 @@
 }
 
 .mask-swatch[aria-pressed="true"] {
-  outline: 2px solid #fff;
+  outline: 2px solid var(--text);
   outline-offset: 1px;
 }
 
