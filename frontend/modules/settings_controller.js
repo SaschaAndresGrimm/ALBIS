@@ -623,6 +623,15 @@ export function createSettingsController({
     });
   }
 
+  // The theme is this browser's, not the server's: it applies as it is picked,
+  // so the choice can be seen before saving, and does not wait for (or depend
+  // on) the config being written. Closing without saving puts back the theme
+  // the dialog opened with.
+  let themeAtOpen = null;
+  settingsTheme?.addEventListener("change", () => {
+    getThemeController().applyPreference(normalizeThemePreference(settingsTheme.value));
+  });
+
   if (settingsModal) {
     // One delegated listener rather than ten: any edit re-evaluates the note.
     settingsModal.addEventListener("input", updateRestartNote);
@@ -630,6 +639,10 @@ export function createSettingsController({
   }
 
   function closeSettingsModal({ restoreFocus = true } = {}) {
+    if (themeAtOpen !== null) {
+      getThemeController().applyPreference(themeAtOpen);
+      themeAtOpen = null;
+    }
     settingsRequestId += 1;
     closeModal(settingsModal, { restoreFocus });
     setSettingsModalBusy(false);
@@ -640,6 +653,7 @@ export function createSettingsController({
     closeMenu();
     if (!settingsModal) return;
     const requestId = ++settingsRequestId;
+    themeAtOpen = getThemeController().getPreference();
     showSettingsTab(typeof tab === "string" ? tab : "viewer");
     openModal(settingsModal, { focusTarget: settingsClose });
     setSettingsModalBusy(true);
@@ -673,6 +687,11 @@ export function createSettingsController({
   async function saveSettingsFromModal(closeAfter = false) {
     if (!settingsSave || settingsModalBusy) return;
     const config = collectSettingsForm();
+    // Kept, whatever the server answers: it is not part of the config.
+    if (settingsTheme) {
+      getThemeController().applyPreference(normalizeThemePreference(settingsTheme.value));
+      themeAtOpen = null;
+    }
     setSettingsModalBusy(true);
     setSettingsMessage(t("settings.message.saving"), false, true);
     try {
@@ -685,7 +704,6 @@ export function createSettingsController({
       applyEnvOverrides(data?.env_overrides);
       applyConfigLoadError(data?.load_error, data?.path);
       applyUiSettings(data?.config?.ui || config?.ui, { source: "user" });
-      if (settingsTheme) getThemeController().applyPreference(normalizeThemePreference(settingsTheme.value));
       core.overlayRender.schedulePixelOverlay();
       updateExternalAccessUi();
       setStatus(t("status.settings.saved"), { tone: "success" });

@@ -38,6 +38,7 @@ function renderSettingsShell() {
       <div id="settings-env-note" class="is-hidden" aria-hidden="true"></div>
       <div id="settings-config-error" class="is-hidden" aria-hidden="true"></div>
       <div id="settings-message"></div>
+      <select id="settings-theme"><option value="dark">Dark</option><option value="light">Light</option><option value="system">System</option></select>
       <label>
         <input id="settings-server-external" type="checkbox" />
         <span id="settings-server-external-label" data-i18n="settings.server.external_access">Allow external connections from other machines</span>
@@ -194,6 +195,7 @@ async function initializeController({
       settingsLogLevel: document.getElementById("settings-log-level"),
       settingsLogDir: document.getElementById("settings-log-dir"),
       settingsHiddenTools: document.getElementById("settings-hidden-tools"),
+      settingsTheme: document.getElementById("settings-theme"),
     },
     callbacks: {
       setToolHintsEnabled: vi.fn(),
@@ -941,5 +943,42 @@ describe("settings controller: switching the startup update check off", () => {
     expect(controller.isEnvOverridden("ui.auto_check_updates")).toBe(false);
     controller.applyLoadedSettings({ config: { ui: {} }, env_overrides: ["ui.auto_check_updates"] });
     expect(controller.isEnvOverridden("ui.auto_check_updates")).toBe(true);
+  });
+});
+
+describe("settings controller appearance", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.fetch;
+    delete document.documentElement.dataset.theme;
+  });
+
+  it("applies a theme as it is picked, puts the old one back on close, keeps it on save", async () => {
+    const { controller } = await initializeController({ initialConfig: {
+        server: { host: "127.0.0.1", port: 0, reload: false },
+        launcher: { startup_timeout_sec: 10, open_browser: true },
+        data: { root: "", allow_abs_paths: true, scan_cache_sec: 2, max_scan_depth: -1, max_upload_mb: 0 },
+        logging: { level: "INFO", dir: "" },
+        ui: { tool_hints: false, auto_check_updates: true, pixel_label_min_cell_px: 18, pixel_label_max_labels: 4000, pixel_label_format: "auto", pixel_label_show_during_drag: false, language: "en" },
+      } });
+    const select = document.getElementById("settings-theme");
+    const root = document.documentElement;
+
+    await controller.openSettingsModal();
+    expect(select.value).toBe("dark");
+    select.value = "light";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    // Seen at once, before saving: the theme is not part of the server config.
+    expect(root.dataset.theme).toBe("light");
+
+    controller.closeSettingsModal();
+    expect(root.dataset.theme).toBe("dark");
+
+    await controller.openSettingsModal();
+    select.value = "light";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    await controller.saveSettingsFromModal(true);
+    expect(root.dataset.theme).toBe("light");
+    expect(localStorage.getItem("albis.theme")).toBe("light");
   });
 });
