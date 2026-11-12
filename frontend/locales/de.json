@@ -1557,7 +1557,6 @@
   "toolbar.play.stop_live_title": "Folgen des Livestreams stoppen",
   "toolbar.play.toggle": "Spielen oder pausieren",
   "toolbar.playback.closed": "Wiedergabe ▾",
-  "toolbar.playback.export_gif": "GIF exportieren…",
   "toolbar.playback.fps_option": "{{value}} fps",
   "toolbar.playback.open": "Wiedergabe ▴",
   "toolbar.playback.options": "Wiedergabeoptionen",
