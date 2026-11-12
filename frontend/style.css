@@ -104,8 +104,10 @@
   --ws-timeline-h: 40px;
   --ws-status-h: 26px;
   --ws-icon-size: 16px;
-  /* Behind the image: the darkest tone, so the frame is what stands out. */
-  --ws-canvas: #0b0e14;
+  /* Behind the image: a neutral dark grey with no blue in it, the same in
+     both themes (the light block does not override it), so the frame is what
+     stands out and its colours are judged against no tint. */
+  --ws-canvas: #141518;
   /* Header, panel, timeline and status strip. */
   --ws-chrome: #151a23;
   /* A raised step inside the chrome: inputs, an open section, a popover. */
@@ -114,6 +116,16 @@
   --ws-pressed: rgba(255, 255, 255, 0.09);
   /* Hairlines between the regions and between sections. */
   --ws-divider: rgba(255, 255, 255, 0.07);
+  /* Text fields and dropdowns: a filled well with a hairline that firms up on
+     hover, instead of a box drawn round every field. */
+  --field-bg: rgba(255, 255, 255, 0.045);
+  --field-border: rgba(255, 255, 255, 0.07);
+  --field-border-hover: rgba(255, 255, 255, 0.18);
+  /* The unfilled part of a slider's track. */
+  --slider-track: rgba(255, 255, 255, 0.16);
+  /* What floats: menus, popovers, dialogs. The lift does the work a border
+     did, in the light theme especially. */
+  --shadow-float: 0 12px 32px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
   /* Icons, drawn with stroke="black" and used as masks over currentColor, so
      they take the text colour of whatever button they sit on. */
   --icon-prev: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M15 18l-6-6 6-6'/></svg>");
@@ -206,12 +218,17 @@
   --plot-marker-outline: rgba(255, 255, 255, 0.9);
   --plot-peak: rgba(199, 119, 0, 0.95);
   --plot-label-bg: rgba(255, 255, 255, 0.88);
-  /* --ws-canvas is left dark on purpose (see above). */
-  --ws-chrome: #f7f8fa;
+  /* --ws-canvas is left as it is on purpose (see above). */
+  --ws-chrome: #ffffff;
   --ws-chrome-raised: #ffffff;
   --ws-hover: rgba(15, 30, 55, 0.05);
   --ws-pressed: rgba(15, 30, 55, 0.09);
-  --ws-divider: rgba(15, 30, 55, 0.1);
+  --ws-divider: rgba(15, 30, 55, 0.09);
+  --field-bg: #f2f4f7;
+  --field-border: rgba(28, 42, 66, 0.06);
+  --field-border-hover: rgba(28, 42, 66, 0.22);
+  --slider-track: rgba(28, 42, 66, 0.2);
+  --shadow-float: 0 12px 32px rgba(20, 30, 45, 0.14), 0 2px 6px rgba(20, 30, 45, 0.08);
   accent-color: var(--accent);
 }
 

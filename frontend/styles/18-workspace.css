@@ -221,6 +221,12 @@
     box-shadow: none;
   }
 
+  /* The scroll area the image is drawn in paints the same neutral grey; its
+     own navy (--viewer-image-bg) showed round every frame. */
+  body.canvas-first .canvas-wrap {
+    background: var(--ws-canvas);
+  }
+
   /* ---- Docked side panel ------------------------------------------------ */
 
   /* No z-index: the panel then makes no stacking context of its own, and the
@@ -769,4 +775,122 @@
     font-weight: 400;
   }
 
+
+  /* ---- Fields: filled wells, not boxes ---------------------------------- */
+
+  /* A little more compact in the side panel: more of a section fits
+     without scrolling. Dialogs keep the full height. */
+  body.canvas-first .panel {
+    --control-h: 28px;
+  }
+
+  body.canvas-first :is(.panel, .modal-card) :is(input[type="text"], input[type="number"], input[type="search"], input[type="url"], textarea, select:not([multiple], [size])) {
+    --select-fill: linear-gradient(var(--field-bg), var(--field-bg));
+    background-color: var(--field-bg);
+    border-color: var(--field-border);
+    border-radius: var(--radius-md);
+  }
+
+  body.canvas-first :is(.panel, .modal-card) :is(input[type="text"], input[type="number"], input[type="search"], input[type="url"], textarea, select:not([multiple], [size])):hover:not(:disabled, [readonly]) {
+    border-color: var(--field-border-hover);
+  }
+
+  body.canvas-first :is(.panel, .modal-card) :is(input[type="text"], input[type="number"], input[type="search"], input[type="url"], textarea, select:not([multiple], [size])):focus-visible {
+    border-color: var(--accent);
+  }
+
+  /* States keep their edge over the quiet default above. */
+  body.canvas-first .panel input.is-missing {
+    border-color: var(--tone-warning);
+  }
+
+  body.canvas-first .panel-section[data-section="detector-geometry"] .geometry-grid input.is-overridden {
+    border-color: var(--tone-warning);
+  }
+
+  /* The unit inside the field, at its right edge: "40 mm" reads as one value,
+     and the label no longer carries "(mm)" and wraps. Part of the field's
+     label for screen readers, as generated content of the label's text. */
+  .geometry-unit {
+    position: relative;
+    display: block;
+    min-width: 0;
+  }
+
+  .geometry-unit::after,
+  .geometry-axis[data-unit]::after {
+    content: attr(data-unit);
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: var(--font-size-sm);
+    pointer-events: none;
+  }
+
+  .geometry-unit input,
+  .geometry-axis[data-unit] input {
+    width: 100%;
+    padding-right: 34px;
+  }
+
+  /* Buttons share the fields' corner. */
+  body.canvas-first .btn {
+    border-radius: var(--radius-md);
+  }
+
+  /* ---- Status: soft tags, one warning colour ----------------------------- */
+
+  /* Tags, not outlined pills: a tint and the text, no border. */
+  body.canvas-first .panel :is(.section-summary, .section-summary-status, .section-summary-status.is-empty) {
+    border-color: transparent;
+    border-radius: var(--radius-sm);
+    background: var(--ws-hover);
+    color: var(--muted-strong);
+    font-weight: 500;
+  }
+
+  body.canvas-first .panel :is(.section-summary.is-active, .section-summary-status.is-active) {
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+  }
+
+  /* Something is missing or needs a look: amber, the colour the field edge
+     and the notice use too, so one problem reads as one problem. Red is left
+     for what failed. */
+  body.canvas-first .panel :is(.section-summary.is-warning, .section-summary-status.is-warning, .section-summary-status.is-loading) {
+    background: var(--tone-warning-soft);
+    color: var(--tone-warning-text);
+  }
+
+  body.canvas-first .panel .section-state {
+    border-color: transparent;
+    border-radius: var(--radius-md);
+    background: var(--ws-hover);
+  }
+
+  body.canvas-first .panel .section-state.is-active {
+    background: var(--accent-soft);
+  }
+
+  body.canvas-first .panel :is(.section-state.is-warning, .section-state.is-loading) {
+    border-color: transparent;
+    background: var(--tone-warning-soft);
+    color: var(--tone-warning-text);
+  }
+
+  /* ---- Slider: a track you can see, the played part in the accent -------- */
+
+  body.canvas-first input[type="range"] {
+    --range-track: var(--slider-track);
+  }
+
+  /* ---- What floats lifts off the page ------------------------------------ */
+
+  body.canvas-first :is(.dropdown-panel, .dropdown-submenu, .toolbar-playback-popover, .toolbar-sync-popover, .toolbar-more-popover, .viewer-footer-version-popover, .modal-card) {
+    border-color: var(--ws-divider);
+    box-shadow: var(--shadow-float);
+  }
 }
+
