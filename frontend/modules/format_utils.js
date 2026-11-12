@@ -5,6 +5,18 @@
  * Pure: no DOM, no state; eslint holds *_utils.js to that.
  */
 
+/**
+ * How many characters of the file and frame fit in the header: measured from
+ * the room the label has (`roomPx`), not from the label itself. The label is
+ * only as wide as its text, so measuring it shrank the name to its 160px
+ * floor -- about 21 characters, "7118_E1_...0007.cbf" in a header with room
+ * for the whole name.
+ */
+export function toolbarCharBudget(roomPx) {
+  const width = Math.max(160, Number(roomPx) || 0);
+  return Math.max(24, Math.floor(width / 7.4));
+}
+
 export function middleTruncate(text, maxChars) {
   const value = String(text || "");
   if (!value) return "";

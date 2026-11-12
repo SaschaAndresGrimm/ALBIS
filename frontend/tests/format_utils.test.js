@@ -8,6 +8,7 @@ import {
   formatRoiTick,
   formatStat,
   middleTruncate,
+  toolbarCharBudget,
 } from "../modules/format_utils.js";
 
 describe("format_utils", () => {
@@ -68,5 +69,18 @@ describe("format_utils", () => {
     expect(formatLevelValue(1.2167, "<f4")).toBe("1.217");
     expect(formatLevelValue(Number.NaN, "<f4")).toBe("");
     expect(formatLevelValue(5, "")).toBe("5");
+  });
+});
+
+describe("toolbarCharBudget", () => {
+  it("fits a long file name in a wide header", () => {
+    // The header's middle on a 1700px window; measured from the label itself
+    // (160px) it was 21 characters, and "7118_E1_00007.cbf 2 / 9" was cut.
+    expect(toolbarCharBudget(900)).toBe(121);
+  });
+
+  it("keeps a floor on a narrow header and without a measurement", () => {
+    expect(toolbarCharBudget(100)).toBe(24);
+    expect(toolbarCharBudget(undefined)).toBe(24);
   });
 });

@@ -620,6 +620,34 @@
     inset: -5px;
   }
 
+  /* ---- Plots: one frame each ------------------------------------------ */
+
+  /* The histogram, the ROI plots and the overview draw their own dark plot
+     area and frame on the canvas. The boxes around them added a second dark
+     tone and border (a third for the ROI profiles, inside their card), so
+     each plot read as a box in a box. The canvas's own frame is the one
+     kept; the title sits on the panel above it. */
+  body.canvas-first .histogram,
+  body.canvas-first .roi-plot,
+  body.canvas-first .thumb-view {
+    padding: 0;
+    border: none;
+    background: transparent;
+  }
+
+  body.canvas-first .roi-plots {
+    gap: var(--space-wide);
+  }
+
+  body.canvas-first .roi-plot-title {
+    color: var(--muted-strong);
+    font-weight: 500;
+  }
+
+  body.canvas-first #hist-colorbar {
+    border: none;
+  }
+
   /* ---- Start screen: recent files under "Open file" --------------------- */
 
   /* Clear of the status strip, which lies over the bottom of the viewer. */
@@ -741,8 +769,4 @@
     font-weight: 400;
   }
 
-  .about-copy-build {
-    justify-self: center;
-    margin: 0 auto var(--space-base);
-  }
 }

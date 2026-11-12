@@ -15,7 +15,7 @@ import { PIXEL_LABEL_MIN_CELL_PX, pixelLabelResolver, pixelLabelsAreFloat } from
 import { createAnalysisState, createAppState, createRoiState } from "./modules/state.js";
 import { queryAppElements } from "./modules/app_elements.js";
 import { computeMedian, parseShape, toFloat32, typedArrayFrom } from "./modules/typed_array_utils.js";
-import { dirnameFromPath, formatEnergy, formatInspectorValue, formatLevelValue, formatRoiTick, formatStat, formatTimeStamp, middleTruncate } from "./modules/format_utils.js";
+import { dirnameFromPath, formatEnergy, formatInspectorValue, formatLevelValue, formatRoiTick, formatStat, formatTimeStamp, middleTruncate, toolbarCharBudget } from "./modules/format_utils.js";
 import {
   applyI18nToDom,
   getLanguage,
@@ -500,9 +500,7 @@ function renderSkeletonBlock(container, lineCount = 5) {
 }
 
 function estimateToolbarChars() {
-  if (!toolbarPath) return 80;
-  const width = Math.max(160, toolbarPath.clientWidth || 0);
-  return Math.max(24, Math.floor(width / 7.4));
+  return toolbarPath ? toolbarCharBudget(toolbarPath.parentElement?.clientWidth || toolbarPath.clientWidth) : 80;
 }
 
 function formatValue(value) {
