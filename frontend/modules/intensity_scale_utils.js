@@ -333,15 +333,27 @@ function isIntegerArray(data) {
   );
 }
 
+// Gap (bit 0) and defective (bits 1-4, bit 4 also what a pixel masked by hand
+// gets) in a pixel mask: pixels that are not data. The bits the ROI statistics skip.
+const MASK_SKIP_BITS = 0x1f;
+
+// A pixel mask that lines up with `data`, or null: one of another size cannot
+// say which pixels it means.
+function matchingMask(data, mask) {
+  return mask && typeof mask.length === "number" && mask.length === data.length ? mask : null;
+}
+
 // The non-negative values' minimum and maximum, and the largest value below
 // the maximum: what the saturation value leaves when it is the maximum.
-function integerExtremes(data) {
+// Pixels the mask flags are left out.
+function integerExtremes(data, mask = null) {
   let min = Infinity;
   let max = -1;
   let below = -1;
   for (let i = 0; i < data.length; i += 1) {
     const v = data[i];
     if (v < 0) continue;
+    if (mask !== null && mask[i] & MASK_SKIP_BITS) continue;
     if (v < min) min = v;
     if (v > max) {
       below = max;
@@ -359,11 +371,13 @@ function integerExtremes(data) {
  * and `high` the smallest and largest counted value. Null for float data, or a
  * range too wide for a table; `count` 0 when no value is left.
  */
-function integerCounts(data, excluded, extremes = null) {
+function integerCounts(data, excluded, extremes = null, mask = null) {
   if (!isIntegerArray(data)) return null;
-  let perFrame = countTables.get(data);
+  // A masked table is not kept: the mask can change (an edit, a pinned mask)
+  // while the frame stays the same array.
+  let perFrame = mask === null ? countTables.get(data) : null;
   if (perFrame?.has(excluded)) return perFrame.get(excluded);
-  const ext = extremes || integerExtremes(data);
+  const ext = extremes || integerExtremes(data, mask);
   let table;
   if (ext.max < 0) {
     table = { min: 0, counts: new Uint32Array(0), count: 0, low: Infinity, high: -Infinity };
@@ -377,9 +391,17 @@ function integerCounts(data, excluded, extremes = null) {
       const base = ext.min;
       const size = top - base + 1;
       const counts = new Uint32Array(size);
-      for (let i = 0; i < data.length; i += 1) {
-        const k = data[i] - base;
-        if (k >= 0 && k < size) counts[k] += 1;
+      if (mask === null) {
+        for (let i = 0; i < data.length; i += 1) {
+          const k = data[i] - base;
+          if (k >= 0 && k < size) counts[k] += 1;
+        }
+      } else {
+        for (let i = 0; i < data.length; i += 1) {
+          if (mask[i] & MASK_SKIP_BITS) continue;
+          const k = data[i] - base;
+          if (k >= 0 && k < size) counts[k] += 1;
+        }
       }
       if (excluded !== null && excluded !== undefined && excluded >= base && excluded <= top) {
         counts[excluded - base] = 0;
@@ -398,6 +420,7 @@ function integerCounts(data, excluded, extremes = null) {
         : { min: 0, counts: new Uint32Array(0), count: 0, low: Infinity, high: -Infinity };
     }
   }
+  if (mask !== null) return table;
   if (!perFrame) {
     perFrame = new Map();
     countTables.set(data, perFrame);
@@ -449,7 +472,15 @@ export function computeHistogram(data, min, max, satMax, bins, logX) {
   return hist;
 }
 
-export function computeAutoLevels(data, satMaxInput, fallbackStats, dtype) {
+/**
+ * Auto contrast: `{ min, max }` for BG and FG. Negative values and the
+ * saturation value are left out, and so is every pixel `mask` (a pixel mask
+ * the size of the frame, or null) flags as gap, defective or masked by the
+ * user: they are not measurements, and a hot pixel's huge count would
+ * otherwise set the foreground. Without a mask, every pixel counts.
+ */
+export function computeAutoLevels(data, satMaxInput, fallbackStats, dtype, maskInput = null) {
+  const mask = matchingMask(data, maskInput);
   // The scan for `rawMax` exists only to derive a saturation value, so it is
   // skipped when the caller already knows one. The per-frame path does: it
   // passes the `satMax` that computeStats just worked out, which made this a
@@ -476,7 +507,9 @@ export function computeAutoLevels(data, satMaxInput, fallbackStats, dtype) {
   let maxValue = Number.NEGATIVE_INFINITY;
   let count = 0;
 
-  const table = extremes ? integerCounts(data, satMax, extremes) : null;
+  // The saturation value above comes from the whole frame, as without a mask;
+  // the values counted from here on only from the pixels the mask leaves.
+  const table = extremes ? integerCounts(data, satMax, mask ? integerExtremes(data, mask) : extremes, mask) : null;
   if (table) {
     minValue = table.low;
     maxValue = table.high;
@@ -487,6 +520,7 @@ export function computeAutoLevels(data, satMaxInput, fallbackStats, dtype) {
       if (!Number.isFinite(v)) continue;
       if (v < 0) continue;
       if (satMax !== null && v === satMax) continue;
+      if (mask !== null && mask[i] & MASK_SKIP_BITS) continue;
       if (v < minValue) minValue = v;
       if (v > maxValue) maxValue = v;
       count += 1;
@@ -520,6 +554,7 @@ export function computeAutoLevels(data, satMaxInput, fallbackStats, dtype) {
       if (!Number.isFinite(v)) continue;
       if (v < 0) continue;
       if (satMax !== null && v === satMax) continue;
+      if (mask !== null && mask[i] & MASK_SKIP_BITS) continue;
       const lv = Math.log1p(v);
       const idx = Math.min(bins - 1, Math.max(0, Math.floor(((lv - minLog) / range) * (bins - 1))));
       hist[idx] += 1;

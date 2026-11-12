@@ -160,6 +160,7 @@
   text-overflow: ellipsis;
 }
 
+/* As tall as its content, up to the viewport; past that the body scrolls. */
 .settings-modal-card {
   width: min(720px, 92vw);
   max-height: 82vh;
@@ -167,19 +168,35 @@
   flex-direction: column;
 }
 
+/* One column, fixed rows: the config-error note, the tabs, the pages, the
+   environment note. Every page sits in the same cell (row 3), so the cell is
+   as tall as the tallest page and the dialog does not jump between tabs, yet
+   it is no taller than that. Spacing is margins, not gap: hidden notes leave
+   their row empty and a gap would still count it. */
 .settings-modal-body {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  min-height: 0;
   overflow-y: auto;
   padding-top: 10px;
 }
 
+#settings-config-error {
+  grid-row: 1;
+}
+
+#settings-env-note {
+  grid-row: 4;
+  margin: 10px 0 0;
+}
+
+/* Where the settings are stored: small print in the footer, left. */
 .settings-meta {
-  display: grid;
-  gap: 4px;
-  color: #c8c8c8;
-  font-size: var(--font-size-md);
+  grid-area: meta;
+  min-width: 0;
+  color: var(--muted);
+  font-size: var(--font-size-sm);
 }
 
 .settings-sections {
@@ -221,7 +238,7 @@
 }
 
 #settings-config-path {
-  color: #d6e6ff;
+  color: inherit;
   word-break: break-all;
 }
 
@@ -290,18 +307,22 @@
    this puts six to eight on screen and removes the need to scroll. Reuses the
    panel tab component so it matches the viewer's own tabs. */
 .settings-tabs {
+  grid-row: 2;
   margin: 0 0 12px;
 }
 
-.settings-tabpage[hidden] {
-  display: none;
+/* All pages share row 3 (see .settings-modal-body); the others are hidden
+   but keep their size, so the row holds the tallest. visibility also takes
+   them out of the tab order and the accessibility tree. */
+.settings-tabpage {
+  grid-row: 3;
+  grid-column: 1;
+  min-width: 0;
 }
 
-/* Hold the body at the tallest tab, Connection, so the dialog does not jump as
-   you move between them. A floor only: taller content (a longer language)
-   still grows and the body still scrolls. */
-.settings-tabpage {
-  min-height: 372px;
+.settings-tabpage[hidden] {
+  display: block;
+  visibility: hidden;
 }
 
 .settings-tabpage-hint {
@@ -327,8 +348,27 @@
 /* Named after the fields the user actually changed, and only once they have
    changed one. The previous per-field badges marked ten of twenty-four controls,
    at which point a marker stops being a marker and becomes texture. */
-.settings-modal-footer {
-  gap: 10px;
+/* Two classes: .modal-footer's flex comes later, in 13-splash-browser-palette. */
+.modal-footer.settings-modal-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  /* The buttons' extra height goes to the path's row, so an idle footer
+     centres the path on them. */
+  grid-template-rows: 1fr auto auto;
+  grid-template-areas:
+    "meta    cancel save"
+    "message cancel save"
+    "note    cancel save";
+  align-items: center;
+  gap: 0 10px;
+}
+
+#settings-cancel {
+  grid-area: cancel;
+}
+
+#settings-save {
+  grid-area: save;
 }
 
 .settings-restart-note {
@@ -386,17 +426,23 @@
   line-height: 1.4;
 }
 
-/* In the footer, left of Cancel and Save, as the export dialogs' summary. */
+/* In the footer, left of Cancel and Save, under the file's path, as the
+   export dialogs' summary. Empty while idle, and then takes no room. */
 .settings-message {
-  margin-right: auto;
-  align-self: center;
+  grid-area: message;
   min-width: 0;
   font-size: var(--font-size-sm);
   color: var(--muted);
 }
 
+.settings-message:not(:empty) {
+  margin-top: 4px;
+}
+
 .settings-modal-footer .settings-restart-note {
-  margin-right: 0;
+  grid-area: note;
+  justify-self: start;
+  margin: 4px 0 0;
 }
 
 .settings-message.is-busy::before {

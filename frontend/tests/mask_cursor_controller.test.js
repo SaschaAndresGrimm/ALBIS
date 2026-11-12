@@ -69,6 +69,8 @@ describe("mask_cursor_controller", () => {
     const canvasShell = document.createElement("div");
     canvasShell.getBoundingClientRect = () => ({ left: 20, top: 30, width: 100, height: 100 });
     const cursorOverlay = document.createElement("div");
+    const footerCursorEl = document.createElement("span");
+    footerCursorEl.hidden = true;
 
     const controller = createMaskCursorController({
       apiBase: "/api",
@@ -91,6 +93,7 @@ describe("mask_cursor_controller", () => {
         canvasWrap,
         canvasShell,
         cursorOverlay,
+        footerCursorEl,
         histTooltip: document.createElement("div"),
         maskToggle: document.createElement("input"),
         maskSaturatedToggle: document.createElement("input"),
@@ -121,6 +124,11 @@ describe("mask_cursor_controller", () => {
     controller.updateCursorOverlay({ clientX: 20.5, clientY: 30.5 });
 
     expect(cursorOverlay.textContent).toBe("X 0 Y 0 Value 24");
+    // The status strip shows the same readout, and clears it off the image.
+    expect(footerCursorEl.hidden).toBe(false);
+    expect(footerCursorEl.textContent).toBe("X 0 Y 0 Value 24");
+    controller.updateCursorOverlay({ clientX: 500, clientY: 500 });
+    expect(footerCursorEl.hidden).toBe(true);
   });
 
   it("moves the readout clear of the magnifier's lens when the lens appears under a still mouse", () => {
@@ -542,6 +550,34 @@ describe("mask_cursor_controller with a pinned mask (Data -> Pixel Mask)", () =>
     expect(Array.from(state.maskRaw)).toEqual([0, 0, 0, 8]);
     expect(controller.isPinnedMaskInUse()).toBe(false);
     vi.unstubAllGlobals();
+  });
+
+  it("redoes the auto contrast when a mask is pinned, since masked pixels do not count", async () => {
+    const pinned = { current: { data: new Uint32Array([0, 1, 0, 2]), shape: [2, 2], name: "m" } };
+    const state = { file: "a.h5", width: 2, height: 2, hasFrame: true, autoScale: true, histogram: [1] };
+    const refreshDisplayContrast = vi.fn();
+    const drawHistogram = vi.fn();
+    const controller = createMaskCursorController({
+      apiBase: "/api",
+      state,
+      elements: { maskToggle: document.createElement("input") },
+      callbacks: { getPinnedMask: () => pinned.current, redraw: vi.fn() },
+      core: {
+        roiStats: { updateGlobalStats: vi.fn() },
+        roiInteraction: { scheduleRoiUpdate: vi.fn() },
+        fileSession: { refreshDisplayContrast },
+        histogramRender: { drawHistogram },
+      },
+    });
+    await controller.refreshPinnedMask();
+    expect(refreshDisplayContrast).toHaveBeenCalledWith(true);
+    expect(drawHistogram).toHaveBeenCalledWith([1]);
+
+    // Levels set by hand stay as they are.
+    refreshDisplayContrast.mockClear();
+    state.autoScale = false;
+    await controller.refreshPinnedMask();
+    expect(refreshDisplayContrast).not.toHaveBeenCalled();
   });
 
   it("does not fetch a live detector's mask over a pinned one", async () => {

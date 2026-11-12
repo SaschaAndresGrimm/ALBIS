@@ -176,17 +176,33 @@ describe("command palette re-localization", () => {
     });
 
     controller.render();
+    // An empty query groups the commands under their category, so the rows
+    // drop the "File: " prefix and the heading carries it.
+    const headingTexts = () => Array.from(document.querySelectorAll(".command-group-heading")).map((el) => el.textContent);
     let labels = Array.from(document.querySelectorAll(".command-label")).map((el) => el.textContent);
-    expect(labels[0]).toBe("File: Open…");
-    expect(labels).toContain("Debug: Open ALBIS File Picker");
-    expect(labels).toContain("Help: Backend Log");
+    expect(headingTexts()[0]).toBe("File");
+    expect(labels[0]).toBe("Open…");
+    expect(headingTexts()).toContain("Debug");
+    expect(labels).toContain("Open ALBIS File Picker");
+    expect(headingTexts()).toContain("Help");
+    expect(labels).toContain("Backend Log");
 
     i18n.setLanguage("zh-CN", { persist: false, applyDom: false });
     controller.render();
 
     labels = Array.from(document.querySelectorAll(".command-label")).map((el) => el.textContent);
-    expect(labels[0]).toBe("文件：打开…");
-    expect(labels).toContain("调试：打开 ALBIS 文件选择器");
-    expect(labels).toContain("帮助：后端日志");
+    expect(headingTexts()[0]).toBe("文件");
+    expect(labels[0]).toBe("打开…");
+    expect(headingTexts()).toContain("调试");
+    expect(labels).toContain("打开 ALBIS 文件选择器");
+    expect(headingTexts()).toContain("帮助");
+    expect(labels).toContain("后端日志");
+
+    // A query lists the full labels, flat and ranked.
+    document.getElementById("command-input").value = "后端";
+    controller.render();
+    labels = Array.from(document.querySelectorAll(".command-label")).map((el) => el.textContent);
+    expect(labels[0]).toBe("帮助：后端日志");
+    expect(document.querySelectorAll(".command-group-heading").length).toBe(0);
   });
 });

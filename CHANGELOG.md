@@ -21,9 +21,17 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - **The histogram's BG and FG labels no longer cover each other** when the two levels are close: they point away from each other, and drop to a second row only when both levels sit at one edge.
 
+- **The status line shows the pixel under the mouse and only what needs attention.** X, Y, the value and the resolution of the pixel under the mouse now also appear in the status line, where they do not cover the pixels next to the cursor. On its right, **SERVER** was shown at all times to say the connection was fine; the badge now appears only as **OFFLINE** when the connection to the ALBIS server is lost, and **Versions** only when an update is available or the page needs a reload. The build info, with **Copy build info**, and the GitHub link are in **Help → About**.
+
+- **The command palette lists your recent commands first and groups the rest.** Opened without typing, it shows the last five commands you ran from it under **Recent**, then the others under headings such as **File**, **View** and **Panel**, so you no longer read "File:" in front of every row. Typing still lists everything that matches, now with commands that start with what you typed, or have a word that does, above those that only contain it somewhere.
+
+- **Settings is as tall as its tallest tab, no taller, and quieter.** The dialog had a fixed height that left half of the Viewer tab empty; it now fits its content and still keeps one height while you switch tabs. The footer no longer shows a standing "Edit values and click Save." (it shows only real messages: saving, saved, errors), and the config file's path is small print in the footer's left corner instead of the first line of the dialog.
+
 ### Fixed
 
 - **Auto contrast gives a readable first view of sparse and diffraction frames.** A frame that is empty but for one bright feature (a row of pixels at 1000 counts on zeros, say) opened with BG 0 and FG 1, solid white: the bright pixels were taken for the summed gap values that auto contrast leaves out, and only the zeros remained. They are now left out only when the counts below them have a spread of their own, as real data under summed gap values does. The foreground also moved from the 99.9th to the 99.5th percentile, so the brightest 0.5% of the pixels, the Bragg spots, fall into ALBULA HDR's colour part and the background gets the grey ramp; a Pilatus frame whose background is a few counts opened near white with FG 156 and now opens with FG 37. A frame whose signal is under 5% of its pixels (it was 1%) takes the foreground from the signal alone.
+
+- **Auto contrast leaves out the pixels in the pixel mask.** Gap pixels, defective pixels and pixels you masked yourself counted towards BG and FG like any other, so a few hot or broken pixels reading thousands of counts could set the foreground far above the real signal and leave the frame dark. They are not measurements, so auto contrast now ignores them whenever the frame has a pixel mask, whether or not **Apply mask** is on, and it is worked out again when the mask arrives or you change it. A frame without a mask gets the same levels as before.
 
 ## [0.44.0] - 2026-11-11
 

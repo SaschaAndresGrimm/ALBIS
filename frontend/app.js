@@ -2568,7 +2568,7 @@ function computeAutoLevels(data, satMaxInput) {
   // (A raw 64-bit integer frame also arrives as a Float64Array: only a frame
   // other than the raw one is taken as float.)
   const dtype = data !== state.dataRaw && data instanceof Float32Array ? "<f4" : state.dtype;
-  return computeAutoLevelsUtil(data, satMaxInput, state.stats, dtype);
+  return computeAutoLevelsUtil(data, satMaxInput, state.stats, dtype, state.maskAvailable ? state.maskRaw : null);
 }
 
 function computeStats(data) {

@@ -169,6 +169,73 @@ describe("computeAutoLevels", () => {
   });
 });
 
+describe("computeAutoLevels with a pixel mask", () => {
+  // 2% of the pixels defective, reading anything from just above a 10-109
+  // background up to 50,000: no detached cluster the sentinel rejection would
+  // catch, so unmasked they pull the foreground up into their own range.
+  const N = 100000;
+  function makeFrame(Type) {
+    const data = new Type(N);
+    const mask = new Uint32Array(N);
+    for (let i = 0; i < N; i += 1) data[i] = 10 + (i % 100);
+    for (let i = 0; i < N; i += 50) {
+      data[i] = 110 + Math.round((49890 * i) / N);
+      mask[i] = 2;
+    }
+    return { data, mask };
+  }
+
+  it.each([
+    ["an integer", Uint32Array],
+    ["a float", Float32Array],
+  ])("leaves masked pixels out of %s frame", (_kind, Type) => {
+    const { data, mask } = makeFrame(Type);
+    const unmasked = computeAutoLevels(data, null, { min: 0, max: 1 }, "<u4");
+    expect(unmasked.max).toBeGreaterThan(10000);
+
+    const { min, max } = computeAutoLevels(data, null, { min: 0, max: 1 }, "<u4", mask);
+    expect(min).toBeGreaterThanOrEqual(9);
+    expect(max).toBeGreaterThan(90);
+    expect(max).toBeLessThan(120);
+  });
+
+  it("skips gap, defective and hand-masked pixels, not other mask bits", () => {
+    const { data } = makeFrame(Uint32Array);
+    for (const bit of [0x1, 0x2, 0x4, 0x8, 0x10]) {
+      const mask = new Uint32Array(N);
+      for (let i = 0; i < N; i += 50) mask[i] = bit;
+      expect(computeAutoLevels(data, null, null, "<u4", mask).max).toBeLessThan(120);
+    }
+    const other = new Uint32Array(N);
+    for (let i = 0; i < N; i += 50) other[i] = 0x20;
+    expect(computeAutoLevels(data, null, null, "<u4", other).max).toBeGreaterThan(10000);
+  });
+
+  it("gives the same levels as without a mask when the mask is empty, absent or the wrong size", () => {
+    const { data } = makeFrame(Uint32Array);
+    const plain = computeAutoLevels(data, null, { min: 0, max: 1 }, "<u4");
+    expect(computeAutoLevels(data, null, { min: 0, max: 1 }, "<u4", new Uint32Array(N))).toEqual(plain);
+    expect(computeAutoLevels(data, null, { min: 0, max: 1 }, "<u4", null)).toEqual(plain);
+    expect(computeAutoLevels(data, null, { min: 0, max: 1 }, "<u4", new Uint32Array(N - 1).fill(2))).toEqual(plain);
+  });
+
+  it("does not let a masked result stick to the frame once the mask goes", () => {
+    const { data, mask } = makeFrame(Uint16Array);
+    const masked = computeAutoLevels(data, null, null, "<u2", mask);
+    const plain = computeAutoLevels(data, null, null, "<u2");
+    expect(plain.max).toBeGreaterThan(masked.max);
+    // And a mask edited in place on the same arrays counts as edited.
+    mask.fill(0);
+    expect(computeAutoLevels(data, null, null, "<u2", mask)).toEqual(plain);
+  });
+
+  it("falls back when the mask leaves no pixel", () => {
+    const { data } = makeFrame(Uint32Array);
+    const all = new Uint32Array(N).fill(1);
+    expect(computeAutoLevels(data, null, { min: 3, max: 7 }, "<u4", all)).toEqual({ min: 3, max: 7 });
+  });
+});
+
 
 /**
  * A pixel label must fit inside its pixel.

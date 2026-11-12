@@ -608,6 +608,16 @@ describe("settings controller tabs and the restart notice", () => {
   const note = () => document.getElementById("settings-restart-note");
   const noteHidden = () => note().classList.contains("is-hidden");
 
+  it("says nothing in the footer once loaded, until there is something to say", async () => {
+    const { controller } = await initializeController({ initialConfig: baseConfig });
+    await controller.openSettingsModal();
+
+    const message = document.getElementById("settings-message");
+    expect(message.textContent).toBe("");
+    expect(message.classList.contains("is-busy")).toBe(false);
+    expect(message.classList.contains("is-error")).toBe(false);
+  });
+
   it("shows one tab at a time and always opens on the first", async () => {
     const { controller } = await initializeController({ initialConfig: baseConfig });
     await controller.openSettingsModal();
@@ -788,7 +798,7 @@ describe("settings controller: a config file that could not be read", () => {
     expect(note).not.toContain("/tmp/albis.config.json");
   });
 
-  it("places its own note right after the file's path when the page has none", async () => {
+  it("places its own note above the tabs when the page has none", async () => {
     // index.html is past its line budget, so the app's page has no such element.
     const { controller } = await initializeController({
       initialConfig: {},
@@ -800,9 +810,8 @@ describe("settings controller: a config file that could not be read", () => {
 
     const note = document.getElementById("settings-config-error");
     expect(note).not.toBeNull();
-    expect(note.previousElementSibling).toBe(
-      document.getElementById("settings-config-path").parentElement,
-    );
+    // The path itself is small print in the footer; the failure is not.
+    expect(note.nextElementSibling).toBe(document.querySelector(".settings-tabs"));
     expect(note.classList.contains("is-hidden")).toBe(false);
   });
 

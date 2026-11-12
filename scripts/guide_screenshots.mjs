@@ -533,22 +533,24 @@ const scenes = [
         const r = (sel) => document.querySelector(sel).getBoundingClientRect();
         const menus = [...document.querySelectorAll(".menu-bar .menu-item")].map((m) => m.getBoundingClientRect());
         const menu = menus[menus.length - 1];
-        const toolbar = r(".toolbar");
+        const timeline = r(".viewer-footer .toolbar-buttons");
         const image = r("#image-canvas");
         const tabs = r(".panel-tabs");
         const hist = r('section[data-section="histogram"]');
-        const pills = [...document.querySelectorAll(".viewer-footer button, .viewer-footer .footer-pill, .viewer-footer [class*=pill]")]
-          .map((b) => b.getBoundingClientRect())
-          .filter((b) => b.width && b.left < window.innerWidth / 2);
-        const footerRight = Math.max(...pills.map((b) => b.right));
-        const footer = r(".viewer-footer");
+        const status = r(".viewer-footer-main");
+        const statusRight = Math.max(
+          ...[...document.querySelectorAll(".viewer-footer-main .viewer-footer-pill")]
+            .map((b) => b.getBoundingClientRect())
+            .filter((b) => b.width)
+            .map((b) => b.right),
+        );
         return [
           [menu.right + 22, menu.top + menu.height / 2],
-          [toolbar.right + 24, toolbar.top + toolbar.height / 2],
+          [timeline.left + 40, timeline.top - 18],
           [image.right - 40, image.top + image.height * 0.3],
           [tabs.left - 14, tabs.top + tabs.height / 2],
           [hist.left - 14, hist.top + 18],
-          [footerRight + 26, footer.top + footer.height / 2],
+          [statusRight + 26, status.top + status.height / 2],
         ];
       });
       await callouts(spots);
@@ -606,7 +608,8 @@ const scenes = [
       await loadSeries();
       await setValue("#frame-range", 4);
       await sleep(1500);
-      await shot("toolbar", { selector: ".toolbar", pad: 6 });
+      // The timeline under the image: frame buttons, slider, number, Playback.
+      await shot("toolbar", { selector: ".viewer-footer .toolbar-buttons", pad: 6 });
     },
   },
   {
@@ -760,7 +763,7 @@ const scenes = [
       await loadSeries();
       await click("#viewer-sync-options-toggle");
       await sleep(600);
-      await shot("link-popover", { selector: [".toolbar", "#viewer-sync-popover"], pad: 6 });
+      await shot("link-popover", { selector: [".toolbar-right", "#viewer-sync-popover"], pad: 6 });
     },
   },
   {
