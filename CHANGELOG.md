@@ -9,7 +9,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
-- **A light theme.** **Settings → Viewer → Appearance** offers **Dark** (the default, as before), **Light** and **System**, which follows the computer's light or dark setting and switches with it. Light suits a bright room or a projector, where the dark panels were hard to read. The area around the image stays dark in both, because a bright surround makes faint signal in a frame harder to see; the image, the colour map and the overlays look the same in either. The choice belongs to the browser, like the side panel's width, so people sharing one ALBIS server each keep their own.
+- **A light theme.** **Settings → Viewer → Appearance** offers **Dark** (the default, as before), **Light** and **System**, which follows the computer's light or dark setting and switches with it. Light suits a bright room or a projector, where the dark panels were hard to read. The area around the image stays dark in both, because a bright surround makes faint signal in a frame harder to see; the image, the colour map and the overlays look the same in either. The choice belongs to the browser, like the side panel's width, so people sharing one ALBIS server each keep their own. The start screen, **Help → About** and **Help → Documentation** follow the theme as well, with the wave picture drawn light.
 
 ### Changed
 
