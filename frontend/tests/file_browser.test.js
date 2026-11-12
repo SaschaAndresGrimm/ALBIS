@@ -690,6 +690,40 @@ describe("file_browser", () => {
     expect(browseRequests().at(-1)).toBe("/api/browse?sort=name_asc&series_mode=first_only");
   });
 
+  it("shows the location as a trail after Up and gives the Folders pane's width away when there are none", async () => {
+    const controller = await createController({
+      fetchHandler: (url) => {
+        const path = new URL(url, "http://albis.test").searchParams.get("path") || "";
+        return jsonResponse({
+          folders: path ? [] : ["run1"],
+          files: [],
+          fileItems: [],
+          currentPath: path || "run1/scan",
+          parentPath: "run1",
+          canGoUp: true,
+        });
+      },
+    });
+    void controller.openFileDialog();
+    await flushAsyncWork();
+
+    const breadcrumb = document.getElementById("browse-breadcrumb");
+    expect(breadcrumb.firstElementChild).toBe(document.getElementById("browse-up"));
+    expect(Array.from(breadcrumb.querySelectorAll(".breadcrumb-btn")).map((btn) => btn.dataset.path)).toEqual(["", "run1"]);
+    const current = breadcrumb.querySelector("[aria-current='location']");
+    expect(current.tagName).toBe("SPAN");
+    expect(current.textContent).toBe("scan");
+    expect(breadcrumb.querySelectorAll(".browse-crumb-sep[aria-hidden='true']")).toHaveLength(2);
+    // run1/scan has a subfolder listed: the Folders pane stays.
+    expect(document.getElementById("browse-content").classList.contains("has-no-folders")).toBe(false);
+
+    breadcrumb.querySelector(".breadcrumb-btn[data-path='run1']").click();
+    await flushAsyncWork();
+    expect(browseRequests().at(-1)).toContain("path=run1");
+    expect(breadcrumb.querySelector("[aria-current='location']").textContent).toBe("run1");
+    expect(document.getElementById("browse-content").classList.contains("has-no-folders")).toBe(true);
+  });
+
   it("collapses HDF5 master/data files to the master in legacy first_only responses", async () => {
     localStorage.setItem("albis.browseSeriesMode", "first_only");
     const controller = await createController({

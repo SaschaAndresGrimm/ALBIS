@@ -108,6 +108,7 @@ export function queryAppElements(doc = document) {
     splashStatus: byId("splash-status"),
 
     splashOpenFileBtn: byId("splash-open-file"),
+    splashActions: doc.querySelector(".splash-actions"),
 
     footerFileEl: byId("footer-file"),
     footerZoomEl: byId("footer-zoom"),

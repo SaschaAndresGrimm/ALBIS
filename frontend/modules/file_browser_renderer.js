@@ -9,15 +9,17 @@ import {
   COLUMN_SORTS,
   EMPTY_VALUE,
   SORT_COLUMN,
-  buildBreadcrumbSegments,
+  buildBreadcrumbTrail,
   fileTypeLabelKey,
   formatFileSize,
   inferFileExt,
+  shouldCollapseFolderPane,
 } from "./file_browser_utils.js";
 
 export function createFileBrowserRenderer({
   state,
   browseBreadcrumb,
+  browseUpBtn,
   browseFoldersList,
   browseFilesList,
   applySort,
@@ -158,42 +160,63 @@ export function createFileBrowserRenderer({
     return content;
   }
 
+  function goToBreadcrumb(path) {
+    clearSearchQuery({ rerender: false });
+    loadAndRenderBrowser(path).catch((err) => console.error(err));
+  }
+
+  /**
+   * Up, then the location as a trail: Root / run1 / scan. Every ancestor is a
+   * button that goes there; the current folder is plain text. Up keeps its
+   * translated text as its accessible name and shows as an arrow (styles).
+   */
   function renderBreadcrumb() {
     if (!browseBreadcrumb) return;
-    browseBreadcrumb.innerHTML = "";
-    const rootBtn = document.createElement("button");
-    rootBtn.className = "breadcrumb-btn";
-    rootBtn.type = "button";
-    rootBtn.textContent = t("file_browser.root");
-    rootBtn.dataset.path = "";
-    if (!state.currentPath) {
-      rootBtn.classList.add("is-active");
-    }
-    rootBtn.addEventListener("click", () => {
-      clearSearchQuery({ rerender: false });
-      loadAndRenderBrowser("").catch((err) => console.error(err));
-    });
-    browseBreadcrumb.appendChild(rootBtn);
-
-    buildBreadcrumbSegments(state.currentPath).forEach((segment) => {
-      const btn = document.createElement("button");
-      btn.className = "breadcrumb-btn";
-      btn.type = "button";
-      btn.textContent = segment.label;
-      btn.dataset.path = segment.path;
-      if (segment.path === state.currentPath) {
-        btn.classList.add("is-active");
+    const trail = document.createElement("ol");
+    trail.className = "browse-crumbs";
+    buildBreadcrumbTrail(state.currentPath, t("file_browser.root")).forEach((segment, index) => {
+      const item = document.createElement("li");
+      item.className = "browse-crumb-item";
+      if (index > 0) {
+        const sep = document.createElement("span");
+        sep.className = "browse-crumb-sep";
+        sep.setAttribute("aria-hidden", "true");
+        item.appendChild(sep);
       }
-      btn.addEventListener("click", () => {
-        clearSearchQuery({ rerender: false });
-        loadAndRenderBrowser(segment.path).catch((err) => console.error(err));
-      });
-      browseBreadcrumb.appendChild(btn);
+      if (segment.isCurrent) {
+        const current = document.createElement("span");
+        current.className = "browse-crumb-current";
+        current.setAttribute("aria-current", "location");
+        current.dataset.path = segment.path;
+        current.textContent = segment.label;
+        current.title = segment.path || segment.label;
+        item.appendChild(current);
+      } else {
+        const btn = document.createElement("button");
+        btn.className = "breadcrumb-btn";
+        btn.type = "button";
+        btn.textContent = segment.label;
+        btn.title = segment.path || segment.label;
+        btn.dataset.path = segment.path;
+        btn.addEventListener("click", () => goToBreadcrumb(segment.path));
+        item.appendChild(btn);
+      }
+      trail.appendChild(item);
     });
+    if (browseUpBtn) {
+      browseUpBtn.title = t("browse.action.up");
+      browseBreadcrumb.replaceChildren(browseUpBtn, trail);
+    } else {
+      browseBreadcrumb.replaceChildren(trail);
+    }
   }
 
   function renderFolders() {
     if (!browseFoldersList) return;
+    browseFoldersList.closest(".browse-content")?.classList.toggle(
+      "has-no-folders",
+      shouldCollapseFolderPane({ folderCount: state.allFolders?.length, folderSelectMode: isFolderSelectMode() }),
+    );
     browseFoldersList.innerHTML = "";
     if (!state.folders.length) {
       const empty = document.createElement("div");

@@ -225,7 +225,7 @@ export function createAnalysisOverlayController({
     if (!ringsSectionStateEl) return;
     if (!analysisState.ringsEnabled) {
       setSectionBadgeState(ringsSectionStateEl, "empty", t("rings.state.enable_hint"));
-      setSummaryChip(ringsSummaryEl, t("summary.off"));
+      setSummaryChip(ringsSummaryEl, t("summary.off"), "off");
       return;
     }
     if (!state.hasFrame) {
@@ -281,7 +281,7 @@ export function createAnalysisOverlayController({
     if (!peaksSectionStateEl) return;
     if (!analysisState.peaksEnabled) {
       setSectionBadgeState(peaksSectionStateEl, "empty", t("peaks.state.enable_hint"));
-      setSummaryChip(peaksSummaryEl, t("summary.off"));
+      setSummaryChip(peaksSummaryEl, t("summary.off"), "off");
       return;
     }
     if (!state.hasFrame) {

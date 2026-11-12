@@ -176,6 +176,9 @@ export function createThresholdPlaybackController({
       if (playBtn) {
         playBtn.classList.toggle("is-active", !livePaused);
         playBtn.disabled = false;
+        // A word (LIVE / STOP), not an icon: the stylesheet draws the icon only
+        // while data-icon is set.
+        delete playBtn.dataset.icon;
         if (!livePaused) {
           playBtn.textContent = t("backend.live.stop");
           playBtn.setAttribute("aria-label", t("toolbar.play.stop_live_aria"));
@@ -198,6 +201,7 @@ export function createThresholdPlaybackController({
       playBtn.classList.toggle("is-active", state.playing);
       playBtn.disabled = disabled;
       playBtn.textContent = state.playing ? "⏸" : "⏯";
+      playBtn.dataset.icon = state.playing ? "pause" : "play";
       playBtn.setAttribute("aria-label", t("toolbar.play.toggle"));
       playBtn.title = "";
       playBtn.dataset.help = t("hint.frame.play_pause");

@@ -17,3 +17,4 @@ by the maintainer.
 | [0005](0005-app-elements-table-and-stable-wrappers.md) | `app.js` takes its elements from one table; late-created controllers keep stable wrappers |
 | [0006](0006-viewer-core-wiring.md) | How the viewer's core controllers reach each other |
 | [0007](0007-windows-signing-azure-artifact-signing.md) | Windows releases are signed with Azure Artifact Signing |
+| [0008](0008-workspace-layout.md) | The workspace layout: docked side panel, one header, a timeline (proposed) |

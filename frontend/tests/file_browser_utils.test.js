@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   aggregateSeriesLocally,
   buildBreadcrumbSegments,
+  buildBreadcrumbTrail,
   compareNatural,
   deriveParentPath,
   fileTypeLabelKey,
@@ -12,6 +13,7 @@ import {
   normalizeFileItems,
   normalizeRequestedExts,
   serializeExts,
+  shouldCollapseFolderPane,
   sortFileItems,
   splitHdfSeries,
   splitSeriesName,
@@ -49,6 +51,24 @@ describe("file_browser_utils", () => {
       { label: "x", path: "C:\\x" },
       { label: "y", path: "C:\\x\\y" },
     ]);
+  });
+
+  it("builds the breadcrumb trail from the root, with only the last entry current", () => {
+    expect(buildBreadcrumbTrail("", "Root")).toEqual([{ label: "Root", path: "", isCurrent: true }]);
+    expect(buildBreadcrumbTrail("run1/scan", "Root")).toEqual([
+      { label: "Root", path: "", isCurrent: false },
+      { label: "run1", path: "run1", isCurrent: false },
+      { label: "scan", path: "run1/scan", isCurrent: true },
+    ]);
+    expect(buildBreadcrumbTrail("C:\\x", "Root").map((entry) => entry.path)).toEqual(["", "C:", "C:\\x"]);
+  });
+
+  it("collapses the Folders pane only when choosing a file in a folder without subfolders", () => {
+    expect(shouldCollapseFolderPane({ folderCount: 0, folderSelectMode: false })).toBe(true);
+    expect(shouldCollapseFolderPane({ folderCount: undefined, folderSelectMode: false })).toBe(true);
+    expect(shouldCollapseFolderPane({ folderCount: 2, folderSelectMode: false })).toBe(false);
+    // Choosing a folder: the Folders pane is all there is.
+    expect(shouldCollapseFolderPane({ folderCount: 0, folderSelectMode: true })).toBe(false);
   });
 
   it("infers extensions and type labels", () => {

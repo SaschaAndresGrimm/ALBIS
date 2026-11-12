@@ -359,6 +359,24 @@ export function buildBreadcrumbSegments(currentPath) {
   });
 }
 
+/**
+ * The whole location trail, root first: every entry but the last is a place
+ * to go back to, the last is where the browser is now (not a link).
+ */
+export function buildBreadcrumbTrail(currentPath, rootLabel) {
+  const trail = [{ label: String(rootLabel || ""), path: "" }, ...buildBreadcrumbSegments(currentPath)];
+  return trail.map((segment, index) => ({ ...segment, isCurrent: index === trail.length - 1 }));
+}
+
+/**
+ * Whether the Folders pane gives its width to the file list: when choosing a
+ * file in a folder that has no subfolders at all. Counts the unfiltered
+ * folders, so a search that hides them all does not make the layout jump.
+ */
+export function shouldCollapseFolderPane({ folderCount, folderSelectMode }) {
+  return !folderSelectMode && !(Number(folderCount) > 0);
+}
+
 export function formatFileSize(sizeBytes) {
   const size = Number(sizeBytes);
   if (!(size > 0)) {
