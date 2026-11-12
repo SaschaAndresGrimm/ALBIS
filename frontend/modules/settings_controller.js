@@ -108,19 +108,19 @@ export function createSettingsController({
   let settingsRequestId = 0;
   let envOverrides = [];
   let configLoadErrorAnnounced = false;
-  // Made here rather than in index.html, which is past its line budget: the
-  // note belongs right under the file's path, so it is placed after it.
+  // Made here rather than in index.html, which is past its line budget. The
+  // file's path sits small in the footer; a file that failed to load is worth
+  // more than that, so the note goes at the top of the body, above the tabs.
   const settingsConfigError = elements.settingsConfigError || createConfigErrorNote();
 
   function createConfigErrorNote() {
-    const row = settingsConfigPath?.parentElement;
-    if (!row) return null;
+    if (!settingsTabs) return null;
     const note = document.createElement("div");
     note.id = "settings-config-error";
     note.className = "settings-env-note is-hidden";
     note.setAttribute("role", "alert");
     note.setAttribute("aria-hidden", "true");
-    row.after(note);
+    settingsTabs.before(note);
     return note;
   }
   let syncingExternalAccessUi = false;
@@ -648,7 +648,9 @@ export function createSettingsController({
         settingsToolHints.checked = Boolean(config?.ui?.tool_hints ?? state.toolHintsEnabled);
       }
       updateExternalAccessUi();
-      setSettingsMessage(t("settings.message.edit_hint"));
+      // Nothing to say until something happens: a standing "edit and save"
+      // read as a status and hid the messages that are one.
+      setSettingsMessage("");
     } catch (err) {
       if (requestId !== settingsRequestId) return;
       console.error(err);

@@ -42,6 +42,7 @@ export function createChromeToolbarController({
     footerVersionStaleTextEl,
     footerVersionReloadEl,
     footerVersionCopyEl,
+    aboutCopyBuildEl,
     splash,
     dropdown,
     panelFab,
@@ -373,26 +374,31 @@ export function createChromeToolbarController({
 
   let copyFeedbackTimer = null;
 
-  async function copyBuildInfo() {
-    if (!footerVersionCopyEl) return;
+  /** Copy the build line; `button` (the popover's or About's) says it worked. */
+  async function copyBuildInfo(button = footerVersionCopyEl) {
+    if (!button) return;
     const text = buildInfoText();
     const copied = await copyText(text);
     if (!copied) {
       onCopyBuildInfoUnavailable?.(text);
       return;
     }
-    footerVersionCopyEl.textContent = t("toolbar.footer.copy_build.copied");
+    button.textContent = t("toolbar.footer.copy_build.copied");
     if (copyFeedbackTimer) window.clearTimeout(copyFeedbackTimer);
     copyFeedbackTimer = window.setTimeout(() => {
       copyFeedbackTimer = null;
-      if (footerVersionCopyEl) {
-        footerVersionCopyEl.textContent = t("toolbar.footer.copy_build");
-      }
+      button.textContent = t("toolbar.footer.copy_build");
     }, 1500);
   }
 
   footerVersionCopyEl?.addEventListener("click", () => {
-    void copyBuildInfo();
+    void copyBuildInfo(footerVersionCopyEl);
+  });
+
+  // Help -> About carries it too: the status strip shows Versions only when
+  // there is an update or a reload to offer.
+  aboutCopyBuildEl?.addEventListener("click", () => {
+    void copyBuildInfo(aboutCopyBuildEl);
   });
 
   footerVersionUpdateEl?.addEventListener("click", () => {

@@ -17,6 +17,7 @@ export function createMaskCursorController({
     canvasWrap,
     canvasShell,
     cursorOverlay,
+    footerCursorEl,
     histTooltip,
     maskToggle,
     maskSaturatedToggle,
@@ -256,6 +257,12 @@ export function createMaskCursorController({
   function redrawWithMask() {
     if (!state.hasFrame) return;
     core.roiStats.updateGlobalStats();
+    // Auto contrast leaves masked pixels out, so a mask that arrives or
+    // changes after the frame moves it.
+    if (state.autoScale) {
+      core.fileSession?.refreshDisplayContrast(true);
+      if (state.histogram) core.histogramRender?.drawHistogram(state.histogram);
+    }
     redraw();
     core.roiInteraction.scheduleRoiUpdate();
   }
@@ -321,11 +328,7 @@ export function createMaskCursorController({
       state.maskPath = readHeaderText(res.headers, "X-Mask-Path");
       alignMaskToFrame();
       syncMaskAvailability(forceEnable);
-      if (state.hasFrame) {
-        core.roiStats.updateGlobalStats();
-        redraw();
-        core.roiInteraction.scheduleRoiUpdate();
-      }
+      redrawWithMask();
     } catch (err) {
       if (requestId !== maskRequestId) return;
       // A file without a mask answers 404, which is routine; only a failure
@@ -367,6 +370,12 @@ export function createMaskCursorController({
   let cursorAt = null;
 
   function showCursorOverlay(text, clientX, clientY) {
+    // The status strip carries the same readout, where it never covers the
+    // pixels next to the cursor and can be read while the mouse moves on.
+    if (footerCursorEl) {
+      footerCursorEl.textContent = text;
+      footerCursorEl.hidden = false;
+    }
     if (!cursorOverlay || !canvasShell) return;
     cursorOverlay.textContent = text;
     cursorOverlay.classList.add("is-visible");
@@ -396,6 +405,7 @@ export function createMaskCursorController({
   }
 
   function hideCursorOverlay() {
+    if (footerCursorEl) footerCursorEl.hidden = true;
     if (!cursorOverlay) return;
     cursorOverlay.classList.remove("is-visible");
     cursorOverlay.setAttribute("aria-hidden", "true");

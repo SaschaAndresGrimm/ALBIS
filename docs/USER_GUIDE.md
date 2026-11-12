@@ -94,7 +94,9 @@ series: the top of the window says **in16c_010001.cbf 1 / 10**.
    **Analysis** tabs, and **Detector** when it is switched on. Drag its left
    edge to make it wider or narrower; the image uses the rest of the window.
 5. **Histogram** — contrast and colour map, in the View tab.
-6. **Status line** — at the very bottom: what ALBIS is doing and the zoom.
+6. **Status line** — at the very bottom: what ALBIS is doing, the zoom, and
+   the pixel under the mouse (X, Y, its value and its resolution). On the
+   right it shows **OFFLINE** if the connection to the ALBIS server is lost.
 
 On the image, the dark spots are **reflections**: X-rays diffracted by the
 crystal. The two black bands are the **gaps** between the detector's three
@@ -105,7 +107,7 @@ the most.
 
 ### 4. Step through the series
 
-![The toolbar, showing frame 4 of the series](images/user-guide/toolbar.webp)
+![The timeline under the image, showing frame 4 of the series](images/user-guide/toolbar.webp)
 
 Press `→` to go to the next image and `←` to go back, or drag the frame
 slider in the timeline under the image. As the crystal turns, some
@@ -274,7 +276,7 @@ whatever the beamline wrote alongside. It appears when an HDF5 file is open.
 
 ## Move through a series
 
-![The toolbar: frame buttons, the frame slider at frame 4, Playback, link, 123, magnifier and full screen](images/user-guide/toolbar.webp)
+![The timeline: previous, next and play, the frame slider at frame 4, the frame number and Playback](images/user-guide/toolbar.webp)
 
 - The **slider**, across the timeline under the image, and the frame number
   field jump anywhere in the series.
@@ -722,7 +724,7 @@ frames): those frames arrive over a stream this window alone is subscribed to,
 and there is no file for a second window to open. The menu entry greys out and
 says so.
 
-![The link menu open under the toolbar: Position, Contrast and ROI](images/user-guide/link-popover.webp)
+![The link menu open under the header: Position, Contrast and ROI](images/user-guide/link-popover.webp)
 
 The **link** control in the header chooses what the windows share: **Position**
 (pan and zoom), **Contrast**, and **ROI**. Link position to keep both views on
@@ -1292,7 +1294,10 @@ appears and `Alt` where `⌥` appears.
 | Hold `Z` | Magnifier at the mouse (wheel: magnification, `⇧` + wheel: size) |
 
 The command palette is the fastest route to anything you do not have a shortcut
-for, including switching panel tabs and stepping thresholds.
+for, including switching panel tabs and stepping thresholds. Opened without
+typing, it shows the last five commands you ran from it under **Recent**, then
+the rest grouped under **File**, **View**, **Panel** and the other headings;
+type to search all of them by name, keyword or shortcut.
 
 ![The command palette: a search field over a list of commands with their shortcuts](images/user-guide/command-palette.webp)
 
@@ -1414,10 +1419,11 @@ different build while this tab stayed open, so the page is running older code
 than the server it is talking to. Reload and the warning goes away.
 
 For anything else, **Help → View Backend Log** shows what the server is doing,
-and the log can be downloaded from there to attach to an issue. The **Versions**
-button in the bottom right names the exact build you are running and copies it
+and the log can be downloaded from there to attach to an issue. **Help → About**
+names the exact build you are running, and **Copy build info** there copies it
 to the clipboard — quote that in a report, because a version number alone cannot
-distinguish two builds of the same release.
+distinguish two builds of the same release. When an update is available or the
+page needs a reload, **Versions** appears in the bottom right as well.
 
 ---
 

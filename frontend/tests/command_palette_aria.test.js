@@ -24,9 +24,9 @@ function setup() {
     },
     callbacks: {
       getCommands: () => [
-        { id: "alpha", label: "Alpha", run: () => {} },
-        { id: "beta", label: "Beta", shortcut: "B", run: () => {} },
-        { id: "gamma", label: "Gamma", run: () => {} },
+        { id: "alpha", label: "File: Alpha", run: () => {} },
+        { id: "beta", label: "View: Beta", shortcut: "B", run: () => {} },
+        { id: "gamma", label: "File: Gamma", run: () => {} },
       ],
       closeMenu: () => {},
       closeToolbarPlaybackPopover: () => {},
@@ -41,6 +41,7 @@ function setup() {
 
 afterEach(() => {
   document.body.innerHTML = "";
+  localStorage.clear();
   vi.restoreAllMocks();
 });
 
@@ -72,5 +73,58 @@ describe("command palette ARIA", () => {
     ctx.controller.render();
     expect(ctx.commandList.querySelectorAll('[role="option"]').length).toBe(0);
     expect(ctx.commandInput.hasAttribute("aria-activedescendant")).toBe(false);
+  });
+
+  it("groups an empty query by category, each group labelled by its heading", () => {
+    ctx.controller.render();
+    const groups = ctx.commandList.querySelectorAll('[role="group"]');
+    expect(groups.length).toBe(2);
+    groups.forEach((group) => {
+      const heading = document.getElementById(group.getAttribute("aria-labelledby"));
+      expect(heading.getAttribute("role")).toBe("presentation");
+      expect(heading.closest('[role="group"]')).toBe(group);
+    });
+    expect(Array.from(groups).map((g) => g.querySelector(".command-group-heading").textContent)).toEqual(["File", "View"]);
+    const texts = Array.from(ctx.commandList.querySelectorAll(".command-label")).map((el) => el.textContent);
+    expect(texts).toEqual(["Alpha", "Gamma", "Beta"]);
+  });
+
+  it("moves through options only, skipping the headings, and wraps", () => {
+    ctx.commandModal = document.getElementById("command-modal");
+    ctx.commandModal.classList.add("is-open");
+    ctx.controller.render();
+    const press = (key) => ctx.controller.handleKeydown(new KeyboardEvent("keydown", { key }));
+    press("ArrowDown");
+    expect(ctx.commandInput.getAttribute("aria-activedescendant")).toBe("command-option-1");
+    press("ArrowDown");
+    expect(ctx.commandList.querySelector(".is-active .command-label").textContent).toBe("Beta");
+    press("ArrowDown");
+    expect(ctx.commandInput.getAttribute("aria-activedescendant")).toBe("command-option-0");
+    press("ArrowUp");
+    expect(ctx.commandInput.getAttribute("aria-activedescendant")).toBe("command-option-2");
+  });
+
+  it("remembers a command run from the palette and lists it under Recent first", () => {
+    const modal = document.getElementById("command-modal");
+    modal.classList.add("is-open");
+    ctx.controller.render();
+    ctx.controller.setIndex(2);
+    ctx.controller.handleKeydown(new KeyboardEvent("keydown", { key: "Enter" }));
+    expect(JSON.parse(localStorage.getItem("albis.commandPalette.recent"))).toEqual(["beta"]);
+
+    ctx.controller.render();
+    const first = ctx.commandList.querySelector('[role="group"]');
+    expect(first.dataset.group).toBe("recent");
+    expect(first.querySelector(".command-label").textContent).toBe("View: Beta");
+    const texts = Array.from(ctx.commandList.querySelectorAll(".command-label")).map((el) => el.textContent);
+    expect(texts).toEqual(["View: Beta", "Alpha", "Gamma"]);
+  });
+
+  it("lists a query flat and ranked, without headings", () => {
+    ctx.commandInput.value = "gam";
+    ctx.controller.render();
+    expect(ctx.commandList.querySelectorAll('[role="group"]').length).toBe(0);
+    const texts = Array.from(ctx.commandList.querySelectorAll(".command-label")).map((el) => el.textContent);
+    expect(texts).toEqual(["File: Gamma"]);
   });
 });

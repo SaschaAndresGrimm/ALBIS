@@ -542,39 +542,6 @@
   background: rgba(255, 216, 168, 0.2);
 }
 
-.viewer-footer-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--font-size-lg);
-  font-weight: 600;
-  color: #c6defd;
-  text-decoration: none;
-  padding: 5px 11px;
-  border-radius: 999px;
-  border: 1px solid var(--border-strong);
-  background: rgba(15, 24, 38, 0.6);
-  flex: 0 0 auto;
-}
-
-.viewer-footer-github-icon {
-  width: 14px;
-  height: 14px;
-  display: block;
-  fill: currentColor;
-}
-
-.viewer-footer-link:hover {
-  color: var(--text);
-  border-color: rgba(121, 181, 255, 0.68);
-  background: rgba(32, 51, 80, 0.7);
-}
-
-.viewer-footer-link:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
-
 .cursor-overlay {
   position: absolute;
   left: 12px;

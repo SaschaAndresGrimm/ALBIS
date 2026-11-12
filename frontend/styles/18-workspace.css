@@ -516,6 +516,41 @@
     display: none;
   }
 
+  /* Where the mouse is: X, Y, value and resolution, the same text as the
+     readout beside the cursor, in fixed-width digits so it does not jitter. */
+  body.canvas-first .viewer-footer-main .viewer-footer-cursor {
+    flex: 0 1 auto;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    white-space: pre;
+  }
+
+  body.canvas-first .viewer-footer-main .viewer-footer-cursor[hidden] {
+    display: none;
+  }
+
+  /* The right side says only what needs attention. "SERVER" was the normal
+     state shown at all times; the badge now appears when the backend is
+     offline. Versions appears with an update or a reload to offer; the
+     version and build info are in Help -> About otherwise. */
+  body.canvas-first .viewer-footer-side .backend-badge:not(.is-off) {
+    display: none;
+  }
+
+  body.canvas-first .viewer-footer-side .backend-badge.is-off {
+    color: var(--tone-error);
+    font-weight: 600;
+  }
+
+  body.canvas-first .viewer-footer-side:not(:has(#footer-version-update.is-actionable:not([hidden]), #footer-version-stale:not([hidden]))) .viewer-footer-version-toggle {
+    display: none;
+  }
+
+  body.canvas-first .viewer-footer-side .viewer-footer-version-toggle {
+    color: var(--tone-warning);
+    font-weight: 600;
+  }
+
   body.canvas-first .viewer-footer-side .viewer-footer-pill,
   body.canvas-first .viewer-footer-side .backend-badge,
   body.canvas-first .viewer-footer-side .live-badge,
@@ -705,5 +740,9 @@
     font-size: var(--font-size-sm);
     font-weight: 400;
   }
-}
 
+  .about-copy-build {
+    justify-self: center;
+    margin: 0 auto var(--space-base);
+  }
+}

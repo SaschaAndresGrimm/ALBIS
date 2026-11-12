@@ -195,82 +195,18 @@ optgroup {
   display: none !important;
 }
 
-/* Mobile/Touch-friendly styles */
+/* Touch screens: the phone's bottom sheet spans the width, a tablet's panel
+   is 360px. The rest of the phone layout is in 04-panel.css (.is-mobile-sheet);
+   the docked desktop layout is in styles/18-workspace.css. */
 @media (hover: none) and (pointer: coarse) {
   :root {
     --panel-width: 100vw;
   }
-
-  body:not(.canvas-first) .app {
-    grid-template-columns: 1fr;
-  }
-
-  body:not(.canvas-first) .panel-resizer {
-    display: none;
-  }
-
-  body:not(.canvas-first) .panel {
-    position: fixed;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 30;
-    transform: translateX(100%);
-    transition: transform var(--motion-slow) var(--motion-ease-standard);
-    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.5);
-  }
-
-  body:not(.canvas-first) .panel.is-visible {
-    transform: translateX(0);
-  }
-
-  body:not(.canvas-first) .panel-fab {
-    display: flex;
-  }
-
-  body:not(.canvas-first) .viewer {
-    padding: 8px;
-  }
 }
 
-/* Tablets: wider panel */
 @media (hover: none) and (pointer: coarse) and (min-width: 768px) {
   :root {
     --panel-width: 360px;
-  }
-
-  body:not(.canvas-first) .app {
-    grid-template-columns: minmax(0, 1fr) 6px minmax(28px, var(--panel-width, 360px));
-  }
-
-  body:not(.canvas-first) .panel-resizer {
-    display: block;
-  }
-
-  body:not(.canvas-first) .panel {
-    position: relative;
-    width: auto;
-    height: auto;
-    z-index: auto;
-    transform: none;
-    transition: none;
-    box-shadow: none;
-  }
-
-  body:not(.canvas-first) .panel.is-visible {
-    transform: none;
-  }
-
-  body:not(.canvas-first) .panel-fab {
-    display: none;
-  }
-}
-
-@media (min-width: 900px) {
-  .app {
-    grid-template-columns: minmax(0, 1fr) 6px minmax(28px, var(--panel-width, 280px));
   }
 }
 

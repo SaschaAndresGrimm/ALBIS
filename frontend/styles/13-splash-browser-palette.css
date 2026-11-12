@@ -743,6 +743,25 @@ button.browse-details-header-cell[aria-sort="descending"] {
   gap: 4px;
 }
 
+/* With an empty query the list is grouped: Recent, then one group per
+   category under a heading that is not an option (arrow keys skip it). */
+.command-group {
+  display: grid;
+  gap: 4px;
+}
+
+.command-group + .command-group {
+  margin-top: 6px;
+}
+
+.command-group-heading {
+  padding: 4px 2px 0;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--muted);
+  user-select: none;
+}
+
 .command-item {
   width: 100%;
   border: 1px solid var(--border-subtle);

@@ -1,6 +1,6 @@
 # 0008: The workspace layout — docked panel, one header, a timeline
 
-**Status:** Proposed (branch `design/ui-rework`)
+**Status:** Accepted
 
 ## Context
 
@@ -44,18 +44,19 @@ The phone layout (bottom sheet) is untouched: the file applies only under
 
 ## Consequences
 
-- One file holds the design, so the branch can be dropped, or the old
-  canvas-first rules in `04-panel.css` deleted, without hunting through
-  seventeen stylesheets. If the design is kept, those rules, the chrome-idle
-  dimming and `--overlay-*` anchoring become dead and should be removed in a
-  follow-up, which also lowers the colour-literal baseline.
+- One file holds the desktop design. The floating canvas-first rules in
+  `04-panel.css`, the chrome-idle dimming and the `--overlay-*` anchoring
+  stay, because the phone layout (bottom sheet, bars over the image) still
+  uses them; on the desktop this file overrides them. The old docked grid's
+  `body:not(.canvas-first)` rules, which could never apply, were deleted.
+- The status strip shows only what needs attention on its right: **OFFLINE**
+  when the backend is gone, **Versions** with an update or a reload to offer.
+  The build info and the GitHub link live in Help -> About.
 - Measured in headless Chrome (in16c series, panel open, 2× pixel ratio,
   six runs each): main-thread time during wheel zoom 679 ms vs 782 ms on main
   over 4 s, during 30 fps playback 1439 ms vs 1706 ms over 5 s; both held
   60 fps. Style and layout work during zoom rose from about 117 to 231 ms over
   240 frames (about 0.5 ms a frame) and is not caused by the `:has()` rules.
-- The user guide's pictures show the old layout until they are remade
-  (`npm run guide:screenshots`).
 - Revisit if users want the image to run under a translucent panel again
   (a "focus" mode), or if the timeline should hold more (a frame histogram,
   markers).

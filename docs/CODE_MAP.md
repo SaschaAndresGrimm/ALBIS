@@ -120,8 +120,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Toolbar, footer and idle-chrome state; their listeners; window-level listeners; global client-side error logging.
 - `frontend/modules/menu_actions.js`, `frontend/modules/menu_bindings.js`, `frontend/modules/shortcut_handlers.js`:
   - The menu action dispatcher, menu and global listeners, and the keyboard shortcuts.
-- `frontend/modules/command_palette.js`, `frontend/modules/command_palette_commands.js`, `frontend/modules/command_availability.js`:
-  - The command palette, its command list, and the one place that says whether a file command can run now (shared by the File menu, the palette and the shortcuts).
+- `frontend/modules/command_palette.js`, `frontend/modules/command_palette_commands.js`, `frontend/modules/command_palette_utils.js`, `frontend/modules/command_availability.js`:
+  - The command palette, its command list, its grouping, ranking and recent commands, and the one place that says whether a file command can run now (shared by the File menu, the palette and the shortcuts).
 - `frontend/modules/panel_layout_controller.js`, `frontend/modules/panel_tab_bindings.js`, `frontend/modules/ui_panels.js`, `frontend/modules/analysis_tools.js`:
   - Side-panel layout, sections and mobile drag; tab and section listeners; the remembered tab; which optional Analysis tools a user hides.
 - `frontend/modules/help_tooltips.js`, `frontend/modules/info_tips.js`:

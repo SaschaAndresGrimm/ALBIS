@@ -99,6 +99,7 @@ export function queryAppElements(doc = document) {
     overviewCanvas: byId("overview-canvas"),
 
     cursorOverlay: byId("cursor-overlay"),
+    footerCursorEl: byId("footer-cursor"),
 
     pixelLabelToggle: byId("pixel-label-toggle"),
 
@@ -120,6 +121,7 @@ export function queryAppElements(doc = document) {
     footerVersionStaleTextEl: byId("footer-version-stale-text"),
     footerVersionReloadEl: byId("footer-version-reload"),
     footerVersionCopyEl: byId("footer-version-copy"),
+    aboutCopyBuildEl: byId("about-copy-build"),
     resolutionOverlay: byId("resolution-overlay"),
 
     peakOverlay: byId("peak-overlay"),
