@@ -19,6 +19,11 @@ test_data/
 # patterns above. Without this the detector formats the tests decode would be
 # silently dropped from a commit.
 !testdata/**
+# ...except what ALBIS writes there while it is run on testdata/ (the UI
+# snapshots and manual checks do): Combine Frames output and the logs. One
+# such file, in16c_010009_series_sum_*.h5, slipped into a commit.
+testdata/*_series_sum_*
+testdata/logs/
 *.coverage
 .coverage
 .coverage.*
