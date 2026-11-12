@@ -24,6 +24,9 @@ test_data/
 # such file, in16c_010009_series_sum_*.h5, slipped into a commit.
 testdata/*_series_sum_*
 testdata/logs/
+# The Detector tab's downloads ("Show images in ALBIS") land under
+# detector/<address>/; four such files (38 MB) went into a commit.
+testdata/detector/
 *.coverage
 .coverage
 .coverage.*
