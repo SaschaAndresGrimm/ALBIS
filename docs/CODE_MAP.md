@@ -55,6 +55,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Shared HDF5/header/series capability checks used across controllers.
 - `frontend/modules/overlay_render_controller.js` + `frontend/modules/histogram_render_controller.js`:
   - Overlay and histogram drawing/scheduling.
+- `frontend/modules/theme.js` + `frontend/modules/theme_utils.js` + `frontend/modules/plot_theme.js`:
+  - The light and dark theme: the preference (`ui.theme`) resolved against the system setting (pure), applied as `data-theme` on `<html>` with an `albis:themechange` event, and the canvas plots' colours read from the `--plot-*` tokens.
 - `frontend/modules/histogram_label_layout.js`:
   - Where the histogram's BG and FG captions go, so they never cover each other (pure).
 - `frontend/modules/autoload_mode_controller.js`, `autoload_orchestration_controller.js`, `autoload_settings_controller.js`, `autoload_status_controller.js`:

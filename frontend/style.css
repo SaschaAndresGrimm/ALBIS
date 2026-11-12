@@ -31,6 +31,31 @@
   --tone-error-text: #f7cccc;
   --tone-warning: #e0a24e;
   --tone-success: #4fb477;
+  /* The tints behind a message of each tone: a banner, a warning chip. */
+  --tone-error-soft: rgba(224, 93, 93, 0.16);
+  --tone-warning-soft: rgba(224, 162, 78, 0.16);
+  --tone-success-soft: rgba(79, 180, 119, 0.16);
+  --tone-warning-text: #ffe1a3;
+  /* Text and icons on a filled accent: a pressed toggle, the primary button. */
+  --text-on-accent: #08131f;
+  /* Inputs, selects and steppers: the field, its edge, and on hover. */
+  --control-bg: rgba(11, 18, 28, 0.82);
+  --control-border: rgba(104, 126, 163, 0.4);
+  --control-hover: rgba(33, 48, 70, 0.98);
+  /* The dimmed page behind a dialog. */
+  --scrim: rgba(4, 8, 14, 0.62);
+  /* The plots drawn on canvas (histogram, ROI profiles, overview), read by
+     modules/plot_theme.js so they follow the theme. */
+  --plot-bg: rgba(12, 18, 27, 0.96);
+  --plot-frame: rgba(78, 100, 137, 0.45);
+  --plot-axis: rgba(132, 156, 196, 0.82);
+  --plot-grid: rgba(88, 112, 152, 0.24);
+  --plot-text: #dce8ff;
+  --plot-bar: rgba(236, 243, 255, 0.88);
+  --plot-line: rgba(236, 243, 255, 0.95);
+  --plot-line-glow: rgba(102, 178, 255, 0.2);
+  --plot-marker-outline: rgba(8, 14, 22, 0.85);
+  --plot-peak: rgba(255, 196, 110, 0.95);
   /* Two rings, not one. The old value was a 34%-alpha accent, which
      composited to 1.83:1 against --panel-mid and 1.39:1 against the toolbar --
      both under the 3:1 that WCAG 1.4.11 asks of a focus indicator, and it is
@@ -116,6 +141,74 @@
      the list a dropdown opens -- instead of white ones on the dark panels,
      with ALBIS's blue for a ticked box. */
   color-scheme: dark;
+  accent-color: var(--accent);
+}
+
+/* Light theme (Settings -> Viewer -> Appearance, ui.theme). The same tokens
+   with light values; everything else follows from them. data-theme is set on
+   <html> before the first paint (index.html) and by modules/theme.js.
+
+   The area around the image keeps its dark tone: a bright surround makes the
+   eye adapt to it, and faint signal in a frame loses contrast -- which is why
+   image viewers keep it dark or grey in their light themes too. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --chrome-dark: #e8ebf0;
+  --chrome-mid: #f0f2f5;
+  --chrome-light: #ffffff;
+  --toolbar-blue: #2f6fb3;
+  --toolbar-blue-dark: #275e99;
+  --panel-dark: #eceff4;
+  --panel-mid: #f5f6f8;
+  --panel-light: #ffffff;
+  --surface-0: #f3f5f8;
+  --surface-1: #ffffff;
+  --surface-2: #eef1f5;
+  --surface-3: #e2e7ee;
+  --surface-well: rgba(238, 241, 246, 0.96);
+  --text: #18202c;
+  --muted: #586374;
+  --muted-strong: #3b4555;
+  --border: rgba(28, 42, 66, 0.18);
+  --border-subtle: rgba(28, 42, 66, 0.1);
+  --border-soft: rgba(28, 42, 66, 0.14);
+  --border-strong: rgba(28, 42, 66, 0.26);
+  --border-bold: rgba(28, 42, 66, 0.38);
+  --accent: #1f6fd1;
+  --accent-strong: #1559b0;
+  --accent-soft: rgba(31, 111, 209, 0.12);
+  --tone-error: #c93c3c;
+  --tone-error-text: #8a1f1f;
+  --tone-warning: #b06f0c;
+  --tone-success: #2e8a55;
+  --tone-error-soft: rgba(201, 60, 60, 0.1);
+  --tone-warning-soft: rgba(176, 111, 12, 0.1);
+  --tone-success-soft: rgba(46, 138, 85, 0.1);
+  --tone-warning-text: #7a4b05;
+  --text-on-accent: #ffffff;
+  --control-bg: #ffffff;
+  --control-border: rgba(28, 42, 66, 0.24);
+  --control-hover: #f2f5f9;
+  --scrim: rgba(20, 28, 40, 0.32);
+  --focus-ring: 0 0 0 1px rgba(255, 255, 255, 0.95), 0 0 0 3px #1f6fd1;
+  --focus-ring-inset: inset 0 0 0 1px rgba(255, 255, 255, 0.95), inset 0 0 0 3px #1f6fd1;
+  --shadow-soft: 0 8px 18px rgba(20, 30, 45, 0.12);
+  --plot-bg: #ffffff;
+  --plot-frame: rgba(28, 42, 66, 0.24);
+  --plot-axis: rgba(40, 54, 78, 0.8);
+  --plot-grid: rgba(28, 42, 66, 0.1);
+  --plot-text: #2a3444;
+  --plot-bar: rgba(44, 64, 96, 0.72);
+  --plot-line: rgba(24, 44, 78, 0.95);
+  --plot-line-glow: rgba(31, 111, 209, 0.14);
+  --plot-marker-outline: rgba(255, 255, 255, 0.9);
+  --plot-peak: rgba(199, 119, 0, 0.95);
+  /* --ws-canvas is left dark on purpose (see above). */
+  --ws-chrome: #f7f8fa;
+  --ws-chrome-raised: #ffffff;
+  --ws-hover: rgba(15, 30, 55, 0.05);
+  --ws-pressed: rgba(15, 30, 55, 0.09);
+  --ws-divider: rgba(15, 30, 55, 0.1);
   accent-color: var(--accent);
 }
 

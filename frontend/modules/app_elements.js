@@ -476,6 +476,7 @@ export function queryAppElements(doc = document) {
     settingsPixelLabelMax: byId("settings-pixel-label-max"),
     settingsFrameCache: byId("settings-frame-cache"),
     settingsPixelLabelFormat: byId("settings-pixel-label-format"),
+    settingsTheme: byId("settings-theme"),
     settingsPixelLabelDrag: byId("settings-pixel-label-drag"),
     settingsDataRoot: byId("settings-data-root"),
     settingsDataRootBrowse: byId("settings-data-root-browse"),

@@ -102,6 +102,8 @@ import { createInspectorPanelController } from "./modules/inspector_panel_contro
 import { createAnalysisOverlayController } from "./modules/analysis_overlay_controller.js";
 import { createMinMaxFinderController } from "./modules/minmax_finder_controller.js";
 import { createMaskCursorController } from "./modules/mask_cursor_controller.js";
+import { createPlotTheme } from "./modules/plot_theme.js";
+import { getThemeController } from "./modules/theme.js";
 import { createRoiInteractionController } from "./modules/roi_interaction_controller.js";
 import { createResolutionRingInteractionController } from "./modules/resolution_ring_interaction_controller.js";
 import { createSourceMetadataController } from "./modules/source_metadata_controller.js";
@@ -318,18 +320,9 @@ const analysisState = createAnalysisState();
 const state = createAppState();
 state.language = getLanguage();
 
-const PLOT_THEME = {
-  bg: "rgba(12, 18, 27, 0.96)",
-  frame: "rgba(78, 100, 137, 0.45)",
-  axis: "rgba(132, 156, 196, 0.82)",
-  grid: "rgba(88, 112, 152, 0.24)",
-  text: "#dce8ff",
-  bar: "rgba(236, 243, 255, 0.88)",
-  line: "rgba(236, 243, 255, 0.95)",
-  lineGlow: "rgba(102, 178, 255, 0.2)",
-  markerOutline: "rgba(8, 14, 22, 0.85)",
-  peak: "rgba(255, 196, 110, 0.95)",
-};
+// Read from the --plot-* tokens, so the plots follow the theme.
+const PLOT_THEME = createPlotTheme();
+getThemeController();
 
 const SECTION_STATE_VARIANTS = ["is-empty", "is-loading", "is-active", "is-warning"];
 const CHROME_IDLE_DELAY_MS = 2200;

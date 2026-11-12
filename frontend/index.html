@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ALBIS</title>
+    <script>/* The theme before the first paint, or a light-theme window flashes dark; modules/theme.js keeps it current. */ (() => { try { const pref = localStorage.getItem("albis.theme") || "dark"; const light = pref === "light" || (pref === "system" && matchMedia("(prefers-color-scheme: light)").matches); document.documentElement.dataset.theme = light ? "light" : "dark"; } catch { document.documentElement.dataset.theme = "dark"; } })();</script>
     <link rel="icon" type="image/png" sizes="32x32" href="assets/icon_32x32.png" />
     <link rel="shortcut icon" href="assets/icon_32x32.png" />
     <!-- Fetched alongside the stylesheet rather than once it has been parsed
@@ -2263,6 +2264,8 @@
                id="settings-tabpanel-viewer" aria-labelledby="settings-tab-viewer" tabindex="0">
             <p class="settings-tabpage-hint" data-i18n="settings.section.viewer.description">Interaction hints, pixel labels, and frame memory.</p>
             <div class="settings-grid">
+              <label class="field"><span data-i18n="settings.viewer.theme">Appearance</span>
+                <select id="settings-theme"><option value="dark" data-i18n="settings.viewer.theme.dark">Dark</option><option value="light" data-i18n="settings.viewer.theme.light">Light</option><option value="system" data-i18n="settings.viewer.theme.system">System</option></select></label>
               <label class="field">
                 <span data-i18n="settings.field.language">Language</span>
                 <select id="settings-language">
