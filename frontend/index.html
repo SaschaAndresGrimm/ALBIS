@@ -890,28 +890,28 @@
               </div>
               <div class="geometry-grid">
                 <label class="field">
-                  <span data-i18n="analysis.rings.detector_distance">Detector distance (mm)</span>
-                  <input id="geometry-distance" type="number" min="0" step="0.1" placeholder="—" />
+                  <span data-i18n="geometry.label.distance">Detector distance</span>
+                  <span class="geometry-unit" data-unit="mm"><input id="geometry-distance" type="number" min="0" step="0.1" placeholder="—" /></span>
                   <div class="field-hint is-hidden" id="geometry-distance-hint"></div>
                 </label>
                 <label class="field">
-                  <span data-i18n="analysis.rings.pixel_size">Pixel size (µm)</span>
+                  <span data-i18n="geometry.label.pixel_size">Pixel size</span>
                   <div class="ring-center">
-                    <span class="geometry-axis"><span class="geometry-axis-label" aria-hidden="true" data-i18n="analysis.rings.placeholder.center_x">X</span><input id="geometry-pixel-x" type="number" min="0" step="0.1" placeholder="—" /></span>
-                    <span class="geometry-axis"><span class="geometry-axis-label" aria-hidden="true" data-i18n="analysis.rings.placeholder.center_y">Y</span><input id="geometry-pixel-y" type="number" min="0" step="0.1" placeholder="—" /></span>
+                    <span class="geometry-axis" data-unit="µm"><span class="geometry-axis-label" aria-hidden="true" data-i18n="analysis.rings.placeholder.center_x">X</span><input id="geometry-pixel-x" type="number" min="0" step="0.1" placeholder="—" /></span>
+                    <span class="geometry-axis" data-unit="µm"><span class="geometry-axis-label" aria-hidden="true" data-i18n="analysis.rings.placeholder.center_y">Y</span><input id="geometry-pixel-y" type="number" min="0" step="0.1" placeholder="—" /></span>
                   </div>
                   <div class="field-hint is-hidden" id="geometry-pixel-hint"></div>
                 </label>
                 <label class="field">
-                  <span data-i18n="analysis.rings.photon_energy">Photon energy (eV)</span>
-                  <input id="geometry-energy" type="number" min="0" step="1" placeholder="—" />
+                  <span data-i18n="geometry.label.energy">Photon energy</span>
+                  <span class="geometry-unit" data-unit="eV"><input id="geometry-energy" type="number" min="0" step="1" placeholder="—" /></span>
                   <div class="field-hint is-hidden" id="geometry-energy-hint"></div>
                 </label>
                 <label class="field">
-                  <span data-i18n="analysis.rings.beam_center">Beam center (px)</span>
+                  <span data-i18n="geometry.label.beam_center">Beam center</span>
                   <div class="ring-center">
-                    <span class="geometry-axis"><span class="geometry-axis-label" aria-hidden="true" data-i18n="analysis.rings.placeholder.center_x">X</span><input id="geometry-center-x" type="number" step="0.1" placeholder="—" /></span>
-                    <span class="geometry-axis"><span class="geometry-axis-label" aria-hidden="true" data-i18n="analysis.rings.placeholder.center_y">Y</span><input id="geometry-center-y" type="number" step="0.1" placeholder="—" /></span>
+                    <span class="geometry-axis" data-unit="px"><span class="geometry-axis-label" aria-hidden="true" data-i18n="analysis.rings.placeholder.center_x">X</span><input id="geometry-center-x" type="number" step="0.1" placeholder="—" /></span>
+                    <span class="geometry-axis" data-unit="px"><span class="geometry-axis-label" aria-hidden="true" data-i18n="analysis.rings.placeholder.center_y">Y</span><input id="geometry-center-y" type="number" step="0.1" placeholder="—" /></span>
                   </div>
                   <div class="field-hint is-hidden" id="geometry-center-hint"></div>
                 </label>
