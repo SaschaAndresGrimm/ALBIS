@@ -28,6 +28,14 @@
 
 /* The DECTRIS logo is turned white for the dark card; on the light card its
    own navy artwork is the right one. */
+/* The banner as the start screen draws it in the light theme: the picture
+   and the wordmark inverted, hue turned back, so dark lettering and blue
+   waves on white. It fades into the white card instead of through a grey
+   band, which is what a black banner fading over white produced. */
+:root[data-theme="light"] .about-banner {
+  filter: invert(1) hue-rotate(180deg) brightness(1.06) contrast(1.08);
+}
+
 :root[data-theme="light"] .about-dectris img {
   filter: none;
 }

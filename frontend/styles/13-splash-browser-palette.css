@@ -8,6 +8,7 @@
    its colours are fixed: they have no light values. */
 :root {
   --splash-bg: #000;
+  --splash-art-bg: #000;
   --splash-text: #edf3ff;
   --splash-muted: #b4bfd4;
   --splash-muted-strong: #cad6ec;
@@ -45,6 +46,28 @@
   --command-active-border: rgba(31, 111, 209, 0.5);
   --skeleton-base: rgba(28, 42, 66, 0.07);
   --skeleton-shine: rgba(28, 42, 66, 0.15);
+  /* The start screen follows the theme: it is the home screen, shown while
+     no image is open, not the image area (which stays dark once a file is
+     open). The picture is inverted below, so its black is this white. */
+  --splash-bg: #ffffff;
+  --splash-text: #18202c;
+  --splash-muted: #586374;
+  --splash-muted-strong: #3b4555;
+  --splash-hover: rgba(15, 30, 55, 0.05);
+  --splash-pressed: rgba(15, 30, 55, 0.09);
+  --splash-title-glow: none;
+  --splash-sub-text: #3b4555;
+  --splash-sub-glow: none;
+  --splash-hint-text: #586374;
+  --splash-spinner-track: rgba(31, 111, 209, 0.25);
+  --splash-spinner-head: #1f6fd1;
+}
+
+/* The wave picture is light lines on black. Inverted, black turns white and
+   the white DECTRIS wordmark dark; turning the hue half a circle puts the
+   blue back. One picture serves both themes. */
+:root[data-theme="light"] .splash-art {
+  filter: invert(1) hue-rotate(180deg) brightness(1.06) contrast(1.08);
 }
 
 .splash {
@@ -88,7 +111,9 @@
   max-height: 68vh;
   border-radius: var(--radius-lg);
   border: none;
-  background: var(--splash-bg) url("../resources/splash.webp") center/cover no-repeat;
+  /* Black in both themes: the picture's own ground, which the light theme
+     inverts to white along with it. */
+  background: var(--splash-art-bg) url("../resources/splash.webp") center/cover no-repeat;
   /* The picture fades into the black splash on every side, instead of ending
      in a straight line where the waves run off its edges. Narrow enough at
      the top and right to leave the DECTRIS wordmark untouched. */

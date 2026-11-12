@@ -1259,10 +1259,11 @@ ship ALBIS set up for one kind of station (see the
   it while ALBIS is open.
 
 The choice shows as soon as you pick it, and **Save** keeps it (**Cancel**
-puts back the one you had). The area around the image stays
-dark in both: a bright surround makes the eye adapt to it, and faint signal in
-a frame loses contrast. The image itself, the colour map and the overlays on it
-look the same in either.
+puts back the one you had). The start screen, **Help → About** and
+**Help → Documentation** follow it too. Once an image is open, the area around
+it is dark grey in both: a bright surround makes the eye adapt to it, and faint
+signal in a frame loses contrast. The image itself, the colour map and the
+overlays on it look the same in either.
 
 The choice belongs to the browser, like the side panel's width, not to the
 config file: when several people open one ALBIS server, each keeps their own.

@@ -5,6 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="ALBIS, the ALBULA-style viewer for DECTRIS detector data: quick start, interaction, shortcuts, data sources and troubleshooting." />
     <title>ALBIS Documentation</title>
+    <!-- The viewer's Appearance (Settings -> Viewer), read from the same
+         browser storage before the first paint; it switches live below. -->
+    <script>
+      (() => {
+        const apply = () => {
+          let pref = "dark";
+          try { pref = localStorage.getItem("albis.theme") || "dark"; } catch { /* default */ }
+          const light = pref === "light" || (pref === "system" && matchMedia("(prefers-color-scheme: light)").matches);
+          document.documentElement.dataset.theme = light ? "light" : "dark";
+        };
+        apply();
+        window.addEventListener("storage", (event) => { if (event.key === "albis.theme") apply(); });
+        matchMedia("(prefers-color-scheme: light)").addEventListener?.("change", apply);
+      })();
+    </script>
     <style>
       /* The app's own faces, shipped with it: no font is fetched from the
          internet. Michroma sets the ALBIS wordmark only, as on the start
@@ -35,10 +50,29 @@
         --muted: #98a8c4;
         --border: rgba(82, 103, 138, 0.38);
         --accent: #4ea1ff;
+        --border-strong: rgba(95, 124, 174, 0.5);
+        --topbar-bg: rgba(11, 15, 22, 0.86);
+        --code-bg: #0f1622;
         --radius-sm: 4px;
         --radius-md: 8px;
         --font-ui: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
         --font-wordmark: "Michroma", var(--font-ui);
+      }
+
+      /* The light theme, as in the viewer. */
+      :root[data-theme="light"] {
+        color-scheme: light;
+        --page: #ffffff;
+        --surface-1: #f5f7fa;
+        --surface-2: #eef1f5;
+        --text: #18202c;
+        --body: #2c3646;
+        --muted: #586374;
+        --border: rgba(28, 42, 66, 0.16);
+        --border-strong: rgba(28, 42, 66, 0.26);
+        --accent: #1f6fd1;
+        --topbar-bg: rgba(255, 255, 255, 0.88);
+        --code-bg: #f2f4f7;
       }
 
       * {
@@ -78,13 +112,13 @@
         align-items: center;
         gap: 12px;
         padding: 10px 20px;
-        background: rgba(11, 15, 22, 0.86);
+        background: var(--topbar-bg);
         backdrop-filter: blur(8px);
         border-bottom: 1px solid var(--border);
       }
 
       .topbar-brand {
-        color: #f5f7ff;
+        color: var(--text);
         font-family: var(--font-wordmark);
         font-size: 15px;
         letter-spacing: 0.08em;
@@ -105,16 +139,16 @@
 
       .topbar-actions a {
         padding: 5px 10px;
-        border: 1px solid rgba(95, 124, 174, 0.45);
+        border: 1px solid var(--border-strong);
         border-radius: var(--radius-sm);
-        background: rgba(22, 33, 49, 0.65);
-        color: #dce8ff;
+        background: var(--surface-1);
+        color: var(--text);
         font-size: 13px;
       }
 
       .topbar-actions a:hover {
         text-decoration: none;
-        border-color: rgba(120, 156, 214, 0.7);
+        border-color: var(--accent);
       }
 
       /* ---- Masthead: the start screen's wave picture as a header across the
@@ -138,6 +172,17 @@
           linear-gradient(to right, transparent calc(50% - 700px), #000 calc(50% - 540px), #000 calc(50% + 540px), transparent calc(50% + 700px)),
           linear-gradient(to bottom, #000 0%, #000 72%, transparent 100%);
         mask-composite: intersect;
+      }
+
+      /* Light theme: the picture inverted with its hue turned back (white
+         ground, dark DECTRIS, blue waves), as on the viewer's start screen.
+         The text over it is inverted too, so it keeps the dark theme's light
+         colours here and comes out dark. */
+      :root[data-theme="light"] .masthead {
+        --body: #d3def2;
+        --accent: #4ea1ff;
+        filter: invert(1) hue-rotate(180deg) brightness(1.06) contrast(1.08);
+        background-color: #000;
       }
 
       .masthead-text {
@@ -277,10 +322,10 @@
 
       code {
         padding: 1px 6px;
-        border: 1px solid rgba(47, 64, 89, 0.9);
+        border: 1px solid var(--border);
         border-radius: var(--radius-sm);
-        background: #0f1622;
-        color: #e8f2ff;
+        background: var(--code-bg);
+        color: var(--text);
         font-family: var(--font-ui);
         font-size: 13px;
         white-space: nowrap;
@@ -291,11 +336,11 @@
         display: inline-block;
         min-width: 22px;
         padding: 1px 7px;
-        border: 1px solid rgba(95, 124, 174, 0.55);
+        border: 1px solid var(--border-strong);
         border-bottom-width: 2px;
         border-radius: var(--radius-sm);
         background: var(--surface-2);
-        color: #e8f2ff;
+        color: var(--text);
         font-family: var(--font-ui);
         font-size: 13px;
         text-align: center;
@@ -347,6 +392,11 @@
         height: auto;
         filter: brightness(0) invert(1);
         opacity: 0.92;
+      }
+
+      /* The published navy artwork as it is, on the light page. */
+      :root[data-theme="light"] .footer-dectris img {
+        filter: none;
       }
 
       @media (max-width: 860px) {

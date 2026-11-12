@@ -40,9 +40,15 @@ stays the same in both and is the one thing that breaks the light theme.
 - A token only one area needs goes in a `:root` block at the top of that
   area's stylesheet, with a matching `:root[data-theme="light"]` block. The
   style guard does not count literals in either.
-- The image area stays dark in both themes, and so does everything over it:
-  the cursor readout, the magnifier, the mask-editing bar, the loading badge,
-  the start screen. Their tokens have the same value in both blocks.
+- The image area stays dark in both themes once a file is open, and so does
+  everything over it: the cursor readout, the magnifier, the mask-editing bar,
+  the loading badge. Their tokens have the same value in both blocks. The
+  start screen is the home screen, not the image area, and follows the theme.
+- The wave picture (start screen, About, documentation) is light on black;
+  the light theme shows it with `filter: invert(1) hue-rotate(180deg)`, which
+  keeps its blue, rather than a second image file.
+- `docs.html` is a page of its own with its own tokens and a light block; it
+  reads the same `albis.theme` from the browser.
 - Colours that are data -- colour maps, the mask legend, ring and peak
   overlays -- do not change with the theme.
 - Plots drawn on canvas read their colours from the `--plot-*` tokens through
