@@ -3,16 +3,23 @@
  */
 
 const AUTO_CONTRAST_LOW = 0.001;
-const AUTO_CONTRAST_HIGH = 0.999;
+// The foreground sits at the 99.5th percentile: the brightest 0.5% of the
+// pixels -- the Bragg spots -- lie above it, in ALBULA HDR's logarithmic part,
+// and the background below it gets the grey ramp. At the 99.9th percentile a
+// Pilatus frame (background ~5 counts, FG ~156) showed near white, its spots
+// barely visible; at 99.5 the same frame has FG ~37. Close to what other
+// viewers clip at (ImageJ's auto contrast saturates 0.35%).
+const AUTO_CONTRAST_HIGH = 0.995;
 const AUTO_CONTRAST_BINS = 4096;
-// A frame whose signal -- pixels above the background -- is under 1% of it
-// (cosmics, a dark run with a few hits) takes its foreground from the signal
-// alone, at its 90th percentile. At exactly 1% that is the same point the
-// 99.9th percentile of the whole frame picks, so the two rules meet without a
-// jump; below it, the whole-frame percentile slides down onto the weakest hits
-// and then onto the background itself (FG 0 = BG 0, every hit saturated).
-const AUTO_CONTRAST_SPARSE_FRAC = 0.01;
-const AUTO_CONTRAST_SPARSE_HIGH = 1 - (1 - 0.999) / AUTO_CONTRAST_SPARSE_FRAC;
+// A frame whose signal -- pixels above the background -- is under 5% of it
+// (cosmics, a dark run with a few hits, a single bright feature on an empty
+// frame) takes its foreground from the signal alone, at its 90th percentile.
+// At exactly 5% that is the same point the 99.5th percentile of the whole
+// frame picks, so the two rules meet without a jump; below it, the whole-frame
+// percentile slides down onto the weakest hits and then onto the background
+// itself (FG 0 = BG 0, every hit saturated).
+const AUTO_CONTRAST_SPARSE_FRAC = 0.05;
+const AUTO_CONTRAST_SPARSE_HIGH = 1 - (1 - AUTO_CONTRAST_HIGH) / AUTO_CONTRAST_SPARSE_FRAC;
 // Detached extreme-pixel cluster rejection for auto-contrast. Summed gap/dead-pixel
 // sentinels (e.g. 65535 x frames) form a spike far above the real signal; left in,
 // they dominate the upper percentile and blow the foreground out to absurd values.
@@ -21,6 +28,13 @@ const AUTO_CONTRAST_SPARSE_HIGH = 1 - (1 - 0.999) / AUTO_CONTRAST_SPARSE_FRAC;
 const AUTO_CONTRAST_GAP_FRAC = 0.1;
 const AUTO_CONTRAST_CLUSTER_MIN = 0.002;
 const AUTO_CONTRAST_CLUSTER_MAX = 0.4;
+// ...AND only when what stays below the valley has a spread of its own, at
+// least this fraction of the valley's width (in log space). Summed sentinels
+// sit far above real counts that span a range; a bright feature on an empty
+// frame (zeros, perhaps a few ones, and one row at 1000) leaves nothing but
+// the background, and cutting it there gave BG 0 / FG 1: the whole frame
+// saturated.
+const AUTO_CONTRAST_KEPT_SPAN_MIN = 0.25;
 const ALBULA_LIN_SIZE = 256;
 const ALBULA_LOG_SIZE = 768;
 const ALBULA_LUT_SIZE = ALBULA_LIN_SIZE + ALBULA_LOG_SIZE;
@@ -532,9 +546,13 @@ export function computeAutoLevels(data, satMaxInput, fallbackStats, dtype) {
       let clusterCount = 0;
       for (let i = clusterLow; i < bins; i += 1) clusterCount += hist[i];
       const clusterFrac = clusterCount / count;
+      let keptLow = 0;
+      while (keptLow < gapLo && hist[keptLow] === 0) keptLow += 1;
+      const keptSpan = gapLo - keptLow;
       if (
         gapLo >= 0 &&
         gapWidth >= AUTO_CONTRAST_GAP_FRAC * bins &&
+        keptSpan >= AUTO_CONTRAST_KEPT_SPAN_MIN * gapWidth &&
         clusterFrac >= AUTO_CONTRAST_CLUSTER_MIN &&
         clusterFrac <= AUTO_CONTRAST_CLUSTER_MAX
       ) {

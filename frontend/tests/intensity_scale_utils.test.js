@@ -77,6 +77,48 @@ describe("computeAutoLevels on sparse frames", () => {
     expect(max - min).toBeGreaterThanOrEqual(1);
   });
 
+  it("does not cut a bright feature off an empty frame as a sentinel cluster", () => {
+    // testdata/compressed_stack.h5, frame 1: 64 x 64 zeros, the top row at 1000
+    // (1.6% of the pixels). The top row was taken for summed sentinels and
+    // dropped, which left only zeros: BG 0 / FG 1, the frame solid white.
+    const data = new Uint32Array(64 * 64);
+    data.fill(1000, 0, 64);
+
+    const { min, max } = computeAutoLevels(data, undefined, { min: 0, max: 1 }, "<u4");
+
+    expect(min).toBe(0);
+    expect(max).toBeGreaterThan(900);
+    expect(max).toBeLessThan(1001);
+  });
+
+  it("keeps the bright feature when the background has a little noise", () => {
+    const data = new Uint32Array(64 * 64);
+    for (let i = 64; i < data.length; i += 3) data[i] = 1;
+    data.fill(1000, 0, 64);
+
+    const { max } = computeAutoLevels(data, undefined, { min: 0, max: 1 }, "<u4");
+
+    expect(max).toBeGreaterThan(900);
+  });
+
+  it("puts a diffraction frame's foreground below its brightest 0.5%", () => {
+    // Background of a few counts, Bragg spots on 2% of the pixels from 20 to
+    // 3000 counts. The 99.9th percentile put FG among the strongest spots
+    // (~2830), washing the background out to white under ALBULA HDR.
+    const data = new Uint32Array(100000);
+    const spots = 2000;
+    for (let i = 0; i < data.length; i += 1) {
+      data[i] = i < spots ? 20 + Math.round((2980 * i) / (spots - 1)) : i % 15;
+    }
+
+    const { min, max } = computeAutoLevels(data, undefined, { min: 0, max: 1 }, "<u4");
+
+    expect(min).toBe(0);
+    // 0.5% of the frame is the top quarter of the spots: about 2255.
+    expect(max).toBeGreaterThan(2100);
+    expect(max).toBeLessThan(2400);
+  });
+
   it("leaves a dense frame's levels as they were", () => {
     const data = new Uint32Array(100000);
     for (let i = 0; i < data.length; i += 1) data[i] = 1 + (i % 1000);

@@ -455,8 +455,8 @@ function currentFrameStatusText() {
 function setSummaryChip(element, text, tone = "default") {
   if (!element) return;
   element.textContent = text || "";
-  element.classList.toggle("is-active", tone === "active");
-  element.classList.toggle("is-warning", tone === "warning");
+  // "off": beside a switch that already shows it; the workspace layout hides it.
+  for (const name of ["active", "warning", "off"]) element.classList.toggle(`is-${name}`, tone === name);
 }
 
 function setFieldHint(inputEl, hintEl, message = "") {
@@ -790,7 +790,7 @@ function updateRoiSectionState() {
   }
   if (!roiState.enabled) {
     setSectionBadgeState(roiSectionStateEl, "empty", t("roi.section.disabled"));
-    setSummaryChip(roiSummaryEl, t("summary.off"));
+    setSummaryChip(roiSummaryEl, t("summary.off"), "off");
     return;
   }
   const modeLabel = getRoiModeLabel(roiState.mode);
@@ -1366,10 +1366,7 @@ core.fileOpen = fileOpenController;
 
 const recentFilesController = createRecentFilesController({
   recentFiles,
-  elements: {
-    submenu: recentFilesSubmenu,
-    parent: recentFilesParent,
-  },
+  elements: { submenu: recentFilesSubmenu, parent: recentFilesParent, splashHost: appElements.splashActions },
   callbacks: {
     openPath: (path) => core.fileOpen.openPathInViewer(path),
     closeMenu: () => closeMenu(),

@@ -1,0 +1,679 @@
+/* The workspace: one header row, the image, a docked side panel, a timeline
+   and a status strip -- instead of bars and a panel floating over the image.
+
+   Why: the floating panel covered part of the frame and left an empty band
+   under itself; three stacked bars (menu, toolbar, footer pills) took about
+   150px of height; the frame slider was 120px wide for series of thousands of
+   frames; and the frosted glass behind every bar was re-blurred on each
+   repaint of the image. Here every region owns its own strip of the window,
+   the image gets the rest, and surfaces are flat tones split by hairlines.
+
+   This file comes last, so it overrides the canvas-first rules in
+   04-panel.css and the base rules before it. It applies only where the side
+   panel docks; a phone keeps its bottom sheet (style.css, 04-panel.css). */
+
+@media (pointer: fine), (min-width: 768px) {
+  body.canvas-first {
+    /* However wide it was dragged or stored, the panel leaves the image at
+       least 360px. */
+    --ws-panel-w: min(var(--panel-width, 440px), calc(100vw - 360px));
+    background: var(--ws-canvas);
+  }
+
+  /* ---- Header: menus, file and frame, view tools, panel toggle ---------- */
+
+  body.canvas-first .chrome {
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--ws-header-h);
+    display: flex;
+    align-items: center;
+    gap: var(--space-base);
+    padding: 0 calc(var(--ws-header-h) + var(--space-base)) 0 var(--space-tight);
+    background: var(--ws-chrome);
+    border-bottom: 1px solid var(--ws-divider);
+    pointer-events: auto;
+  }
+
+  body.canvas-first .menu-bar {
+    flex: 0 0 auto;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  body.canvas-first .menu-item {
+    font-weight: 500;
+  }
+
+  body.canvas-first .menu-dropdown {
+    top: calc(var(--ws-header-h) - 2px);
+  }
+
+  body.canvas-first .toolbar {
+    flex: 1 1 auto;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  body.canvas-first .toolbar-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
+  }
+
+  /* The open file and frame, centred in the header, as an editor shows the
+     document's name in its title bar. */
+  body.canvas-first .toolbar-path {
+    display: block;
+    flex: 0 1 auto;
+    max-width: 100%;
+    padding: 0 var(--space-base);
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-weight: 500;
+    text-align: center;
+    line-height: var(--ws-header-h);
+  }
+
+  body.canvas-first .upload-bar {
+    position: absolute;
+    top: calc(var(--ws-header-h) + var(--space-tight));
+    left: var(--space-tight);
+    margin: 0;
+  }
+
+  /* Bars no longer lie over the image, so nothing dims when idle. */
+  body.canvas-first.chrome-idle .menu-bar,
+  body.canvas-first.chrome-idle .toolbar,
+  body.canvas-first.chrome-idle .viewer-footer {
+    filter: none;
+  }
+
+  /* ---- Buttons in the chrome: quiet until hovered ----------------------- */
+
+  body.canvas-first .chrome .tool-btn,
+  body.canvas-first .viewer-footer .tool-btn {
+    min-width: 28px;
+    min-height: 28px;
+    padding: 0 var(--space-tight);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--muted-strong);
+  }
+
+  body.canvas-first .chrome .tool-btn:hover:not(:disabled):not(.is-disabled),
+  body.canvas-first .viewer-footer .tool-btn:hover:not(:disabled):not(.is-disabled) {
+    border-color: transparent;
+    background: var(--ws-hover);
+    color: var(--text);
+  }
+
+  /* On: a tint of the accent, not a filled blue slab. */
+  body.canvas-first .chrome .tool-btn.is-active,
+  body.canvas-first .chrome .tool-btn[aria-pressed="true"],
+  body.canvas-first .viewer-footer .tool-btn.is-active {
+    border-color: transparent;
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+  }
+
+  body.canvas-first .toolbar-right {
+    gap: 2px;
+    flex-wrap: nowrap;
+  }
+
+  body.canvas-first .toolbar-sync {
+    gap: 0;
+  }
+
+  body.canvas-first .toolbar-sync-options-toggle {
+    min-width: 18px;
+    padding: 0 2px;
+  }
+
+  /* ---- Icons, one set, drawn as masks over the button's text colour ----- */
+
+  #btn-prev,
+  #btn-next,
+  #btn-play[data-icon],
+  #magnifier-toggle,
+  #fullscreen-toggle,
+  .toolbar-sync-options-toggle {
+    font-size: 0;
+  }
+
+  .toolbar-sync-options-toggle > span {
+    display: none;
+  }
+
+  #btn-prev::before,
+  #btn-next::before,
+  #btn-play[data-icon]::before,
+  #magnifier-toggle::before,
+  #fullscreen-toggle::before,
+  .toolbar-sync-options-toggle::before,
+  body.canvas-first .panel-fab::before {
+    content: "";
+    display: block;
+    width: var(--ws-icon-size);
+    height: var(--ws-icon-size);
+    margin: auto;
+    background: currentColor;
+    -webkit-mask: var(--ws-icon) center / contain no-repeat;
+    mask: var(--ws-icon) center / contain no-repeat;
+  }
+
+  #btn-prev { --ws-icon: var(--icon-prev); }
+  #btn-next { --ws-icon: var(--icon-next); }
+  #btn-play[data-icon="play"] { --ws-icon: var(--icon-play); }
+  #btn-play[data-icon="pause"] { --ws-icon: var(--icon-pause); }
+  #magnifier-toggle { --ws-icon: var(--icon-search); }
+  #fullscreen-toggle { --ws-icon: var(--icon-fullscreen); }
+  .toolbar-sync-options-toggle { --ws-icon: var(--icon-chevron-down); }
+  body.canvas-first .panel-fab { --ws-icon: var(--icon-sidebar); }
+
+  .toolbar-sync-options-toggle::before {
+    width: 12px;
+    height: 12px;
+  }
+
+  /* "123" stays a word -- it says what it shows -- but sits in the same
+     quiet button as the icons beside it. */
+  body.canvas-first .chrome .pixel-values-btn {
+    font-size: var(--font-size-sm);
+    letter-spacing: 0;
+  }
+
+  /* ---- The image ------------------------------------------------------- */
+
+  body.canvas-first .viewer {
+    padding: var(--ws-header-h) 0 0 0;
+    background: var(--ws-canvas);
+  }
+
+  /* The image area ends where the panel begins, so nothing is drawn under
+     the panel and Fit uses exactly the space that is visible. */
+  body.canvas-first:not(.panel-collapsed) .viewer {
+    padding-right: var(--ws-panel-w);
+  }
+
+  body.canvas-first .canvas-shell {
+    border: none;
+    border-radius: 0;
+    background: var(--ws-canvas);
+    box-shadow: none;
+  }
+
+  /* ---- Docked side panel ------------------------------------------------ */
+
+  /* No z-index: the panel then makes no stacking context of its own, and the
+     toggle inside it can sit in the header (fixed, above the chrome). It
+     shares no area with the image or the header, so nothing has to stack. */
+  body.canvas-first .panel,
+  body.canvas-first .panel.is-collapsed {
+    z-index: auto;
+  }
+
+  body.canvas-first .panel {
+    top: var(--ws-header-h);
+    right: 0;
+    bottom: 0;
+    width: var(--ws-panel-w);
+    max-width: none;
+    height: auto;
+    max-height: none;
+    padding: 0;
+    border: none;
+    border-left: 1px solid var(--ws-divider);
+    border-radius: 0;
+    background: var(--ws-chrome);
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  body.canvas-first .panel.is-collapsed {
+    width: 0;
+    border-left: none;
+  }
+
+  body.canvas-first .panel-body {
+    gap: 0;
+  }
+
+  /* The drag handle is the panel's left edge: invisible, lit on hover. */
+  body.canvas-first .panel-resizer {
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    transform: translateX(-50%);
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    transition: background var(--motion-fast) var(--motion-ease-standard);
+  }
+
+  body.canvas-first .panel-resizer:hover {
+    border: none;
+    background: var(--accent-soft);
+  }
+
+  /* The toggle lives at the right end of the header, open or closed. */
+  body.canvas-first .panel-fab,
+  body.canvas-first .panel.is-collapsed .panel-fab,
+  body.canvas-first .panel:not(.is-collapsed) .panel-fab {
+    display: flex;
+    position: fixed;
+    top: calc((var(--ws-header-h) - 28px) / 2);
+    right: var(--space-tight);
+    bottom: auto;
+    left: auto;
+    transform: none;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--muted-strong);
+    font-size: 0;
+    box-shadow: none;
+    z-index: 34;
+    pointer-events: auto;
+  }
+
+  body.canvas-first .panel:not(.is-collapsed) .panel-fab {
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+  }
+
+  body.canvas-first .panel-fab:hover {
+    border-color: transparent;
+    background: var(--ws-hover);
+    color: var(--text);
+  }
+
+  body.canvas-first .panel-fab:focus-visible {
+    box-shadow: var(--focus-ring);
+  }
+
+  /* The header toggle does this job now. */
+  body.canvas-first .panel-collapse-btn {
+    display: none;
+  }
+
+  /* Tabs: text with an underline for the open one. */
+  body.canvas-first .panel-topbar {
+    margin: 0;
+    padding: 0 var(--space-tight);
+    gap: 0;
+    background: var(--ws-chrome);
+    border-bottom: 1px solid var(--ws-divider);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  body.canvas-first .panel-tab {
+    min-height: 38px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    background: transparent;
+    color: var(--muted);
+    font-weight: 500;
+    box-shadow: none;
+  }
+
+  body.canvas-first .panel-tab:hover {
+    background: transparent;
+    color: var(--text);
+  }
+
+  body.canvas-first .panel-tab.is-active {
+    border-bottom-color: var(--accent);
+    background: transparent;
+    color: var(--text);
+    font-weight: 600;
+    box-shadow: none;
+  }
+
+  /* Sections: a list split by hairlines, not stacked cards. */
+  body.canvas-first .panel-tab-content {
+    padding: 0;
+  }
+
+  body.canvas-first .panel-section {
+    margin: 0;
+    border: none;
+    border-bottom: 1px solid var(--ws-divider);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  body.canvas-first .section-title {
+    min-height: 38px;
+    padding: 0 var(--space-wide) 0 calc(var(--space-wide) - 4px);
+    border-radius: 0;
+    background: transparent;
+    font-weight: 600;
+  }
+
+  body.canvas-first .section-title:hover {
+    background: var(--ws-hover);
+  }
+
+  body.canvas-first .panel-section:not(.is-collapsed) > .section-title {
+    background: transparent;
+  }
+
+  body.canvas-first .panel-section > .section-content {
+    padding-left: calc(var(--space-wide) - 4px);
+    padding-right: calc(var(--space-wide) - 4px);
+  }
+
+  /* ---- Timeline and status strip ---------------------------------------- */
+
+  body.canvas-first .viewer-footer {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "timeline timeline"
+      "main side";
+    gap: 0 var(--space-wide);
+    padding: 0 var(--space-tight);
+    border: none;
+    border-top: 1px solid var(--ws-divider);
+    border-radius: 0;
+    background: var(--ws-chrome);
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  /* The timeline: transport on the left, the slider across the full width,
+     the frame number and playback options on the right. */
+  body.canvas-first .viewer-footer .toolbar-buttons {
+    grid-area: timeline;
+    height: var(--ws-timeline-h);
+    display: flex;
+    align-items: center;
+    gap: var(--space-tight);
+    min-width: 0;
+    border-bottom: 1px solid var(--ws-divider);
+  }
+
+  /* No file, or one frame: nothing to scrub through, so no timeline. Live
+     mode keeps it, for its LIVE / STOP button, and so does a file with
+     several thresholds, for the Threshold selector. */
+  body.canvas-first .viewer-footer .toolbar-buttons:is(:has(#frame-range[max="1"]), :has(#toolbar-frame-wrap.is-hidden)):not(:has(#btn-play:not([data-icon]))):not(:has(#toolbar-threshold-wrap:not(.is-hidden))) {
+    display: none;
+  }
+
+  body.canvas-first .viewer-footer .toolbar-cluster {
+    padding: 0;
+    border: none;
+    background: transparent;
+    gap: 2px;
+  }
+
+  body.canvas-first .viewer-footer .toolbar-cluster-frame {
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: var(--space-tight);
+  }
+
+  body.canvas-first .viewer-footer .toolbar-frame {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+  }
+
+  body.canvas-first .viewer-footer .toolbar-frame input[type="range"] {
+    width: 100%;
+  }
+
+  body.canvas-first .viewer-footer .toolbar-frame-index input[type="number"] {
+    border-color: var(--ws-divider);
+    background: var(--ws-chrome-raised);
+  }
+
+  body.canvas-first .viewer-footer .toolbar-playback-btn {
+    white-space: nowrap;
+  }
+
+  /* Opens upwards: the timeline is at the bottom of the window. */
+  body.canvas-first .viewer-footer .toolbar-playback-popover {
+    top: auto;
+    bottom: calc(100% + 6px);
+    right: 0;
+    left: auto;
+  }
+
+  body.canvas-first .viewer-footer-main {
+    grid-area: main;
+    height: var(--ws-status-h);
+    gap: 0;
+  }
+
+  body.canvas-first .viewer-footer-side {
+    grid-area: side;
+    height: var(--ws-status-h);
+    gap: var(--space-tight);
+  }
+
+  /* Status entries are information, not buttons: plain text split by
+     hairlines. The file is in the header, so it is not repeated here. */
+  body.canvas-first .viewer-footer-main .viewer-footer-pill {
+    min-width: 0;
+    padding: 0 var(--space-base);
+    border: none;
+    border-left: 1px solid var(--ws-divider);
+    border-radius: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    line-height: var(--ws-status-h);
+  }
+
+  body.canvas-first .viewer-footer-main .viewer-footer-pill:first-child {
+    padding-left: 0;
+    border-left: none;
+  }
+
+  body.canvas-first .viewer-footer-main .viewer-footer-status {
+    flex: 0 0 auto;
+    justify-content: flex-start;
+    color: var(--muted-strong);
+  }
+
+  body.canvas-first .viewer-footer-main .viewer-footer-inpainted {
+    color: var(--tone-warning);
+  }
+
+  body.canvas-first #footer-file {
+    display: none;
+  }
+
+  body.canvas-first .viewer-footer-side .viewer-footer-pill,
+  body.canvas-first .viewer-footer-side .backend-badge,
+  body.canvas-first .viewer-footer-side .live-badge,
+  body.canvas-first .viewer-footer-side a {
+    min-width: 0;
+    min-height: 0;
+    padding: 0 var(--space-tight);
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    box-shadow: none;
+    color: var(--muted);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    line-height: calc(var(--ws-status-h) - 6px);
+    letter-spacing: 0;
+  }
+
+  body.canvas-first .viewer-footer-side .viewer-footer-pill:hover,
+  body.canvas-first .viewer-footer-side a:hover {
+    background: var(--ws-hover);
+    color: var(--text);
+  }
+
+  body.canvas-first .viewer-footer-side .viewer-footer-version-popover {
+    bottom: calc(100% + 6px);
+  }
+
+  /* ---- Panel content ---------------------------------------------------- */
+
+  /* "Off" beside a switch that is visibly off says nothing new. */
+  body.canvas-first .section-summary.is-off {
+    display: none;
+  }
+
+  /* A value the file lacks: the field is marked, and the state line above
+     the form says why -- not the same sentence under every row. The text
+     stays for screen readers. */
+  body.canvas-first .field-hint.is-missing {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* A switch among the fields, labelled like them, not like a heading. */
+  body.canvas-first .geometry-override-toggle {
+    font-size: var(--font-size-md);
+    font-weight: 500;
+  }
+
+  body.canvas-first input.is-missing {
+    border-color: var(--tone-warning);
+  }
+
+  /* The "?" stays small to look at but takes a 24px target (WCAG 2.2,
+     2.5.8): the ring of extra hit area is invisible. */
+  .info-tip {
+    position: relative;
+  }
+
+  .info-tip::after {
+    content: "";
+    position: absolute;
+    inset: -5px;
+  }
+
+  /* ---- Start screen: recent files under "Open file" --------------------- */
+
+  .splash-recent {
+    display: grid;
+    gap: 2px;
+    width: min(360px, 80vw);
+    margin-top: var(--space-wide);
+    letter-spacing: normal;
+    text-align: left;
+  }
+
+  .splash-recent[hidden] {
+    display: none;
+  }
+
+  .splash-recent-title {
+    padding: 0 var(--space-tight) var(--space-tight);
+    color: var(--muted);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .splash-recent-item {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-tight);
+    min-height: 30px;
+    padding: 4px var(--space-tight);
+    border: none;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text);
+    font-size: var(--font-size-lg);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .splash-recent-item:hover {
+    background: var(--ws-hover);
+  }
+
+  .splash-recent-item:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+
+  .splash-recent-item .recent-file-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .splash-recent-folder {
+    margin-left: auto;
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--muted);
+    font-size: var(--font-size-sm);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* ---- Dialogs: flat card, header and footer split by hairlines ---------- */
+
+  body.canvas-first .modal-card {
+    background: var(--ws-chrome);
+    border-color: var(--ws-divider);
+  }
+
+  body.canvas-first .modal-header {
+    background: transparent;
+    border-bottom-color: var(--ws-divider);
+    font-weight: 600;
+  }
+
+  body.canvas-first .modal-footer {
+    border-top-color: var(--ws-divider);
+  }
+
+  /* Where the settings are stored: a reference, not a headline. */
+  body.canvas-first .settings-meta,
+  body.canvas-first .settings-meta #settings-config-path {
+    color: var(--muted);
+    font-size: var(--font-size-sm);
+    font-weight: 400;
+  }
+}
+

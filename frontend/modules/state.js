@@ -129,7 +129,9 @@ function createUiPreferencesState() {
     frameCacheMb: 256,
     pixelLabelFormat: "auto",
     pixelLabelShowDuringDrag: false,
-    panelWidth: 640,
+    // Docked beside the image (styles/18-workspace.css), not over it: 640 left
+    // a 1024px window 384px of image.
+    panelWidth: 440,
     panelCollapsed: true,
   };
 }

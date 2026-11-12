@@ -7,6 +7,24 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **The window is laid out as a workspace: one header, the image, a docked side panel and a timeline.** The side panel floated over the image as a card, covered part of the frame and left an empty band under itself; it now fills the right side of the window from the header to the bottom, and the image uses exactly the rest, so **Fit to Window** fits what you can see. Drag the panel's left edge to resize it. The menu bar and the toolbar are one header row, with the file and frame in its middle and the panel button (it replaces **Open menu**) at its right end. The frame buttons, the frame slider and **Playback** moved into a timeline under the image whose slider runs the full width, instead of 120 pixels, so a series of thousands of frames can be scrubbed; a single image has no timeline. The status line below it is plain text. The bars no longer blur the image behind them, which the browser had to redo on every repaint.
+
+- **A flatter, quieter look.** Surfaces are flat tones split by thin lines, without gradients or glowing borders; the side panel's sections are a list rather than stacked cards, its tabs are underlined, and the toolbar buttons are a single set of drawn icons that stay quiet until you point at them. Labels are lighter, so section titles and values stand out.
+
+- **Less repetition in the side panel.** **Off** no longer appears next to a switch that is off. In **Detector Geometry**, a value the metadata lacks is marked by an amber edge on its field, and the line above the form says why, instead of **Not in the metadata** under every row.
+
+- **The start screen lists your recent files.** Up to five, with the folder each is in, under **Open file**, so reopening yesterday's data is one click.
+
+- **The file browser is more compact.** The **Folders** column is hidden in a folder without subfolders, so the files get the full width; the location is a trail of folders you can click, with **Up** as an arrow in front of it; and the search and filters share one row.
+
+- **The histogram's BG and FG labels no longer cover each other** when the two levels are close: they point away from each other, and drop to a second row only when both levels sit at one edge.
+
+### Fixed
+
+- **Auto contrast gives a readable first view of sparse and diffraction frames.** A frame that is empty but for one bright feature (a row of pixels at 1000 counts on zeros, say) opened with BG 0 and FG 1, solid white: the bright pixels were taken for the summed gap values that auto contrast leaves out, and only the zeros remained. They are now left out only when the counts below them have a spread of their own, as real data under summed gap values does. The foreground also moved from the 99.9th to the 99.5th percentile, so the brightest 0.5% of the pixels, the Bragg spots, fall into ALBULA HDR's colour part and the background gets the grey ramp; a Pilatus frame whose background is a few counts opened near white with FG 156 and now opens with FG 37. A frame whose signal is under 5% of its pixels (it was 1%) takes the foreground from the signal alone.
+
 ## [0.44.0] - 2026-11-11
 
 ### Added

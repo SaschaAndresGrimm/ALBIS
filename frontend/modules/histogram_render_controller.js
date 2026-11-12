@@ -2,6 +2,7 @@
  * Histogram and colorbar rendering.
  */
 
+import { layoutLevelLabels } from "./histogram_label_layout.js";
 import { canvasFont } from "./canvas_fonts.js";
 
 export function createHistogramRenderController({
@@ -106,9 +107,7 @@ export function createHistogramRenderController({
       const markerTop = 2;
       const markerBottom = height - 2;
 
-      const drawMarker = (x, color, label, options = {}) => {
-        const preferRight = options.preferRight !== false;
-        const labelY = Number.isFinite(options.labelY) ? options.labelY : markerTop + 10;
+      const drawMarker = (x, color, label, { textX, labelY }) => {
         histCtx.strokeStyle = color;
         histCtx.lineWidth = 1.5;
         histCtx.beginPath();
@@ -126,12 +125,6 @@ export function createHistogramRenderController({
           histCtx.textBaseline = "top";
           const metrics = histCtx.measureText(label);
           const pad = 4;
-          let textX;
-          if (preferRight) {
-            textX = Math.min(width - metrics.width - 4 - pad, Math.max(4 + pad, x + 6 + pad));
-          } else {
-            textX = Math.max(4 + pad, Math.min(width - metrics.width - 4 - pad, x - metrics.width - 6 - pad));
-          }
           // On a small dark backing, as the magnifier's caption: readable over
           // the bars too.
           histCtx.fillStyle = "rgba(13, 19, 28, 0.82)";
@@ -144,17 +137,20 @@ export function createHistogramRenderController({
         }
       };
 
-      const labelsClose = Math.abs(maxX - minX) < 120;
-      const labelTop = markerTop + 10;
-      const labelBottom = markerTop + 24;
-      drawMarker(minX, "#6eb5ff", `BG ${formatValue(minVal)}`, {
-        preferRight: true,
-        labelY: labelTop,
+      const bgLabel = `BG ${formatValue(minVal)}`;
+      const fgLabel = `FG ${formatValue(maxVal)}`;
+      histCtx.font = canvasFont(10, 600);
+      // Caption boxes are padded by 4px either side of the text.
+      const layout = layoutLevelLabels({
+        minX,
+        maxX,
+        bgWidth: histCtx.measureText(bgLabel).width + 8,
+        fgWidth: histCtx.measureText(fgLabel).width + 8,
+        width,
       });
-      drawMarker(maxX, "#ffd166", `FG ${formatValue(maxVal)}`, {
-        preferRight: false,
-        labelY: labelsClose ? labelBottom : labelTop,
-      });
+      const rowY = (row) => markerTop + 10 + row * 18;
+      drawMarker(minX, "#6eb5ff", bgLabel, { textX: layout.bg.x + 4, labelY: rowY(layout.bg.row) });
+      drawMarker(maxX, "#ffd166", fgLabel, { textX: layout.fg.x + 4, labelY: rowY(layout.fg.row) });
     }
 
     histCtx.strokeStyle = PLOT_THEME.frame;

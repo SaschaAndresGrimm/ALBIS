@@ -17,13 +17,14 @@ function buildFetchMock() {
   });
 }
 
-async function setup({ entries = [], openPath = vi.fn(async () => {}) } = {}) {
+async function setup({ entries = [], openPath = vi.fn(async () => {}), splash = false } = {}) {
   vi.resetModules();
   localStorage.clear();
   document.body.innerHTML = `
     <div class="dropdown-item dropdown-submenu-parent" id="recent-files-parent">
       <div class="dropdown-submenu" id="recent-files-submenu"></div>
     </div>
+    <div class="splash-actions"></div>
   `;
   global.fetch = buildFetchMock();
 
@@ -43,6 +44,7 @@ async function setup({ entries = [], openPath = vi.fn(async () => {}) } = {}) {
     elements: {
       submenu: document.getElementById("recent-files-submenu"),
       parent: document.getElementById("recent-files-parent"),
+      splashHost: splash ? document.querySelector(".splash-actions") : null,
     },
     callbacks: { openPath, closeMenu, setStatus },
   });
@@ -150,5 +152,35 @@ describe("recent files submenu", () => {
     controller.render();
 
     expect(items().filter((item) => item.title === "/data/a.h5")).toHaveLength(1);
+  });
+});
+
+describe("recent files on the start screen", () => {
+  it("lists the first five by name and folder, newest first, from the start", async () => {
+    const entries = Array.from({ length: 7 }, (_, i) => `/data/run${i}/image_${i}.h5`);
+    await setup({ entries, splash: true });
+    const rows = Array.from(document.querySelectorAll(".splash-recent .splash-recent-item"));
+    expect(rows).toHaveLength(5);
+    expect(rows[0].querySelector(".recent-file-name").textContent).toBe("image_6.h5");
+    expect(rows[0].querySelector(".splash-recent-folder").textContent).toBe("run6");
+    expect(rows[0].title).toBe("/data/run6/image_6.h5");
+    expect(document.querySelector(".splash-recent-title").textContent).toBe("Open Recent");
+  });
+
+  it("opens the file that was clicked", async () => {
+    const { openPath } = await setup({ entries: ["/data/a.cbf"], splash: true });
+    document.querySelector(".splash-recent-item").click();
+    expect(openPath).toHaveBeenCalledWith("/data/a.cbf");
+  });
+
+  it("hides the list when there is nothing recent, and after Clear", async () => {
+    const { recentFiles, controller } = await setup({ splash: true });
+    expect(document.querySelector(".splash-recent").hidden).toBe(true);
+    recentFiles.record("/data/a.cbf");
+    controller.render();
+    expect(document.querySelector(".splash-recent").hidden).toBe(false);
+    recentFiles.clear();
+    controller.render();
+    expect(document.querySelector(".splash-recent").hidden).toBe(true);
   });
 });

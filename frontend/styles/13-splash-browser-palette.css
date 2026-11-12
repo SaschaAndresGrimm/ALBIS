@@ -155,12 +155,15 @@
   min-height: 0;
 }
 
+/* The location row: Up as a compact arrow, then the trail Root / run1 / scan.
+   Ancestors are links-in-buttons, the current folder is plain bold text. */
 .browse-breadcrumb {
   display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-  padding: 4px 0;
+  align-items: center;
+  gap: var(--space-tight);
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
+  min-width: 0;
 }
 
 .browse-breadcrumb.is-loading {
@@ -168,36 +171,130 @@
   pointer-events: none;
 }
 
+.browse-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-size-md);
+}
+
+.browse-crumb-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* The shared chevron, turned to point along the trail. */
+.browse-crumb-sep {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 5px;
+  background: var(--muted);
+  -webkit-mask: var(--chevron-mask) center / contain no-repeat;
+  mask: var(--chevron-mask) center / contain no-repeat;
+  transform: rotate(-90deg);
+  opacity: 0.8;
+}
+
+.breadcrumb-btn,
+.browse-crumb-current {
+  max-width: 32ch;
+  padding: 3px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: var(--radius-sm);
+}
+
+.breadcrumb-btn {
+  border: none;
+  background: transparent;
+  color: var(--accent-strong);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--motion-ease-standard),
+    color var(--motion-fast) var(--motion-ease-standard);
+}
+
+.breadcrumb-btn:hover {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.browse-crumb-current {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Up: an icon-sized button. Its translated text stays its accessible name
+   (and its tooltip); only the drawn arrow shows. */
+.browse-up-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--toolbar-control-h);
+  height: var(--toolbar-control-h);
+  min-height: var(--toolbar-control-h);
+  padding: 0;
+  font-size: 0;
+}
+
+.browse-up-btn::before {
+  content: "";
+  width: 10px;
+  height: 6px;
+  background: currentColor;
+  -webkit-mask: var(--chevron-mask) center / contain no-repeat;
+  mask: var(--chevron-mask) center / contain no-repeat;
+  transform: rotate(180deg);
+}
+
+/* Search, Format, Sort, Series and View on one row: the search field takes
+   the width to spare, each dropdown is as wide as its choice with its name
+   beside it rather than above. */
 .browse-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  align-items: end;
+  gap: var(--space-tight) 12px;
+  align-items: center;
 }
 
 .browse-control {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 124px;
-  flex: 1 1 140px;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
-.browse-control span {
+.browse-control > span {
   color: var(--muted);
   font-size: var(--font-size-sm);
+  white-space: nowrap;
 }
 
 .browse-control select,
 .browse-search-row input {
-  width: 100%;
-  min-height: 32px;
+  min-height: var(--control-h);
   background: var(--surface-well);
-  border: 1px solid rgba(48, 64, 89, 0.92);
+  border: 1px solid var(--border-strong);
   color: var(--text);
   border-radius: var(--radius-sm);
   padding: 4px 8px;
   font-size: var(--font-size-md);
+}
+
+.browse-control select {
+  width: auto;
+  max-width: 22ch;
 }
 
 .browse-control select:disabled,
@@ -207,57 +304,45 @@
   cursor: default;
 }
 
-.browse-up-btn {
-  min-height: 32px;
+.browse-search-control {
+  flex: 1 1 240px;
+  min-width: 180px;
 }
 
-.browse-search-control {
-  min-width: 220px;
-  flex: 1 1 260px;
+/* The field says "Search files and folders" and is named Search; the word
+   above it only cost a line. */
+.browse-search-control > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }
 
 .browse-search-row {
   display: flex;
-  gap: 8px;
+  gap: var(--space-tight);
   align-items: center;
+  flex: 1;
+  min-width: 0;
 }
 
 .browse-search-row input {
   flex: 1;
+  min-width: 0;
 }
 
 .browse-search-clear {
-  min-height: 32px;
+  min-height: var(--control-h);
   flex: 0 0 auto;
 }
 
 .browse-search-clear.is-hidden {
   visibility: hidden;
   pointer-events: none;
-}
-
-.breadcrumb-btn {
-  background: var(--surface-well);
-  border: 1px solid rgba(48, 64, 89, 0.92);
-  color: #d5e3fb;
-  padding: 4px 8px;
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-  transition:
-    background var(--motion-fast) var(--motion-ease-standard),
-    border-color var(--motion-fast) var(--motion-ease-standard),
-    color var(--motion-fast) var(--motion-ease-standard);
-}
-
-.breadcrumb-btn:hover {
-  background: rgba(83, 117, 171, 0.26);
-  border-color: rgba(90, 127, 184, 0.8);
-}
-
-.breadcrumb-btn.is-active {
-  background: rgba(91, 143, 221, 0.42);
-  border-color: rgba(107, 161, 241, 0.85);
 }
 
 .browse-content {
@@ -273,8 +358,16 @@
   min-height: 0;
 }
 
-.browse-content.is-folder-only {
+.browse-content.is-folder-only,
+.browse-content.has-no-folders {
   grid-template-columns: 1fr;
+}
+
+/* Choosing a file where there are no subfolders: no "No folders" pane taking
+   a third of the width, the file list gets all of it. */
+.browse-content.has-no-folders:not(.is-folder-only) .browse-folders,
+.browse-content.has-no-folders:not(.is-folder-only) .browse-splitter {
+  display: none;
 }
 
 .browse-content.is-folder-only .browse-splitter,
@@ -353,13 +446,21 @@
   box-shadow: var(--focus-ring-inset);
 }
 
+/* Hover is a neutral lift, selection is blue with an accent bar at the
+   start of the row, so the two no longer read as two shades of one thing. */
 .browse-item:hover {
-  background: rgba(91, 143, 221, 0.26);
+  background: var(--surface-2);
 }
 
-.browse-item.is-selected {
+.browse-item.is-selected,
+.browse-item.is-selected:hover {
   background: rgba(91, 143, 221, 0.45);
   color: #fff;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.browse-item.is-selected:focus-visible {
+  box-shadow: inset 3px 0 0 var(--accent), var(--focus-ring-inset);
 }
 
 .browse-item-content {

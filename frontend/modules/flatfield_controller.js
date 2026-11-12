@@ -53,7 +53,7 @@ export function createFlatfieldController({ apiBase, state, elements, callbacks,
     if (footerChip) footerChip.hidden = !applied;
     if (!state.flatEnabled) {
       setSectionBadgeState(stateEl, "empty", t("flatfield.state.enable_hint"));
-      setSummaryChip(summaryEl, t("summary.off"));
+      setSummaryChip(summaryEl, t("summary.off"), "off");
       return;
     }
     if (!flat) {

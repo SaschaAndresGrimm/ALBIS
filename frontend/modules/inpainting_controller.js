@@ -50,7 +50,7 @@ export function createInpaintingController({ state, elements, callbacks, core })
     if (footerChip) footerChip.hidden = !(state.inpaintEnabled && state.hasFrame !== false && state.dataRaw);
     if (!state.inpaintEnabled) {
       setSectionBadgeState(stateEl, "empty", t("inpaint.state.enable_hint"));
-      setSummaryChip(summaryEl, t("summary.off"));
+      setSummaryChip(summaryEl, t("summary.off"), "off");
       return;
     }
     if (!state.dataRaw) {

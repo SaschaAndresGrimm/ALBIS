@@ -132,7 +132,7 @@ export function createMinMaxFinderController({ core, state, analysisState, eleme
     const count = analysisState.minmaxFound.length;
     if (!analysisState.minmaxEnabled) {
       setSectionBadgeState(minmaxStateEl, "empty", t("minmax.state.enable_hint"));
-      setSummaryChip(minmaxSummaryEl, t("summary.off"));
+      setSummaryChip(minmaxSummaryEl, t("summary.off"), "off");
     } else if (!state.hasFrame) {
       setSectionBadgeState(minmaxStateEl, "loading", t("minmax.state.load_frame"));
       setSummaryChip(minmaxSummaryEl, t("summary.waiting_frame"));

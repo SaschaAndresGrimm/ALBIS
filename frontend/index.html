@@ -30,6 +30,7 @@
     <link rel="stylesheet" href="styles/15-detector.css" />
     <link rel="stylesheet" href="styles/16-detector-output.css" />
     <link rel="stylesheet" href="styles/17-dropdown-chevrons.css" />
+    <link rel="stylesheet" href="styles/18-workspace.css" />
   </head>
   <body class="canvas-first">
     <div class="page">
@@ -139,75 +140,6 @@
         </div>
         <div class="toolbar">
           <div class="toolbar-main">
-            <div class="toolbar-buttons">
-              <div class="toolbar-cluster toolbar-cluster-transport">
-                <button class="tool-btn" id="btn-prev" data-i18n-aria-label="toolbar.frame.previous" aria-label="Previous frame">◀</button>
-                <button class="tool-btn" id="btn-next" data-i18n-aria-label="toolbar.frame.next" aria-label="Next frame">▶</button>
-                <button class="tool-btn" id="btn-play" data-i18n-aria-label="toolbar.play.toggle" aria-label="Play">⏯</button>
-              </div>
-                <div class="toolbar-cluster toolbar-cluster-frame">
-                  <div class="toolbar-frame is-hidden" id="toolbar-frame-wrap">
-                    <input id="frame-range" type="range" min="1" max="1" value="1"
-                           data-i18n-aria-label="toolbar.frame.slider" aria-label="Frame" />
-                  </div>
-                  <div class="toolbar-frame-index is-hidden" id="toolbar-frame-index-wrap">
-                    <input id="frame-index" type="number" min="1" value="1"
-                           data-i18n-aria-label="toolbar.frame.number" aria-label="Frame number" />
-                  </div>
-                  <div class="toolbar-playback is-hidden" id="toolbar-playback-wrap">
-                    <button
-                      class="tool-btn toolbar-playback-btn"
-                      id="toolbar-playback-toggle"
-                      type="button"
-                      aria-label="Playback options"
-                      data-i18n-aria-label="toolbar.playback.options"
-                      aria-expanded="false"
-                      aria-haspopup="true"
-                      aria-controls="toolbar-playback-popover"
-                    >
-                      Playback ▾
-                    </button>
-                    <div class="toolbar-playback-popover" id="toolbar-playback-popover" aria-hidden="true">
-                      <div class="toolbar-step is-hidden" id="toolbar-step-wrap">
-                        <select id="frame-step" aria-label="Frame step" data-i18n-aria-label="toolbar.step">
-                          <option value="1" selected>Step 1</option>
-                          <option value="10">Step 10</option>
-                          <option value="100">Step 100</option>
-                          <option value="1000">Step 1000</option>
-                        </select>
-                      </div>
-                      <div class="toolbar-fps is-hidden" id="toolbar-fps-wrap">
-                        <select id="fps-select" aria-label="Playback speed" data-i18n-aria-label="toolbar.playback.speed">
-                          <option value="1">1 fps</option>
-                          <option value="2">2 fps</option>
-                          <option value="3">3 fps</option>
-                          <option value="4">4 fps</option>
-                          <option value="5" selected>5 fps</option>
-                          <option value="6">6 fps</option>
-                          <option value="7">7 fps</option>
-                          <option value="8">8 fps</option>
-                          <option value="9">9 fps</option>
-                          <option value="10">10 fps</option>
-                          <option value="15">15 fps</option>
-                          <option value="20">20 fps</option>
-                          <option value="30">30 fps</option>
-                        </select>
-                      </div>
-                      <button
-                        class="tool-btn toolbar-playback-export"
-                        id="toolbar-playback-export-gif"
-                        type="button"
-                        data-i18n="toolbar.playback.export_gif"
-                      >
-                        Export GIF…
-                      </button>
-                    </div>
-                  </div>
-                  <div class="toolbar-threshold is-hidden" id="toolbar-threshold-wrap">
-                    <select id="toolbar-threshold" aria-label="Threshold" data-i18n-aria-label="toolbar.threshold"></select>
-                  </div>
-                </div>
-            </div>
             <div class="toolbar-path" id="toolbar-path" data-i18n="toolbar.source.no_file">No file loaded</div>
           </div>
           <div class="toolbar-right">
@@ -370,9 +302,8 @@
               <div class="splash-label">
                 <div class="splash-title">ALBIS</div>
                 <div class="splash-sub" id="splash-status" data-i18n="splash.status.starting_backend">Starting backend...</div>
-                <!-- Hidden until the backend answers: the hint depends on where it
-                     runs (shortcut when local, drop to upload when remote), and
-                     shown from the start the remote one flashed up first. -->
+                <!-- Hidden until the backend answers: the hint depends on where it runs
+                     (shortcut local, drop remote); shown early, the remote one flashed. -->
                 <div class="splash-actions is-hidden">
                   <button class="btn btn-primary splash-open-file is-hidden" id="splash-open-file" type="button" disabled data-i18n="splash.action.open_file">
                     Open file
@@ -393,6 +324,75 @@
             </div>
             <div class="cursor-overlay" id="cursor-overlay" aria-hidden="true"></div>
             <div class="viewer-footer">
+              <div class="toolbar-buttons">
+                <div class="toolbar-cluster toolbar-cluster-transport">
+                  <button class="tool-btn" id="btn-prev" data-i18n-aria-label="toolbar.frame.previous" aria-label="Previous frame">◀</button>
+                  <button class="tool-btn" id="btn-next" data-i18n-aria-label="toolbar.frame.next" aria-label="Next frame">▶</button>
+                  <button class="tool-btn" id="btn-play" data-icon="play" data-i18n-aria-label="toolbar.play.toggle" aria-label="Play">⏯</button>
+                </div>
+                  <div class="toolbar-cluster toolbar-cluster-frame">
+                    <div class="toolbar-frame is-hidden" id="toolbar-frame-wrap">
+                      <input id="frame-range" type="range" min="1" max="1" value="1"
+                             data-i18n-aria-label="toolbar.frame.slider" aria-label="Frame" />
+                    </div>
+                    <div class="toolbar-frame-index is-hidden" id="toolbar-frame-index-wrap">
+                      <input id="frame-index" type="number" min="1" value="1"
+                             data-i18n-aria-label="toolbar.frame.number" aria-label="Frame number" />
+                    </div>
+                    <div class="toolbar-playback is-hidden" id="toolbar-playback-wrap">
+                      <button
+                        class="tool-btn toolbar-playback-btn"
+                        id="toolbar-playback-toggle"
+                        type="button"
+                        aria-label="Playback options"
+                        data-i18n-aria-label="toolbar.playback.options"
+                        aria-expanded="false"
+                        aria-haspopup="true"
+                        aria-controls="toolbar-playback-popover"
+                      >
+                        Playback ▾
+                      </button>
+                      <div class="toolbar-playback-popover" id="toolbar-playback-popover" aria-hidden="true">
+                        <div class="toolbar-step is-hidden" id="toolbar-step-wrap">
+                          <select id="frame-step" aria-label="Frame step" data-i18n-aria-label="toolbar.step">
+                            <option value="1" selected>Step 1</option>
+                            <option value="10">Step 10</option>
+                            <option value="100">Step 100</option>
+                            <option value="1000">Step 1000</option>
+                          </select>
+                        </div>
+                        <div class="toolbar-fps is-hidden" id="toolbar-fps-wrap">
+                          <select id="fps-select" aria-label="Playback speed" data-i18n-aria-label="toolbar.playback.speed">
+                            <option value="1">1 fps</option>
+                            <option value="2">2 fps</option>
+                            <option value="3">3 fps</option>
+                            <option value="4">4 fps</option>
+                            <option value="5" selected>5 fps</option>
+                            <option value="6">6 fps</option>
+                            <option value="7">7 fps</option>
+                            <option value="8">8 fps</option>
+                            <option value="9">9 fps</option>
+                            <option value="10">10 fps</option>
+                            <option value="15">15 fps</option>
+                            <option value="20">20 fps</option>
+                            <option value="30">30 fps</option>
+                          </select>
+                        </div>
+                        <button
+                          class="tool-btn toolbar-playback-export"
+                          id="toolbar-playback-export-gif"
+                          type="button"
+                          data-i18n="toolbar.playback.export_gif"
+                        >
+                          Export GIF…
+                        </button>
+                      </div>
+                    </div>
+                    <div class="toolbar-threshold is-hidden" id="toolbar-threshold-wrap">
+                      <select id="toolbar-threshold" aria-label="Threshold" data-i18n-aria-label="toolbar.threshold"></select>
+                    </div>
+                  </div>
+              </div>
               <div class="viewer-footer-main">
                 <span class="viewer-footer-pill viewer-footer-status" id="status" role="status" aria-live="polite" data-i18n="common.idle">Idle</span>
                 <span class="viewer-footer-pill" id="footer-file" data-i18n="viewer.footer.file.empty">No file</span>

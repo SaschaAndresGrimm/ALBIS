@@ -70,6 +70,34 @@
   --motion-ease-emphasized: cubic-bezier(0.2, 0.8, 0.2, 1);
   --overlay-anchor-top: 62px;
   --overlay-gutter: 12px;
+  /* The workspace layout (styles/18-workspace.css): one header row, a docked
+     side panel, a timeline and a status strip around the image. Flat
+     surfaces told apart by tone and hairlines, not by gradients and glows. */
+  --ws-header-h: 40px;
+  --ws-timeline-h: 40px;
+  --ws-status-h: 26px;
+  --ws-icon-size: 16px;
+  /* Behind the image: the darkest tone, so the frame is what stands out. */
+  --ws-canvas: #0b0e14;
+  /* Header, panel, timeline and status strip. */
+  --ws-chrome: #151a23;
+  /* A raised step inside the chrome: inputs, an open section, a popover. */
+  --ws-chrome-raised: #1b212c;
+  --ws-hover: rgba(255, 255, 255, 0.05);
+  --ws-pressed: rgba(255, 255, 255, 0.09);
+  /* Hairlines between the regions and between sections. */
+  --ws-divider: rgba(255, 255, 255, 0.07);
+  /* Icons, drawn with stroke="black" and used as masks over currentColor, so
+     they take the text colour of whatever button they sit on. */
+  --icon-prev: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M15 18l-6-6 6-6'/></svg>");
+  --icon-next: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 18l6-6-6-6'/></svg>");
+  --icon-play: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black' stroke='black' stroke-width='1.5' stroke-linejoin='round'><path d='M7 4.5v15l12.5-7.5z'/></svg>");
+  --icon-pause: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'><rect x='6' y='4.5' width='4' height='15' rx='1'/><rect x='14' y='4.5' width='4' height='15' rx='1'/></svg>");
+  --icon-search: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'><circle cx='11' cy='11' r='6.5'/><path d='M16 16l4.5 4.5'/></svg>");
+  --icon-fullscreen: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M8 3.5H5A1.5 1.5 0 0 0 3.5 5v3M20.5 8V5A1.5 1.5 0 0 0 19 3.5h-3M3.5 16v3A1.5 1.5 0 0 0 5 20.5h3M16 20.5h3a1.5 1.5 0 0 0 1.5-1.5v-3'/></svg>");
+  --icon-sidebar: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linejoin='round'><rect x='3.5' y='4.5' width='17' height='15' rx='2'/><path d='M14.5 4.5v15'/></svg>");
+  --icon-chevron-down: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M7 10l5 5 5-5'/></svg>");
+  --icon-gear: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='3'/><path d='M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1'/></svg>");
   /* Inter is bundled rather than resolved from the system, so a label reads the
      same on a Mac, a Windows workstation and a beamline Linux box. The stack it
      replaced led with "Avenir Next" -- a geometric display face, macOS-only,

@@ -283,11 +283,16 @@ export function createGeometryParamsController({
   // ---- rendering -----------------------------------------------------------
 
   function showHint(hintEl, inputEls, message, { isInvalid = false, isMissing = false } = {}) {
-    inputEls.filter(Boolean).forEach((el) => el.classList.toggle("is-invalid", isInvalid));
+    inputEls.filter(Boolean).forEach((el) => {
+      el.classList.toggle("is-invalid", isInvalid);
+      // A missing value marks its field; the state line above already says why.
+      el.classList.toggle("is-missing", isMissing);
+    });
     if (!hintEl) return;
     hintEl.textContent = message || "";
     hintEl.classList.toggle("is-hidden", !message);
     hintEl.classList.toggle("is-info", Boolean(message) && !isInvalid && !isMissing);
+    hintEl.classList.toggle("is-missing", isMissing);
   }
 
   function sourceText(keys) {

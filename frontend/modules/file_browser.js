@@ -141,6 +141,7 @@ export function createFileBrowserController({
   const { renderBreadcrumb, renderFolders, renderFiles } = createFileBrowserRenderer({
     state,
     browseBreadcrumb,
+    browseUpBtn,
     browseFoldersList,
     browseFilesList,
     applySort,

@@ -46,6 +46,11 @@ a single file would. So:
   `frontend/tests/stylesheets.test.js` checks that every one exists.
 - A new area is a new file with the next number, linked in `index.html`; the
   same test fails until it is linked, in order.
+- `18-workspace.css`, last, lays out the window as a workspace (header, docked
+  panel, timeline, status strip) over the canvas-first rules in
+  `04-panel.css`; see [decision 0008](decisions/0008-workspace-layout.md).
+  Its flat surfaces use the `--ws-*` tokens and its icons the `--icon-*`
+  masks in `:root`.
 
 ### Text
 

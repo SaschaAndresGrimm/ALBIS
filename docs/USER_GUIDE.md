@@ -76,23 +76,25 @@ web browser, with nothing loaded yet:
 
 Click **Open file** (or **File → Open…**, `⌘O` on a Mac, `Ctrl+O` elsewhere)
 and choose `in16c_010001.cbf`. ALBIS recognises the other nine as the same
-series: the status line at the bottom says **in16c_010001.cbf 1 / 10**.
+series: the top of the window says **in16c_010001.cbf 1 / 10**.
 
 ### 3. Find your way around
 
 ![The ALBIS window with the insulin image open, six parts numbered](images/user-guide/window-overview.webp)
 
-1. **Menu bar** — **File**, **Settings** and **Help**.
-2. **Toolbar** — step through frames, the frame slider and number,
-   **Playback**, linking windows, pixel values (**123**), the magnifier
-   (**🔍**) and full screen.
+1. **Header** — **File**, **Settings** and **Help** on the left, the file and
+   frame shown in the middle, and on the right linking windows, pixel values
+   (**123**), the magnifier, full screen and the panel button, which shows and
+   hides the side panel (or press `M`).
+2. **Timeline** — under the image, for a series: previous and next frame,
+   play, the frame slider across the full width, the frame number and
+   **Playback**. A single image has no timeline.
 3. **The image** — scroll to zoom, drag to pan, right-drag to draw a region.
-4. **Side panel** — the **View**, **Data** and **Analysis** tabs, and
-   **Detector** when it is switched on. The **▸** beside the tabs folds the
-   panel away; **Open menu** brings it back.
+4. **Side panel** — docked on the right: the **View**, **Data** and
+   **Analysis** tabs, and **Detector** when it is switched on. Drag its left
+   edge to make it wider or narrower; the image uses the rest of the window.
 5. **Histogram** — contrast and colour map, in the View tab.
-6. **Status line** — what ALBIS is doing, the file and frame shown, and the
-   zoom.
+6. **Status line** — at the very bottom: what ALBIS is doing and the zoom.
 
 On the image, the dark spots are **reflections**: X-rays diffracted by the
 crystal. The two black bands are the **gaps** between the detector's three
@@ -106,8 +108,9 @@ the most.
 ![The toolbar, showing frame 4 of the series](images/user-guide/toolbar.webp)
 
 Press `→` to go to the next image and `←` to go back, or drag the frame
-slider. As the crystal turns, some reflections fade and others appear. **▶**
-plays the series; **Playback** sets how fast.
+slider in the timeline under the image. As the crystal turns, some
+reflections fade and others appear. **▶** plays the series; **Playback** sets
+how fast.
 
 ### 5. Make the spots easier to see
 
@@ -227,7 +230,7 @@ image-capable ones; pick the one you want.
 
 ![The Data tab's Data Source section, with a CBF series file selected](images/user-guide/data-tab.webp)
  Multi-threshold (multi-channel) data
-gains a **Threshold** selector in the toolbar, and `⌘K → Threshold: Next` steps
+gains a **Threshold** selector in the timeline, and `⌘K → Threshold: Next` steps
 between channels without leaving the keyboard.
 
 ### Look inside an HDF5 file
@@ -273,7 +276,8 @@ whatever the beamline wrote alongside. It appears when an HDF5 file is open.
 
 ![The toolbar: frame buttons, the frame slider at frame 4, Playback, link, 123, magnifier and full screen](images/user-guide/toolbar.webp)
 
-- The **slider** and the frame number field jump anywhere in the series.
+- The **slider**, across the timeline under the image, and the frame number
+  field jump anywhere in the series.
 - `←` and `→` step one frame.
 - **Play** runs through the series; the **Playback** popover sets the rate in
   frames per second.
@@ -332,7 +336,7 @@ familiar from ALBULA. **Invert Color** flips any of them.
 enlarged — drawn from the data, so with the whole detector on screen you still
 see each pixel as a crisp square. While it shows, the mouse wheel changes its
 magnification (2× to 32×) and **Shift + wheel** its size; both are remembered.
-The **🔍** button in the toolbar, or **View: Magnifier On/Off** in the command
+The magnifier button in the header, or **View: Magnifier On/Off** in the command
 palette, keeps it on. It uses the image's colour map, contrast and mask colours,
 follows flatfield correction and inpainting, outlines the pixel under the mouse,
 prints the pixel values once the lens makes them big enough to read (with
@@ -340,7 +344,7 @@ prints the pixel values once the lens makes them big enough to read (with
 
 ![The magnifier: a round lens at 4× over a module gap and reflections, with the cursor readout beside it](images/user-guide/magnifier.webp)
 
-**Pixel values** — the **123** button in the toolbar, beside the magnifier, or
+**Pixel values** — the **123** button in the header, beside the magnifier, or
 **View: Pixel Values On/Off** in the command palette — prints the number in
 each cell once you are zoomed in far enough to read them. How far, how many,
 and their format are in **Settings → Viewer**.
@@ -695,7 +699,7 @@ switched on in the Analysis tab. Two things are worth knowing:
 
 1. **File → Duplicate Window** opens the image again, set up the same way.
 2. Change one thing in the copy: the frame, the contrast, the colour map.
-3. With the **link** control in the toolbar, choose what the two windows
+3. With the **link** control in the header, choose what the two windows
    share as you move around.
 
 **File → New Window** (`⌘N`) opens an empty second viewer. Use it to put two
@@ -720,7 +724,7 @@ says so.
 
 ![The link menu open under the toolbar: Position, Contrast and ROI](images/user-guide/link-popover.webp)
 
-The **link** control in the toolbar chooses what the windows share: **Position**
+The **link** control in the header chooses what the windows share: **Position**
 (pan and zoom), **Contrast**, and **ROI**. Link position to keep both views on
 the same feature while you navigate; unlink to look at different regions with
 the same contrast.
@@ -987,7 +991,7 @@ preview starts.
 Remote Stream API, including any peak overlays the script supplies. See the
 [Power User Guide](POWER_USER_GUIDE.md#remote-stream-api) for the endpoints.
 
-While a live source runs, the toolbar shows **live**, and a badge shows when you
+While a live source runs, the timeline shows **live**, and a badge shows when you
 have scrolled away from the newest frame — one click returns you to it. Pausing
 lets you examine a frame without losing the stream.
 
@@ -1475,4 +1479,4 @@ over the network. ALBIS uses it to show a detector's newest image and, in the
 
 **Threshold** — the photon energy below which a photon-counting detector does
 not count a photon. A detector with several thresholds records an image for
-each; the **Threshold** selector in the toolbar switches between them.
+each; the **Threshold** selector in the timeline switches between them.

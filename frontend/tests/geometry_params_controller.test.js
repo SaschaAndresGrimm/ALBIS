@@ -175,6 +175,9 @@ describe("geometry_params_controller", () => {
     expect(elements.inputs.distanceMm.value).toBe("");
     expect(elements.hints.distanceMm.textContent).toBe("Not in the metadata");
     expect(elements.hints.distanceMm.classList.contains("is-info")).toBe(false);
+    // The field itself is marked, so the row reads as missing at a glance.
+    expect(elements.hints.distanceMm.classList.contains("is-missing")).toBe(true);
+    expect(elements.inputs.distanceMm.classList.contains("is-missing")).toBe(true);
     // What the file does state needs no line.
     expect(elements.hints.energyEv.classList.contains("is-hidden")).toBe(true);
 
