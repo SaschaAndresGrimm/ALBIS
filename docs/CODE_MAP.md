@@ -99,6 +99,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - `t()`, the language preference, and applying `data-i18n*` attributes.
 - `frontend/modules/toast.js`, `frontend/modules/dialogs.js`, `frontend/modules/modal_manager.js`:
   - Toasts (`notify*`, with an optional detail line, one action button and a repeat count; placed above the viewer's footer), promise-based prompt and confirm dialogs in place of `window.prompt`/`confirm`, and the modal stack with its focus handling.
+- `frontend/modules/section_badges.js`:
+  - The summary chip and state badge beside a panel section's title. A text set here replaces the markup's start-up `data-i18n` key (a plain string drops it, `{ key, vars }` becomes the new key), so re-translating the page no longer puts the start-up text back.
 - `frontend/modules/status_line.js`:
   - Pure helper: what the footer status pill shows for a message. A toned message goes to a toast only; the pill says Ready or Idle.
 - `frontend/modules/frame_cache.js`, `frontend/modules/buffer_hash.js`, `frontend/modules/transient_frame_load_state.js`:

@@ -186,23 +186,23 @@ export function createAutoloadSettingsController({
     if (state.autoload.mode === "file") {
       setDataSourceSectionState(
         state.file ? "active" : "empty",
-        state.file ? t("data_source.state.file_mode_ready") : t("data_source.state.select_file_to_begin"),
+        state.file ? { key: "data_source.state.file_mode_ready" } : { key: "data_source.state.select_file_to_begin" },
       );
     } else if (state.autoload.running) {
       const label =
         state.autoload.mode === "simplon"
-          ? t("data_source.state.simplon_active")
+          ? { key: "data_source.state.simplon_active" }
           : state.autoload.mode === "jungfraujoch"
-            ? t("data_source.state.jfjoch_active")
-            : t("data_source.state.remote_active");
+            ? { key: "data_source.state.jfjoch_active" }
+            : { key: "data_source.state.remote_active" };
       setDataSourceSectionState("active", label);
     } else {
       const label =
         state.autoload.mode === "simplon"
-          ? t("data_source.state.configure_simplon")
+          ? { key: "data_source.state.configure_simplon" }
           : state.autoload.mode === "jungfraujoch"
-            ? t("data_source.state.configure_jfjoch")
-            : t("data_source.state.configure_remote");
+            ? { key: "data_source.state.configure_jfjoch" }
+            : { key: "data_source.state.configure_remote" };
       setDataSourceSectionState("empty", label);
     }
   }

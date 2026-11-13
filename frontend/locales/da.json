@@ -1523,7 +1523,6 @@
   "toast.repeated": "Skete {{count}} gange",
   "toolbar.datasource.file": "Fil",
   "toolbar.datasource.jfjoch": "JFJ-forhåndsvisning",
-  "toolbar.datasource.no_file": "ingen fil",
   "toolbar.datasource.remote": "Fjern",
   "toolbar.datasource.simplon": "SIMPLON",
   "toolbar.datasource.state.idle": "ledig",

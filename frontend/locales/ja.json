@@ -1523,7 +1523,6 @@
   "toast.repeated": "{{count}} 回発生しました",
   "toolbar.datasource.file": "ファイル",
   "toolbar.datasource.jfjoch": "JFJ プレビュー",
-  "toolbar.datasource.no_file": "ファイルなし",
   "toolbar.datasource.remote": "リモート",
   "toolbar.datasource.simplon": "SIMPLON",
   "toolbar.datasource.state.idle": "待機",

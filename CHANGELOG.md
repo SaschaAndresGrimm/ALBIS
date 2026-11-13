@@ -11,6 +11,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - **The start screen no longer cuts off the DECTRIS wordmark in a tall or zoomed-out window.** With recent files listed, the picture's height kept growing with the window while its width stopped at 960 pixels, so the picture was cropped at its sides, the wordmark with it. It now keeps its proportions, and is never cropped whatever shape its space takes.
 
+- **The Data Source status no longer says "Choose an image source to begin." with a file open.** The status tag kept the start-up text as its translation, so any time the page's text was translated again (a language switch, among others) that text came back over the current one, while the tag stayed blue. Every section's tags now keep what they show, and the Data Source status follows a language switch.
+
+### Changed
+
+- **The Data Source tag shows the mode, "File", without the file's name.** The name is already in the header, the **Image File** field and the **File Inspector**. For SIMPLON, JUNGFRAUJOCH and a remote stream the tag still shows its state, such as "Live".
+
 ## [0.45.0] - 2026-11-13
 
 ### Added

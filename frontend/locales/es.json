@@ -1523,7 +1523,6 @@
   "toast.repeated": "Ocurrió {{count}} veces",
   "toolbar.datasource.file": "Archivo",
   "toolbar.datasource.jfjoch": "Vista previa de JFJ",
-  "toolbar.datasource.no_file": "sin archivo",
   "toolbar.datasource.remote": "Remoto",
   "toolbar.datasource.simplon": "SIMPLON",
   "toolbar.datasource.state.idle": "inactivo",

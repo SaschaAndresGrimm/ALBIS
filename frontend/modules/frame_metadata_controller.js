@@ -67,7 +67,7 @@ export function createFrameMetadataController({
 
   async function loadFiles() {
     setDataControlsForHdf5();
-    setDataSourceSectionState("loading", t("status.files.loading"), true);
+    setDataSourceSectionState("loading", { key: "status.files.loading" }, true);
     const folder = (autoloadDir?.value || state.autoload.dir || "").trim();
     const url = folder ? `${apiBase}/files?folder=${encodeURIComponent(folder)}` : `${apiBase}/files`;
     // Only the newest listing may change the section: an older, slower one
@@ -95,7 +95,7 @@ export function createFrameMetadataController({
           fileSelect.value = existingFile;
           setDataSourceSectionState(
             data.truncated ? "warning" : "active",
-            data.truncated ? t("status.files.truncated") : t("status.files.list_loaded"),
+            data.truncated ? { key: "status.files.truncated" } : { key: "status.files.list_loaded" },
           );
         } else {
           state.file = "";
@@ -106,9 +106,9 @@ export function createFrameMetadataController({
           setSplashStatus("splash.status.ready_open_file");
           setLoading(false);
           if (data.truncated) {
-            setDataSourceSectionState("warning", t("status.files.truncated"));
+            setDataSourceSectionState("warning", { key: "status.files.truncated" });
           } else {
-            setDataSourceSectionState("empty", t("status.frame.select_file_to_begin"));
+            setDataSourceSectionState("empty", { key: "status.frame.select_file_to_begin" });
           }
         }
         loadAutoloadFolders();
@@ -120,14 +120,14 @@ export function createFrameMetadataController({
           setSplashStatus("splash.status.no_image_files_found");
           setLoading(false);
         }
-        setDataSourceSectionState("warning", t("status.files.none_in_folder"));
+        setDataSourceSectionState("warning", { key: "status.files.none_in_folder" });
         loadAutoloadFolders();
       }
     } catch (err) {
       console.error(err);
       if (generation !== filesGeneration) return;
       setStatus(t("status.frame.load_files_failed"), { tone: "error", detail: failureDetail(err) });
-      setDataSourceSectionState("warning", t("status.files.load_failed"));
+      setDataSourceSectionState("warning", { key: "status.files.load_failed" });
     }
   }
 
@@ -145,7 +145,7 @@ export function createFrameMetadataController({
     showProcessingProgress(t("status.frame.loading_metadata"));
     setStatus(t("status.frame.loading_metadata"));
     setLoading(true);
-    setDataSourceSectionState("loading", t("status.data.loading_dataset_metadata"), true);
+    setDataSourceSectionState("loading", { key: "status.data.loading_dataset_metadata" }, true);
     try {
       state.maskAuto = true;
       const data = await fetchJSON(
@@ -174,15 +174,15 @@ export function createFrameMetadataController({
       await core.maskCursor.loadMask(true);
       const loadedFrame = await core.fileDataPipeline.loadFrame();
       if (!loadedFrame) {
-        setDataSourceSectionState("warning", t("status.data.failed_load_frame"));
+        setDataSourceSectionState("warning", { key: "status.data.failed_load_frame" });
         return false;
       }
-      setDataSourceSectionState("active", t("status.data.metadata_ready"));
+      setDataSourceSectionState("active", { key: "status.data.metadata_ready" });
       onWriterPresenceChange?.(Boolean(data.writer_present));
       return true;
     } catch (err) {
       console.error(err);
-      setDataSourceSectionState("warning", t("status.data.failed_load_metadata"));
+      setDataSourceSectionState("warning", { key: "status.data.failed_load_metadata" });
       // Toned, so the failure is raised as a toast rather than only written
       // into the footer pill, where the next ambient update overwrites it.
       setStatus(t("status.data.failed_load_metadata"), {

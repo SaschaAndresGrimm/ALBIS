@@ -315,7 +315,7 @@ export function createFileDataPipelineController({
     showProcessingProgress(t("status.data.scanning_datasets"));
     setLoading(true);
     setStatus(t("status.data.scanning_datasets"));
-    setDataSourceSectionState("loading", t("status.data.scanning_datasets"), true);
+    setDataSourceSectionState("loading", { key: "status.data.scanning_datasets" }, true);
     try {
       const data = await fetchJSON(`${apiBase}/datasets?file=${encodeURIComponent(state.file)}`, {
         timeoutMs: 60000,
@@ -334,7 +334,7 @@ export function createFileDataPipelineController({
         datasetSelect.value = state.dataset;
         const loaded = await core.frameMetadata?.loadMetadata();
         if (loaded) {
-          setDataSourceSectionState("active", t("status.data.dataset_metadata_loaded"));
+          setDataSourceSectionState("active", { key: "status.data.dataset_metadata_loaded" });
         }
         return loaded;
       } else {
@@ -342,7 +342,7 @@ export function createFileDataPipelineController({
         showSplash();
         setSplash("splash.status.no_image_datasets");
         setLoading(false);
-        setDataSourceSectionState("warning", t("status.data.no_image_datasets"));
+        setDataSourceSectionState("warning", { key: "status.data.no_image_datasets" });
         return false;
       }
     } catch (err) {
@@ -355,7 +355,7 @@ export function createFileDataPipelineController({
       showSplash();
       setSplash(detail || "splash.status.dataset_scan_failed", {}, { busy: false });
       setLoading(false);
-      setDataSourceSectionState("warning", t("status.data.failed_scan_datasets"));
+      setDataSourceSectionState("warning", { key: "status.data.failed_scan_datasets" });
       return false;
     } finally {
       hideProcessingProgress();

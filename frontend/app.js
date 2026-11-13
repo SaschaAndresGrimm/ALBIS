@@ -26,6 +26,7 @@ import {
 } from "./modules/i18n.js";
 import { notifyError, notifySuccess, notifyWarning } from "./modules/toast.js";
 import { statusPillContent } from "./modules/status_line.js";
+import { setSectionBadgeState, setSummaryChip } from "./modules/section_badges.js";
 import { applyPanelTab, loadStoredPanelTab } from "./modules/ui_panels.js";
 import { createFileBrowserController } from "./modules/file_browser.js";
 import { bindAnalysisControlInteractions } from "./modules/analysis_controls_bindings.js";
@@ -324,7 +325,6 @@ state.language = getLanguage();
 const PLOT_THEME = createPlotTheme();
 getThemeController();
 
-const SECTION_STATE_VARIANTS = ["is-empty", "is-loading", "is-active", "is-warning"];
 const CHROME_IDLE_DELAY_MS = 2200;
 
 const { logClient } = createClientLog({ apiBase: API });
@@ -445,13 +445,6 @@ function currentFrameStatusText() {
   return framePlaybackController.currentFrameStatusText();
 }
 
-function setSummaryChip(element, text, tone = "default") {
-  if (!element) return;
-  element.textContent = text || "";
-  // "off": beside a switch that already shows it; the workspace layout hides it.
-  for (const name of ["active", "warning", "off"]) element.classList.toggle(`is-${name}`, tone === name);
-}
-
 function setFieldHint(inputEl, hintEl, message = "") {
   const hasMessage = Boolean(message);
   if (inputEl) {
@@ -516,14 +509,6 @@ const {
 
 window.addEventListener("DOMContentLoaded", initHelpTooltips, { once: true });
 const infoTips = createInfoTips();
-
-function setSectionBadgeState(element, tone, message) {
-  if (!element) return;
-  const nextTone = tone === "loading" || tone === "active" || tone === "warning" ? tone : "empty";
-  SECTION_STATE_VARIANTS.forEach((className) => element.classList.remove(className));
-  element.classList.add(`is-${nextTone}`);
-  element.textContent = message || "";
-}
 
 function setDataSourceSectionState(tone, message, showSkeleton = false) {
   setSectionBadgeState(dataSourceStateEl, tone, message);

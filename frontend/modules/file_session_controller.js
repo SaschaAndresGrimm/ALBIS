@@ -101,7 +101,7 @@ export function createFileSessionController({
     clearMaskState();
     clearImageHeader();
     core.chromeToolbar?.updateToolbar();
-    setDataSourceSectionState("empty", t("status.file.no_file_loaded"));
+    setDataSourceSectionState("empty", { key: "status.file.no_file_loaded" });
     setStatus(t("status.file.no_file_loaded"));
     setLoading(false);
     hideUploadProgress();
@@ -296,7 +296,7 @@ export function createFileSessionController({
     if (metaShape) metaShape.textContent = `${width} × ${height}`;
     if (metaDtype) metaDtype.textContent = dtype;
     applyFrame(data, width, height, dtype);
-    setDataSourceSectionState("active", preserveSeries ? t("status.data.series_image_loaded") : t("status.data.image_loaded"));
+    setDataSourceSectionState("active", preserveSeries ? { key: "status.data.series_image_loaded" } : { key: "status.data.image_loaded" });
     core.chromeToolbar?.updateToolbar();
   }
 

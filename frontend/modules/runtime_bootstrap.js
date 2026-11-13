@@ -111,7 +111,7 @@ export function finalizeRuntimeBootstrap({
   updatePlayButtons();
   updateViewerFooter();
   if (!state.file) {
-    setDataSourceSectionState("empty", t("data_source.choose_to_begin"));
+    setDataSourceSectionState("empty", { key: "data_source.choose_to_begin" });
   }
   updateFullscreenUi();
   updateAboutVersion();

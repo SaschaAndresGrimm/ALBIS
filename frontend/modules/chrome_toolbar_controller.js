@@ -345,9 +345,9 @@ export function createChromeToolbarController({
     if (!dataSourceSummaryEl) return;
     const mode = (state.autoload.mode || "file").toLowerCase();
     if (mode === "file") {
-      const hasFile = Boolean(state.file);
-      const fileText = hasFile ? middleTruncate(fileLabel(state.file), 24) : t("toolbar.datasource.no_file");
-      setSummaryChip(dataSourceSummaryEl, `${t("toolbar.datasource.file")} · ${fileText}`, hasFile ? "active" : "default");
+      // The mode only: the file's name is in the title bar, the Image File
+      // field and the File Inspector already.
+      setSummaryChip(dataSourceSummaryEl, t("toolbar.datasource.file"), state.file ? "active" : "default");
       return;
     }
 

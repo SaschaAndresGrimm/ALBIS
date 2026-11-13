@@ -1523,7 +1523,6 @@
   "toast.repeated": "已发生 {{count}} 次",
   "toolbar.datasource.file": "文件",
   "toolbar.datasource.jfjoch": "JFJ 预览",
-  "toolbar.datasource.no_file": "无文件",
   "toolbar.datasource.remote": "远程",
   "toolbar.datasource.simplon": "SIMPLON",
   "toolbar.datasource.state.idle": "空闲",

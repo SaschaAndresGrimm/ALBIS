@@ -543,7 +543,7 @@ describe("file_data_pipeline_controller frame cache", () => {
     // The badge stays short and localized -- a whole sentence does not fit it.
     expect(setDataSourceSectionState).toHaveBeenLastCalledWith(
       "warning",
-      "Failed to scan datasets",
+      { key: "status.data.failed_scan_datasets" },
     );
   });
 
