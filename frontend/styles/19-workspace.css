@@ -671,7 +671,10 @@
      cropped: cropped, the DECTRIS wordmark was cut off on a 720px screen. */
   body.canvas-first .splash:has(.splash-recent:not([hidden])) .splash-art {
     width: auto;
-    height: clamp(120px, calc(100vh - var(--ws-header-h) - var(--ws-status-h) - 400px), 68vh);
+    /* Never taller than its capped width allows at 16:9: on a tall window
+       (or a zoomed-out page) the height ran on while the width stopped at
+       960px, and the picture, scaled to fill, lost DECTRIS off its right. */
+    height: min(clamp(120px, calc(100vh - var(--ws-header-h) - var(--ws-status-h) - 400px), 68vh), min(960px, 86vw) * 9 / 16);
     max-width: min(960px, 86vw);
     flex: 0 0 auto;
   }

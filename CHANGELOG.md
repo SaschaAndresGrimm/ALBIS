@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **The start screen no longer cuts off the DECTRIS wordmark in a tall or zoomed-out window.** With recent files listed, the picture's height kept growing with the window while its width stopped at 960 pixels, so the picture was cropped at its sides, the wordmark with it. It now keeps its proportions, and is never cropped whatever shape its space takes.
+
 ## [0.45.0] - 2026-11-13
 
 ### Added
