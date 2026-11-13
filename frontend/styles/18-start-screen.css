@@ -92,7 +92,9 @@
   border: none;
   /* Black in both themes: the picture's own ground, which the light theme
      inverts to white along with it. */
-  background: var(--splash-art-bg) url("../resources/splash.webp") center/cover no-repeat;
+  /* contain, not cover: whatever shape the box ends up, the whole picture
+     shows, DECTRIS wordmark included, with black (white in light) round it. */
+  background: var(--splash-art-bg) url("../resources/splash.webp") center/contain no-repeat;
   /* The picture fades into the black splash on every side, instead of ending
      in a straight line where the waves run off its edges. Narrow enough at
      the top and right to leave the DECTRIS wordmark untouched. */
