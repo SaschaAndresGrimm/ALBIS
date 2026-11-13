@@ -53,8 +53,13 @@ stays the same in both and is the one thing that breaks the light theme.
   overlays -- do not change with the theme.
 - Plots drawn on canvas read their colours from the `--plot-*` tokens through
   `modules/plot_theme.js` and are drawn again on `albis:themechange`.
+- Colours a module writes itself (a canvas `fillStyle`, a style set from
+  code) are counted by `frontend/tests/js_colour_guard.test.js`, per file;
+  more than its baseline fails. Use `PLOT_THEME` or a token instead.
 - Check a change in both: `npm run ui:snapshots -- --theme light` and
-  `--theme dark`.
+  `--theme dark` (the ui-check skill does both). A user-guide scene can set
+  `theme: "light"` in `scripts/guide_screenshots.mjs`; the others are dark.
+- Why it works this way: [decision 0009](decisions/0009-light-and-dark-themes.md).
 
 ## Where a style goes
 

@@ -106,6 +106,11 @@ Read [docs/UI_GUIDE.md](docs/UI_GUIDE.md) before touching `frontend/`. In short:
 - Anything floating over the image is nearly opaque and frosted; the
   `--surface-well` inset is only for inside panels and dialogs.
 - Never `outline: none` without a `:focus-visible` replacement ring.
+- Two themes, dark (default) and light: every colour is a token with a light
+  value in `:root[data-theme="light"]`; colours drawn on canvas come from
+  `modules/plot_theme.js`. The image area stays dark in both. Check a visible
+  change in both (`ui:snapshots --theme light`); see the UI guide's "Light
+  and dark" and [decision 0009](docs/decisions/0009-light-and-dark-themes.md).
 
 ## Text and translation
 
