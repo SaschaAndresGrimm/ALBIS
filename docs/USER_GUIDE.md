@@ -1253,6 +1253,8 @@ ship ALBIS set up for one kind of station (see the
 
 **Settings → Viewer → Appearance** chooses the colours of the interface:
 
+![The ALBIS window in the light theme: white header, side panel and timeline around the dark-grey image area](images/user-guide/light-theme.webp)
+
 - **Dark**, the default.
 - **Light**: light panels, menus and dialogs, for a bright room or a projector.
 - **System**: follows your computer's light or dark setting, and switches with

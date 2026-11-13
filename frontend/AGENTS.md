@@ -57,6 +57,13 @@ everywhere.
   fails a call that runs before it at startup.
 - **State lives in `state` or a controller**, not in the DOM: read values from
   `state`, write the DOM from it.
+- **Colours follow the theme.** Stylesheets use tokens only (the style guard's
+  colour baseline is 0). A colour drawn on canvas comes from
+  `plot_theme.js` (`PLOT_THEME.text`, ...), which reads the `--plot-*`
+  tokens and is read again on `albis:themechange`; a colour that is data
+  (a colour map, the ring and peak overlays) does not change with the theme.
+  `tests/js_colour_guard.test.js` counts the literals left in `modules/`
+  and fails if there are more.
 - `console.warn`/`error`/`info` only; eslint flags `console.log`.
 - **Nothing keyed by pixel index in a `Set` or `Map`.** Both hold at most
   2^24 entries, and an EIGER2 16M frame has 18.1 million pixels: Find bad

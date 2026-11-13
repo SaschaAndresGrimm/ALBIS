@@ -371,11 +371,18 @@ const clearCallouts = () => page(() => document.getElementById("guide-callouts")
 // ---------------------------------------------------------------------------
 // Getting the interface into a known state.
 
-async function openApp({ panel = true } = {}) {
+async function openApp({ panel = true, theme = "" } = {}) {
   // The interface keeps folded sections, tabs and tools in the browser's
   // storage; cleared, every scene starts as a first visit does.
   await send("Storage.clearDataForOrigin", { origin: albisUrl, storageTypes: "local_storage,session_storage,indexeddb" });
   await send("Page.navigate", { url: `${albisUrl}/` });
+  if (theme) {
+    // The theme is the browser's (modules/theme.js), read before the first
+    // paint: store it, then load again so the scene opens in it.
+    await sleep(500);
+    await page((value) => localStorage.setItem("albis.theme", value), theme);
+    await send("Page.navigate", { url: `${albisUrl}/` });
+  }
   await waitFor(() => document.getElementById("file-select")?.options.length > 2, "the Data tab's file list", 30000);
   // The side panel starts folded on a window this size.
   if (panel) {
@@ -556,6 +563,17 @@ const scenes = [
       await callouts(spots);
       await shot("window-overview");
       await clearCallouts();
+    },
+  },
+  {
+    // The "Light or dark" section: the same window in the light theme.
+    name: "light-theme",
+    theme: "light",
+    async run() {
+      await loadSeries();
+      await fitToWindow();
+      await parkMouse();
+      await shot("light-theme");
     },
   },
   {
@@ -922,7 +940,7 @@ async function main() {
     try {
       await Promise.race([
         (async () => {
-          await openApp({ panel: scene.panel !== false });
+          await openApp({ panel: scene.panel !== false, theme: scene.theme || "" });
           await scene.run();
         })(),
         new Promise((_, reject) => {

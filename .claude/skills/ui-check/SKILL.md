@@ -1,7 +1,7 @@
 ---
 name: ui-check
 description: Check a visible ALBIS change by eye - start ALBIS on the test data, screenshot every window before and after the change with ui:snapshots, and compare. Use after touching frontend/index.html, style.css or styles/, a locale file, or anything else that changes what the interface shows.
-argument-hint: "[--file name-in-testdata] [--width 1100]"
+argument-hint: "[--file name-in-testdata] [--width 1100] [--theme light]"
 ---
 
 # Checking a UI change by eye
@@ -25,7 +25,8 @@ git worktree add /tmp/albis-before main
 cd /tmp/albis-before
 ALBIS_DATA_ROOT=testdata "$OLDPWD/.venv/bin/python" -m uvicorn backend.app:app --port 8732 &
 cd "$OLDPWD"
-npm run ui:snapshots -- --url http://127.0.0.1:8732/ --out /tmp/albis-ui/before
+npm run ui:snapshots -- --url http://127.0.0.1:8732/ --out /tmp/albis-ui/before --theme dark
+npm run ui:snapshots -- --url http://127.0.0.1:8732/ --out /tmp/albis-ui/before-light --theme light
 ```
 
 Then stop that server (`kill %1`, or the PID `$!` printed) and
@@ -35,8 +36,15 @@ Then stop that server (`kill %1`, or the PID `$!` printed) and
 
 ```bash
 ALBIS_DATA_ROOT=testdata .venv/bin/python -m uvicorn backend.app:app --port 8731 &
-npm run ui:snapshots -- --out /tmp/albis-ui/after
+npm run ui:snapshots -- --out /tmp/albis-ui/after --theme dark
+npm run ui:snapshots -- --out /tmp/albis-ui/after-light --theme light
 ```
+
+ALBIS has a dark and a light theme (Settings → Viewer → Appearance), so every
+visible change is shot in both: a colour written as a literal, or a token
+given no light value, looks right in dark and breaks only in light.
+`--theme` sets the browser's stored choice before the page loads; without it
+the shots are dark, the default.
 
 - `ALBIS_DATA_ROOT=testdata` serves the files tracked in the repository. Never
   open a file by uploading it through the page: an upload copies it into the
@@ -69,6 +77,7 @@ First let the diff say which pairs changed and where:
 
 ```bash
 npm run ui:diff -- /tmp/albis-ui/before /tmp/albis-ui/after
+npm run ui:diff -- /tmp/albis-ui/before-light /tmp/albis-ui/after-light
 ```
 
 It lists each changed shot with the share of pixels that moved and the box
@@ -88,7 +97,9 @@ re-running.
 
 Look for: clipped or wrapping text, misaligned controls, a surface that lost
 its frosting or opacity, a focus ring missing, more than one primary button,
-a colour that is not from the tokens.
+a colour that is not from the tokens. In the light shots also: a dark patch
+anywhere but the image area and what floats over it, text too pale to read,
+a control whose edge has disappeared, a canvas plot still drawn dark.
 
 ## 4. The user guide's pictures
 
@@ -100,7 +111,9 @@ interface:
 npm run guide:screenshots -- --only roi,histogram   # scene names, by prefix
 ```
 
-It starts its own ALBIS and needs no server running. The scenes are listed in
+It starts its own ALBIS and needs no server running, and makes the pictures
+in the default dark theme (scenes that show the light theme set it
+themselves). The scenes are listed in
 `scripts/guide_screenshots.mjs`; `git status docs/images/user-guide` shows
 which pictures changed. Look at each one, as in step 3. A new picture in the
 guide is a new scene there; see `docs/UI_GUIDE.md`, "The user guide's

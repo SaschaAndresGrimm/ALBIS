@@ -24,6 +24,7 @@ Describe the change and why it is needed.
 Attach before/after screenshots or short videos when relevant (`npm run ui:snapshots` captures every window), and name the browser(s) you checked in.
 
 - [ ] Follows [docs/UI_GUIDE.md](../docs/UI_GUIDE.md): tokens, existing controls, dialog layout, every string translated
+- [ ] Looked at in both themes (`npm run ui:snapshots -- --theme light` and `--theme dark`)
 
 ## Data and compatibility notes
 
