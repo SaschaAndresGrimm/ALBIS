@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.45.1] - 2026-11-16
+
 ### Fixed
 
 - **Add Poisson noise now gives an image of fractions noise of the right size.** On a floating-point image, such as a projection normalised or corrected by another program, each filled value was taken as a photon count, so pixels around 0.47 were replaced by 0, 1 or 2 and the filled gap stood out as a pattern of whole numbers. ALBIS now measures from neighbouring pixels what one count is worth in the image and draws the noise in counts, so a filled gap is as noisy as the pixels around it, in the viewer and in exports. An image with values below zero, such as one with a dark image subtracted, gets normal noise with the measured spread. Images of whole numbers get the same noise as before.
@@ -1997,7 +1999,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.45.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.45.1...HEAD
+[0.45.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.45.0...v0.45.1
 [0.45.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.44.0...v0.45.0
 [0.44.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.43.0...v0.44.0
 [0.43.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.4...v0.43.0
