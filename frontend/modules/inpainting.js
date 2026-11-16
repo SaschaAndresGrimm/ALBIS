@@ -81,11 +81,20 @@ export const MAX_INPAINT_MARGIN = 5;
 // there): a seed from the frame's own values, per pixel a counter-based hash
 // of seed and position in 32-bit integer arithmetic, below NOISE_NORMAL_FROM
 // counts an inversion of the Poisson distribution, above the normal
-// approximation. Flatfield-corrected values are drawn as raw counts.
+// approximation. Flatfield-corrected values are drawn as raw counts. A frame
+// of fractions is counts times a factor, which noiseScale measures from pairs
+// of neighbouring pixels, as there.
 // ---------------------------------------------------------------------------
 
 const NOISE_NORMAL_FROM = 30;
 const NOISE_SEED_SAMPLES = 64;
+const NOISE_SCALE_PAIRS = 65536;
+const NOISE_SCALE_MIN_PAIRS = 16;
+const NOISE_SCALE_CLIP = 25;
+const NOISE_SCALE_ROUNDS = 3;
+const NOISE_SCALE_BRIGHT = 10;
+const NOISE_NEGATIVE_SHARE = 0.01;
+const CHI2_1_MEDIAN = 0.454936423119572;
 
 function hash32(value) {
   let x = value >>> 0;
@@ -136,24 +145,127 @@ function poisson(lam, seed, index) {
   return Math.max(0, Math.floor(lam + Math.sqrt(lam) * z + 0.5));
 }
 
+function medianOf64(values) {
+  if (!values.length) return 0;
+  const sorted = Float64Array.from(values).sort();
+  const mid = sorted.length >> 1;
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+function round4(x) {
+  return Number(x.toPrecision(4));
+}
+
+/**
+ * How the noise of a frame is drawn, as noise_scale in
+ * backend/services/inpainting.py: `{ kind: "counts", size: g }`, the values
+ * times g being counts (1 for whole numbers, Infinity with no noise to
+ * measure), or `{ kind: "normal", size: sigma }` for a frame with values below
+ * zero. `holes` are the pixels not measured.
+ */
+export function noiseScale(raw, holes) {
+  const n = raw.length;
+  if (n < 2) return { kind: "counts", size: 1 };
+  const total = n - 1;
+  const samples = Math.min(NOISE_SCALE_PAIRS, total);
+  const a = [];
+  const b = [];
+  let whole = true;
+  for (let k = 0; k < samples; k += 1) {
+    const i = samples > 1 ? Math.floor((k * (total - 1)) / (samples - 1)) : 0;
+    if (holes[i] || holes[i + 1]) continue;
+    const x = Math.fround(Number(raw[i]));
+    const y = Math.fround(Number(raw[i + 1]));
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    if (whole && (x !== Math.floor(x) || y !== Math.floor(y))) whole = false;
+    a.push(x);
+    b.push(y);
+  }
+  const m = a.length;
+  if (m < NOISE_SCALE_MIN_PAIRS || whole) return { kind: "counts", size: 1 };
+  const mean = new Float64Array(m);
+  const vari = new Float64Array(m);
+  let negative = 0;
+  for (let k = 0; k < m; k += 1) {
+    mean[k] = (a[k] + b[k]) / 2;
+    vari[k] = ((a[k] - b[k]) * (a[k] - b[k])) / 2;
+    if (Math.min(a[k], b[k]) < 0) negative += 1;
+  }
+  const sumWhere = (values, keep) => {
+    let sum = 0;
+    for (let k = 0; k < m; k += 1) if (!keep || keep[k]) sum += values[k];
+    return sum;
+  };
+  if (negative > m * NOISE_NEGATIVE_SHARE) {
+    // Counts are never below zero: a dark frame subtracted, or an offset.
+    let level = sumWhere(vari) / m;
+    if (!(level > 0)) return { kind: "counts", size: Infinity };
+    for (let round = 0; round < NOISE_SCALE_ROUNDS; round += 1) {
+      let sum = 0;
+      let count = 0;
+      const limit = NOISE_SCALE_CLIP * level;
+      for (let k = 0; k < m; k += 1) {
+        if (vari[k] <= limit) {
+          sum += vari[k];
+          count += 1;
+        }
+      }
+      level = sum / count;
+    }
+    return { kind: "normal", size: round4(Math.sqrt(level)) };
+  }
+  const midVar = medianOf64(vari) / CHI2_1_MEDIAN;
+  const midMean = medianOf64(mean);
+  let gain;
+  if (midVar > 0 && midMean > 0) gain = midMean / midVar;
+  else if (sumWhere(vari) > 0 && sumWhere(mean) > 0) gain = sumWhere(mean) / sumWhere(vari);
+  else return { kind: "counts", size: Infinity };
+  const keep = new Uint8Array(m);
+  for (let round = 0; round < NOISE_SCALE_ROUNDS; round += 1) {
+    for (let k = 0; k < m; k += 1) {
+      const bulk = !(midMean > 0) || mean[k] <= NOISE_SCALE_BRIGHT * midMean;
+      keep[k] = bulk && vari[k] <= (NOISE_SCALE_CLIP * Math.max(mean[k], 0)) / gain ? 1 : 0;
+    }
+    const keptMean = sumWhere(mean, keep);
+    const keptVar = sumWhere(vari, keep);
+    if (keptMean <= 0 || keptVar <= 0) break;
+    gain = keptMean / keptVar;
+  }
+  return { kind: "counts", size: round4(gain) };
+}
+
+function normal(sigma, seed, index) {
+  const u1 = noiseUniform(seed, index, 0);
+  const u2 = noiseUniform(seed, index, 1);
+  return sigma * Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+}
+
+function drawNoise(measured, scale, seed, index) {
+  if (scale.kind === "normal") return measured + normal(scale.size, seed, index);
+  if (!Number.isFinite(scale.size)) return measured;
+  if (scale.size === 1) return poisson(measured, seed, index);
+  return poisson(measured * scale.size, seed, index) / scale.size;
+}
+
 /**
  * Poisson noise on the filled pixels (`holes`) of `out`, in place. `raw` is
- * the frame as read, for the seed; `flat`, when the frame was divided by one,
- * `{ flat, scale }`: the draw is then in raw counts.
+ * the frame as read, for the seed and the scale of its counts (noiseScale);
+ * `flat`, when the frame was divided by one, `{ flat, scale }`: the draw is
+ * then in raw counts.
  */
 export function addNoise(out, holes, raw, flat = null) {
   const seed = noiseSeed(raw);
+  const scale = noiseScale(raw, holes);
   const factor = flat ? (normalizeFlatScale(flat.scale) === "transmission" ? 1 : flat.flat.mean) : 1;
   for (let i = 0; i < out.length; i += 1) {
     if (!holes[i]) continue;
     const value = out[i];
     if (!flat) {
-      out[i] = poisson(value, seed, i);
+      out[i] = drawNoise(value, scale, seed, i);
       continue;
     }
     const divisor = flat.flat.holes[i] ? flat.flat.mean : flat.flat.data[i];
-    const counts = poisson((value * divisor) / factor, seed, i);
-    out[i] = (counts / divisor) * factor;
+    out[i] = (drawNoise((value * divisor) / factor, scale, seed, i) / divisor) * factor;
   }
   return out;
 }

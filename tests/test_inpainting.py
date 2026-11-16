@@ -146,6 +146,10 @@ def test_draws_the_same_noise_as_the_viewer(case: dict) -> None:
     raw = np.array(NOISE["raw"], dtype=np.uint32).reshape(shape)
     holes = np.array(NOISE["holes"], dtype=bool)
     filled = np.array(NOISE["filled"], dtype=np.float64)
+    if "raw_scale" in case:
+        # A frame of fractions: counts times a factor, as float32.
+        raw = (raw.astype(np.float64) * case["raw_scale"] + case["raw_offset"]).astype(np.float32)
+        filled = filled * case["raw_scale"] + case["raw_offset"]
     index = np.flatnonzero(holes)
     flat = prepare_flat(np.array(NOISE["flat_raw"], dtype=np.uint32).reshape(shape))
     out = filled.copy()
@@ -163,3 +167,67 @@ def test_noise_on_flatfielded_values_has_the_raw_counts_size() -> None:
     flat = Flat(data=np.full(n, 4.0), holes=np.zeros(n, dtype=bool), mean=2.0)
     out = add_noise(np.full(n, 50.0), np.arange(n), np.arange(64), flat, "counts")
     assert abs(out.mean() - 50) < 0.1 and abs(out.std() - 5) < 0.1
+
+
+def _filled_noise(raw: np.ndarray, every: int = 7) -> tuple[np.ndarray, np.ndarray]:
+    """Every ``every``-th pixel of ``raw`` filled with the frame's mean, with
+    noise; the noisy values and the measured ones."""
+    from backend.services.inpainting import add_noise
+
+    index = np.arange(0, raw.size, every)
+    measured = np.delete(raw.ravel(), index).astype(np.float64)
+    out = add_noise(np.full(index.size, measured.mean()), index, raw)
+    return out, measured
+
+
+def test_noise_on_fractions_is_as_large_as_the_measured_noise() -> None:
+    """A frame of fractions -- here 90 counts divided by 190, as a corrected
+    projection -- got whole-number draws around 0.47: 0, 1, 2, a spread of 0.7
+    where the measured pixels have 0.05."""
+    rng = np.random.default_rng(3)
+    raw = (rng.poisson(90.0, (256, 256)) / 190).astype(np.float32)
+    out, measured = _filled_noise(raw)
+    assert abs(out.mean() - measured.mean()) < 0.002
+    assert abs(out.std() / measured.std() - 1) < 0.05
+    assert np.any(out != np.round(out))
+
+
+def test_noise_scale_is_measured_past_bright_spots() -> None:
+    from backend.services.inpainting import noise_scale
+
+    rng = np.random.default_rng(4)
+    expected = np.full((512, 512), 20.0)
+    expected[rng.integers(0, 512, 3000), rng.integers(0, 512, 3000)] = 1e5
+    raw = (rng.poisson(expected) / 50).astype(np.float32)
+    kind, gain = noise_scale(raw, rng.random(raw.shape) < 0.05)
+    assert kind == "counts" and abs(gain - 50) < 2.5
+
+
+def test_noise_on_whole_number_floats_is_as_on_integers() -> None:
+    from backend.services.inpainting import add_noise
+
+    rng = np.random.default_rng(5)
+    counts = rng.poisson(40.0, (64, 64)).astype(np.uint32)
+    index = np.arange(0, counts.size, 5)
+    filled = np.full(index.size, 40.0)
+    np.testing.assert_array_equal(
+        add_noise(filled, index, counts.astype(np.float32)), add_noise(filled, index, counts)
+    )
+
+
+def test_noise_below_zero_is_normal_with_the_measured_spread() -> None:
+    """A dark frame subtracted: values around zero are no counts, and a
+    Poisson draw would set every negative one to zero."""
+    rng = np.random.default_rng(6)
+    raw = rng.normal(0.0, 0.3, (256, 256)).astype(np.float32)
+    out, measured = _filled_noise(raw)
+    assert abs(out.std() / measured.std() - 1) < 0.05
+    assert np.count_nonzero(out < 0) > out.size / 3
+
+
+def test_noise_on_a_frame_without_noise_leaves_the_values() -> None:
+    from backend.services.inpainting import add_noise
+
+    raw = np.full((32, 32), 0.5, dtype=np.float32)
+    index = np.arange(0, raw.size, 3)
+    np.testing.assert_array_equal(add_noise(np.full(index.size, 0.5), index, raw), 0.5)

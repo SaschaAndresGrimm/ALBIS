@@ -9,6 +9,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- **Add Poisson noise now gives an image of fractions noise of the right size.** On a floating-point image, such as a projection normalised or corrected by another program, each filled value was taken as a photon count, so pixels around 0.47 were replaced by 0, 1 or 2 and the filled gap stood out as a pattern of whole numbers. ALBIS now measures from neighbouring pixels what one count is worth in the image and draws the noise in counts, so a filled gap is as noisy as the pixels around it, in the viewer and in exports. An image with values below zero, such as one with a dark image subtracted, gets normal noise with the measured spread. Images of whole numbers get the same noise as before.
+
 - **Convert Dataset keeps a floating-point image's values when it writes a TIFF.** A float image, such as a projection already corrected by another program, was rounded to whole numbers and written as signed 32-bit integers, so values around 1 came out as mostly 0s and 1s, without a warning. With **Data type** on **Automatic**, the TIFF is now written as 32-bit floats (64-bit if the source is 64-bit), and the dialog's summary says so. A CBF holds whole numbers only, so there the values are still rounded; the dialog now warns about that before the export.
 
 - **The start screen no longer cuts off the DECTRIS wordmark in a tall or zoomed-out window.** With recent files listed, the picture's height kept growing with the window while its width stopped at 960 pixels, so the picture was cropped at its sides, the wordmark with it. It now keeps its proportions, and is never cropped whatever shape its space takes.

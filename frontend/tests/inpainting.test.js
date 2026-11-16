@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { addNoise, createInpaintCache, createInpaintView, fillHoles, growHoles, inpaint, inpaintHoles } from "../modules/inpainting.js";
+import { addNoise, noiseScale, createInpaintCache, createInpaintView, fillHoles, growHoles, inpaint, inpaintHoles } from "../modules/inpainting.js";
 import { prepareFlat } from "../modules/flatfield.js";
 import { computeGlobalStats, createRoiAccumulator } from "../modules/roi_stats_engine.js";
 
@@ -126,12 +126,13 @@ describe("Background and Foreground", () => {
   });
 });
 
-describe("inpainting, the faster paths", () => {
-  function rand(seed) {
-    let s = seed;
-    return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32);
-  }
+// A seeded uniform in [0, 1).
+function rand(seed) {
+  let s = seed;
+  return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32);
+}
 
+describe("inpainting, the faster paths", () => {
   // Within `margin` of a flagged pixel along the row, then the column: the
   // definition, pixel by pixel.
   function grownReference(holes, width, height, margin) {
@@ -184,9 +185,12 @@ describe("inpainting, the faster paths", () => {
 describe("inpainting noise", () => {
   it.each(noise.cases.map((c) => [c.name, c]))("draws the same noise as the exports: %s", (_name, c) => {
     const { width, height } = noise;
-    const out = Float32Array.from(noise.filled);
+    // A case with raw_scale is a frame of fractions: counts times a factor.
+    const toFrame = (v) => (c.raw_scale === undefined ? v : v * c.raw_scale + c.raw_offset);
+    const out = Float32Array.from(noise.filled, toFrame);
+    const raw = c.raw_scale === undefined ? Uint32Array.from(noise.raw) : Float32Array.from(noise.raw, toFrame);
     const flat = c.flat ? prepareFlat(Uint32Array.from(noise.flat_raw), width, height) : null;
-    addNoise(out, Uint8Array.from(noise.holes), Uint32Array.from(noise.raw), flat ? { flat, scale: c.scale } : null);
+    addNoise(out, Uint8Array.from(noise.holes), raw, flat ? { flat, scale: c.scale } : null);
     c.expected.forEach((value, i) => expect(out[i]).toBeCloseTo(value, 2));
   });
 
@@ -200,5 +204,37 @@ describe("inpainting noise", () => {
       if (!holes[i]) expect(a[i]).toBe(v);
     });
     expect(Array.from(a).some((v, i) => holes[i] && v !== raw[i])).toBe(true);
+  });
+
+  // A seeded stand-in for a Poisson draw: the normal approximation, rounded.
+  function poissonish(r, lam) {
+    const z = Math.sqrt(-2 * Math.log(r() || 1e-12)) * Math.cos(2 * Math.PI * r());
+    return Math.max(0, Math.round(lam + Math.sqrt(lam) * z));
+  }
+
+  function spread(values) {
+    const mean = values.reduce((a, v) => a + v, 0) / values.length;
+    return Math.sqrt(values.reduce((a, v) => a + (v - mean) ** 2, 0) / values.length);
+  }
+
+  it("gives fractions noise as large as the measured pixels'", () => {
+    // 90 counts over 190, as a corrected projection: the draws were 0, 1, 2
+    // around 0.47, a spread of 0.7 where the measured pixels have 0.05.
+    const r = rand(11);
+    const n = 256 * 256;
+    const raw = Float32Array.from({ length: n }, () => poissonish(r, 90) / 190);
+    const holes = Uint8Array.from({ length: n }, (_, i) => (i % 7 === 0 ? 1 : 0));
+    const measured = Array.from(raw).filter((_, i) => !holes[i]);
+    const mean = measured.reduce((a, v) => a + v, 0) / measured.length;
+    const out = addNoise(Float32Array.from(raw, (v, i) => (holes[i] ? mean : v)), holes, raw);
+    const drawn = Array.from(out).filter((_, i) => holes[i]);
+    expect(Math.abs(spread(drawn) / spread(measured) - 1)).toBeLessThan(0.05);
+    expect(drawn.some((v) => v !== Math.round(v))).toBe(true);
+  });
+
+  it("takes whole numbers as counts and a frame without noise as it is", () => {
+    const holes = new Uint8Array(400);
+    expect(noiseScale(Float32Array.from({ length: 400 }, (_, i) => 40 + (i % 9)), holes)).toEqual({ kind: "counts", size: 1 });
+    expect(noiseScale(new Float32Array(400).fill(0.5), holes)).toEqual({ kind: "counts", size: Infinity });
   });
 });

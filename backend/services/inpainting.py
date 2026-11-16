@@ -479,10 +479,38 @@ def inpaint(frame: np.ndarray, holes: np.ndarray, method: str = "interpolate") -
 # Flatfield-corrected values are taken back to raw counts for the draw (times
 # the flat, over the scale's factor) and forward again, so the noise has the
 # size it would have had in the measurement, on either scale.
+#
+# A frame of whole numbers is counts. A frame of fractions -- normalised,
+# averaged or corrected by another program -- is counts times some factor,
+# which noise_scale estimates from the frame itself: for counts times 1/g, the
+# variance is the mean over g, and two neighbouring pixels see nearly the same
+# mean, so half the square of their difference measures the variance and their
+# average the mean. Over up to NOISE_SCALE_PAIRS pairs spread evenly over the
+# frame, g starts from the ratio of their medians, which no spot can move, and
+# is then the sum of the means over the sum of the variances, with pairs far
+# off the model (a spot, an edge) left out in a few rounds. The draw is then
+# Poisson(value * g) / g. Where more than one value in a hundred is below zero
+# (a dark frame subtracted), counts are not the model: the noise is then
+# normal, with the spread measured the same way. One pass over a fixed number of pairs, so the
+# cost does not grow with the frame; summed in order and rounded to four
+# digits, so the viewer finds the same g.
 # ---------------------------------------------------------------------------
 
 NOISE_NORMAL_FROM = 30
 NOISE_SEED_SAMPLES = 64
+NOISE_SCALE_PAIRS = 65536
+# Fewer usable pairs than this: too few to measure, so the values are taken
+# as counts.
+NOISE_SCALE_MIN_PAIRS = 16
+# A pair is left out when its variance is over this many times the model's:
+# the difference is then more than five standard deviations.
+NOISE_SCALE_CLIP = 25.0
+NOISE_SCALE_ROUNDS = 3
+# Pairs brighter than this many times the median are left out of the sums.
+NOISE_SCALE_BRIGHT = 10.0
+# More values below zero than this share: not counts (see noise_scale).
+NOISE_NEGATIVE_SHARE = 0.01
+CHI2_1_MEDIAN = 0.454936423119572
 _U32 = np.uint32
 
 
@@ -551,6 +579,81 @@ def _poisson(lam: np.ndarray, seed: int, index: np.ndarray) -> np.ndarray:
     return out
 
 
+def _round4(x: float) -> float:
+    return float(f"{x:.4g}")
+
+
+def _sum(x: np.ndarray) -> float:
+    """The sum in order, as the viewer adds."""
+    return float(np.cumsum(x)[-1]) if x.size else 0.0
+
+
+def _median(x: np.ndarray) -> float:
+    return float(np.median(x)) if x.size else 0.0
+
+
+def noise_scale(raw: np.ndarray, holes: np.ndarray) -> tuple[str, float]:
+    """How the noise of a frame is drawn: ``("counts", g)``, the values times
+    ``g`` being counts (1 for whole numbers; infinite for a frame with no
+    noise to measure), or ``("normal", sigma)``, for a frame with values below
+    zero, which counts never have. ``holes`` are the pixels not measured."""
+    values = np.asarray(raw, dtype=np.float32).astype(np.float64).ravel()
+    holes = np.asarray(holes, dtype=bool).ravel()
+    n = values.size
+    if n < 2:
+        return ("counts", 1.0)
+    total = n - 1
+    samples = min(NOISE_SCALE_PAIRS, total)
+    k = np.arange(samples, dtype=np.int64)
+    first = (k * (total - 1)) // (samples - 1) if samples > 1 else np.zeros(1, dtype=np.int64)
+    a = values[first]
+    b = values[first + 1]
+    use = ~holes[first] & ~holes[first + 1] & np.isfinite(a) & np.isfinite(b)
+    a = a[use]
+    b = b[use]
+    if a.size < NOISE_SCALE_MIN_PAIRS or (np.all(a == np.floor(a)) and np.all(b == np.floor(b))):
+        return ("counts", 1.0)
+    mean = (a + b) / 2
+    var = (a - b) * (a - b) / 2
+    if np.count_nonzero(np.minimum(a, b) < 0) > a.size * NOISE_NEGATIVE_SHARE:
+        # Counts are never below zero: a dark frame subtracted, or an offset.
+        level = _sum(var) / a.size
+        if level <= 0:
+            return ("counts", float("inf"))
+        for _ in range(NOISE_SCALE_ROUNDS):
+            keep = var <= NOISE_SCALE_CLIP * level
+            level = _sum(var[keep]) / int(np.count_nonzero(keep))
+        return ("normal", _round4(np.sqrt(level)))
+    # A start no spot can move: the medians, the variance's over the median
+    # of a chi-square of one degree; then the sums, the outliers left out.
+    mid_var = _median(var) / CHI2_1_MEDIAN
+    mid_mean = _median(mean)
+    if mid_var > 0 and mid_mean > 0:
+        gain = mid_mean / mid_var
+    elif _sum(var) > 0 and _sum(mean) > 0:
+        gain = _sum(mean) / _sum(var)
+    else:
+        return ("counts", float("inf"))
+    # g is the same everywhere, so the bulk measures it: a few pairs on bright
+    # spots would otherwise outweigh the rest in the sums.
+    bulk = mean <= NOISE_SCALE_BRIGHT * mid_mean if mid_mean > 0 else np.ones(mean.shape, bool)
+    for _ in range(NOISE_SCALE_ROUNDS):
+        keep = bulk & (var <= NOISE_SCALE_CLIP * np.maximum(mean, 0) / gain)
+        kept_mean = _sum(mean[keep])
+        kept_var = _sum(var[keep])
+        if kept_mean <= 0 or kept_var <= 0:
+            break
+        gain = kept_mean / kept_var
+    return ("counts", _round4(gain))
+
+
+def _normal(sigma: float, seed: int, index: np.ndarray) -> np.ndarray:
+    """Normal noise of spread ``sigma`` per pixel ``index``."""
+    u1 = _uniform(seed, index, 0)
+    u2 = _uniform(seed, index, 1)
+    return sigma * np.sqrt(-2 * np.log(u1)) * np.cos(2 * np.pi * u2)
+
+
 def add_noise(
     filled: np.ndarray,
     index: np.ndarray,
@@ -559,15 +662,31 @@ def add_noise(
     scale: str = "counts",
 ) -> np.ndarray:
     """The values ``filled`` at the flat pixel ``index``es of a frame, with
-    Poisson noise. ``raw`` is the frame as read, for the seed; ``flat`` the
-    Flat it was divided by, if any, on ``scale``. As the viewer, the values
-    are taken as float32, which is how it holds them."""
+    Poisson noise. ``raw`` is the frame as read, for the seed and the scale of
+    its counts (noise_scale); ``flat`` the Flat it was divided by, if any, on
+    ``scale``. As the viewer, the values are taken as float32, which is how it
+    holds them."""
     seed = noise_seed(raw)
+    index = np.asarray(index)
+    holes = np.zeros(np.asarray(raw).size, dtype=bool)
+    holes[index[index < holes.size]] = True
+    kind, size = noise_scale(raw, holes)
     values = np.asarray(filled, dtype=np.float32).astype(np.float64)
     if flat is None:
-        return _poisson(values, seed, index)
-    factor = 1.0 if scale == "transmission" else flat.mean
-    flat_data = np.asarray(flat.data, dtype=np.float32).astype(np.float64).ravel()[index]
-    divisor = np.where(flat.holes.ravel()[index], flat.mean, flat_data)
-    counts = _poisson(values * divisor / factor, seed, index)
-    return counts / divisor * factor
+        factor = 1.0
+        divisor = np.ones(values.shape)
+    else:
+        factor = 1.0 if scale == "transmission" else flat.mean
+        flat_data = np.asarray(flat.data, dtype=np.float32).astype(np.float64).ravel()[index]
+        divisor = np.where(flat.holes.ravel()[index], flat.mean, flat_data)
+    # The values in the frame's own units, before any flat.
+    measured = values * divisor / factor
+    if kind == "normal":
+        noisy = measured + _normal(size, seed, index)
+    elif not np.isfinite(size):
+        noisy = measured
+    elif size == 1.0:
+        noisy = _poisson(measured, seed, index)
+    else:
+        noisy = _poisson(measured * size, seed, index) / size
+    return noisy / divisor * factor

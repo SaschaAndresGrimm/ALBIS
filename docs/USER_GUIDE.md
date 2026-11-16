@@ -908,6 +908,12 @@ streak across, and where a horizontal and a vertical gap cross, both are used.
   Poisson-distributed one, so the gap is as noisy as the measured pixels
   around it. After flatfield correction the noise is drawn in raw counts and
   corrected again, so it has the size it would have had in the measurement.
+  An image of fractions rather than counts, such as a projection normalised
+  or corrected by another program, is taken as counts times a factor, which
+  ALBIS measures from how much neighbouring pixels differ; the noise is drawn
+  in counts and scaled back, so it matches the measured pixels there too. In
+  an image with values below zero, such as one with a dark image subtracted,
+  the noise is normal, with the spread of the measured pixels.
   The same frame always gets the same noise, in the image and in exports, and
   each frame of a series different noise. The noise is invented, not
   measured: it is off by default, and exported files say it was added.
