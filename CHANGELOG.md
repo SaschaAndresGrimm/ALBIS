@@ -17,6 +17,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - **The Data Source tag shows the mode, "File", without the file's name.** The name is already in the header, the **Image File** field and the **File Inspector**. For SIMPLON, JUNGFRAUJOCH and a remote stream the tag still shows its state, such as "Live".
 
+- **Tooltips are always on, and only where they help; the "Enable tool hints" setting is gone.** Most of the old hints, off by default, repeated the control's own label, such as "Operation" over the Operation dropdown, and covered it. Now an icon-only button shows its name, with its keyboard shortcut as a key (◀ shows "Previous frame ←"). A greyed-out control always says why it is unavailable, where before that needed the setting switched on. Buttons with words, labelled fields and checkboxes show nothing. The tooltip sits under its control and comes after half a second, then at once as you move along the toolbar; keyboard focus shows it too. The old hints that said more became "?" buttons: the mouse controls on the image (View, beside the zoom) and on the ROI plots, the BG/FG pixel counts in the ROI statistics, and the SIMPLON address format. A config file that still sets `ui.tool_hints` keeps loading; the key is ignored.
+
 ## [0.45.0] - 2026-11-13
 
 ### Added

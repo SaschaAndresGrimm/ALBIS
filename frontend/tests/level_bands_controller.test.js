@@ -116,3 +116,31 @@ describe("level bands", () => {
     expect(roiState.levelBands).toBeNull();
   });
 });
+
+describe("the level bands' labels", () => {
+  it("keep the ? beside Below BG when they show the levels", () => {
+    // The label is wrapped with its "?" in a .field-label-row; writing the
+    // row's first span wiped the button.
+    const { controller } = setup();
+    const row = document.getElementById("below").closest(".meta-row");
+    row.innerHTML =
+      '<span class="field-label-row"><span data-i18n="analysis.roi.stats.below_bg">Below BG</span>' +
+      '<button type="button" class="info-tip" data-info-key="info.roi.level_bands"></button></span>' +
+      '<strong id="below"></strong>';
+    // A fresh controller, so it finds the new label.
+    const fresh = createLevelBandsController({
+      state: { hasFrame: true, min: 3, max: 8, dtype: "uint16", dataRaw: { length: 10 } },
+      roiState: {},
+      elements: {
+        below: document.getElementById("below"),
+        between: document.getElementById("between"),
+        above: document.getElementById("above"),
+      },
+      callbacks: { getWholeFrameSample: () => buildLevelSample(Uint16Array.from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])), wholeFrameKey: () => [1] },
+    });
+    controller.clear?.();
+    fresh.showWholeFrame();
+    expect(row.querySelector(".info-tip")).not.toBeNull();
+    expect(row.querySelector("span[data-i18n]").textContent).toMatch(/^Below BG 3/);
+  });
+});

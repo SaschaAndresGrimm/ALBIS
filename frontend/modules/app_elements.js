@@ -467,7 +467,6 @@ export function queryAppElements(doc = document) {
     settingsAutoCheckUpdates: byId("settings-auto-check-updates"),
     settingsAllowUpdateDownload: byId("settings-allow-update-download"),
     settingsAllowUpdateApply: byId("settings-allow-update-apply"),
-    settingsToolHints: byId("settings-tool-hints"),
     settingsDetectorControl: byId("settings-detector-control"),
     settingsPixelMask: byId("settings-pixel-mask"),
     settingsHiddenTools: byId("settings-hidden-tools"),

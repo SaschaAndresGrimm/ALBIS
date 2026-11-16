@@ -183,12 +183,10 @@ export function createThresholdPlaybackController({
           playBtn.textContent = t("backend.live.stop");
           playBtn.setAttribute("aria-label", t("toolbar.play.stop_live_aria"));
           playBtn.title = t("toolbar.play.stop_live_title");
-          playBtn.dataset.help = t("hint.frame.stop_live");
         } else {
           playBtn.textContent = t("backend.live.live");
           playBtn.setAttribute("aria-label", t("toolbar.play.go_live_aria"));
           playBtn.title = t("toolbar.play.go_live_title");
-          playBtn.dataset.help = t("hint.frame.go_live");
         }
       }
       if (prevBtn) prevBtn.disabled = liveHistoryLength <= 1 || currentIndex <= 0;
@@ -204,7 +202,6 @@ export function createThresholdPlaybackController({
       playBtn.dataset.icon = state.playing ? "pause" : "play";
       playBtn.setAttribute("aria-label", t("toolbar.play.toggle"));
       playBtn.title = "";
-      playBtn.dataset.help = t("hint.frame.play_pause");
     }
     if (prevBtn) prevBtn.disabled = disabled;
     if (nextBtn) nextBtn.disabled = disabled;

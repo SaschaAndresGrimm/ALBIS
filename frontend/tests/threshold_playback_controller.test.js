@@ -36,9 +36,6 @@ describe("threshold_playback_controller", () => {
         "toolbar.play.stop_live_aria": "Stop live",
         "toolbar.play.stop_live_title": "Stop live title",
         "toolbar.play.toggle": "Play or pause",
-        "hint.frame.go_live": "Go live hint",
-        "hint.frame.stop_live": "Stop live hint",
-        "hint.frame.play_pause": "Play hint",
       },
     });
     const i18n = await import("../modules/i18n.js");
@@ -108,7 +105,6 @@ describe("threshold_playback_controller", () => {
     expect(playBtn.disabled).toBe(false);
     expect(playBtn.getAttribute("aria-label")).toBe("Stop live");
     expect(playBtn.title).toBe("Stop live title");
-    expect(playBtn.dataset.help).toBe("Stop live hint");
     expect(prevBtn.disabled).toBe(false);
     expect(nextBtn.disabled).toBe(true);
 
@@ -121,7 +117,6 @@ describe("threshold_playback_controller", () => {
     expect(playBtn.disabled).toBe(false);
     expect(playBtn.getAttribute("aria-label")).toBe("Go live");
     expect(playBtn.title).toBe("Go live title");
-    expect(playBtn.dataset.help).toBe("Go live hint");
     expect(prevBtn.disabled).toBe(false);
     expect(nextBtn.disabled).toBe(false);
   });

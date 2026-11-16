@@ -128,8 +128,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - The command palette, its command list, its grouping, ranking and recent commands, and the one place that says whether a file command can run now (shared by the File menu, the palette and the shortcuts).
 - `frontend/modules/panel_layout_controller.js`, `frontend/modules/panel_tab_bindings.js`, `frontend/modules/ui_panels.js`, `frontend/modules/analysis_tools.js`:
   - Side-panel layout, sections and mobile drag; tab and section listeners; the remembered tab; which optional Analysis tools a user hides.
-- `frontend/modules/help_tooltips.js`, `frontend/modules/info_tips.js`:
-  - Hover hints (`ui.tool_hints`) and the "?" buttons that explain an option in place.
+- `frontend/modules/hover_tips.js`, `frontend/modules/hover_tip_utils.js`, `frontend/modules/info_tips.js`:
+  - The hover tooltip (a control's name and shortcut, or why it is unavailable) and the "?" buttons that explain an option in place.
 - `frontend/modules/settings_controller.js`, `frontend/modules/backend_status_controller.js`, `frontend/modules/backend_log_viewer_controller.js`, `frontend/modules/update_check_controller.js`:
   - The Settings dialog, the backend health and live badge, View Log, and the release check with what to do for each kind of install.
 

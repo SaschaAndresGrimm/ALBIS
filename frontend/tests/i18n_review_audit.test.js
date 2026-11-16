@@ -38,7 +38,6 @@ describe("i18n review audit", () => {
     expect(getTechnicalBucket("data_source.meta.energy_ev")).toBe("data_source.meta");
     expect(getTechnicalBucket("series.ui.operation.median")).toBe("series");
     expect(getTechnicalBucket("status.series.started")).toBe("status.series");
-    expect(getTechnicalBucket("hint.frame.threshold_channel")).toBe("hint.frame");
     expect(getTechnicalBucket("menu.file.open")).toBeNull();
   });
 

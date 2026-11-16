@@ -86,12 +86,6 @@ const GLOSSARY_EXCEPTIONS = [
     reason: "ROI annulaire / anulare / anular: the adjective of the glossary noun.",
   },
   {
-    term: "annulus",
-    key: "hint.roi.mode",
-    locales: ["ja", "zh-CN"],
-    reason: "A list of shape names (line, box, circle, annulus) where the short 環 / 环 sits next to 円 / 圆.",
-  },
-  {
     term: "detector_geometry",
     key: "detector.help.adv.geometry",
     locales: ["pt"],

@@ -120,7 +120,6 @@ function createUiPreferencesState() {
     updateStatus: "",
     updateLatestVersion: "",
     language: "en",
-    toolHintsEnabled: false,
     autoCheckUpdates: true,
     detectorControl: false,
     pixelMask: false,

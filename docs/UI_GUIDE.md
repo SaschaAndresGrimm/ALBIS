@@ -254,7 +254,26 @@ badge.
 - Menu items and dialog titles are Title Case, with short prepositions
   lowercase ("Open on Server Host").
 - Labels say what something is; hints say what happens or why something is
-  unavailable. Put shortcuts in the tooltip: "Magnifier (hold Z)".
+  unavailable.
+
+## Tooltips and help
+
+Four places, each for one kind of help ([decision 0010](decisions/0010-tooltips-name-controls.md)):
+
+| Need | Where | How |
+| --- | --- | --- |
+| What is this icon? | The hover tooltip (`hover_tips.js`), always on | `aria-label` on an icon-only button, or `title` (`data-i18n-title`). The shortcut goes in `aria-keyshortcuts` ("ArrowLeft", "M"), drawn as a keycap; not in the text. |
+| Why can't I use this? | The same tooltip, before anything else | `data-help-reason`, set through `control_availability.js`. |
+| What does this option mean? | A "?" beside its label (`info_tips.js`) | `<button class="info-tip" data-info-key="info.…">` in a `.field-label-row`. |
+| Units, limits, what happens | A hint under the field | `.field-hint` / `.settings-field-hint`. |
+
+- A tooltip never repeats what the control shows: a button with words, a
+  labelled field or a checkbox gets none. If a control needs a sentence to be
+  understood, that sentence is a "?" or a hint under it, where it can be read
+  without hovering and on a touch screen.
+- Keep a `title` short: a name, perhaps a qualifier ("Magnifier (hold Z)").
+- The Detector tab labels every control inline and opts out
+  (`data-no-hover-help`).
 
 ## Keyboard and accessibility
 
@@ -263,7 +282,7 @@ badge.
   own rule the same look; never `outline: none` without a replacement.
 - Every control has an accessible name: visible text, a `<label>`, or
   `aria-label` (with `data-i18n-aria-label`). A placeholder is not a name.
-- Icon-only buttons get a tooltip and an `aria-label` saying what they do.
+- Icon-only buttons get an `aria-label` saying what they do; the tooltip shows it.
 - Hidden inputs behind a styled control (switches, the Auto toggle) put the
   focus ring on the visible part (`:has(input:focus-visible)` or
   `input:focus-visible + span`).

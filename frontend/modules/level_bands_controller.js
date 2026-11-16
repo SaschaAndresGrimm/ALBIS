@@ -46,8 +46,12 @@ export function createLevelBandsController({ state, roiState, elements, callback
   // wholeFrameKey(): what the whole frame's sample depends on, as a list
   // compared part by part.
   const { getWholeFrameSample, wholeFrameKey } = callbacks;
-  // Each value's label: the span beside it in its row.
-  const labelOf = (el) => el?.closest(".meta-row")?.querySelector("span") || null;
+  // Each value's label: the translated span beside it in its row -- not the
+  // row's first span, which may wrap the label and its "?" button.
+  const labelOf = (el) => {
+    const row = el?.closest(".meta-row");
+    return row?.querySelector("span[data-i18n]") || row?.querySelector("span") || null;
+  };
   const labels = { below: labelOf(belowEl), between: labelOf(betweenEl), above: labelOf(aboveEl) };
   let source = null; // { sample } for an ROI, or "frame"
   let frameSample = null;

@@ -187,7 +187,7 @@
             </div>
             <button class="tool-btn tool-btn-compact pixel-values-btn is-active" id="pixel-label-toggle" type="button" aria-pressed="true" data-i18n-title="toolbar.pixel_values" data-i18n-aria-label="toolbar.pixel_values" title="Pixel values: the number in each pixel when zoomed in" aria-label="Pixel values: the number in each pixel when zoomed in">123</button>
             <button class="tool-btn tool-btn-compact" id="magnifier-toggle" type="button" aria-pressed="false" data-i18n-title="toolbar.magnifier" data-i18n-aria-label="toolbar.magnifier" title="Magnifier (hold Z)" aria-label="Magnifier (hold Z)">🔍</button>
-            <button class="tool-btn tool-btn-compact" id="fullscreen-toggle" data-i18n-aria-label="toolbar.fullscreen.enter" aria-label="Toggle full screen">⛶</button>
+            <button class="tool-btn tool-btn-compact" id="fullscreen-toggle" aria-keyshortcuts="F" data-i18n-aria-label="toolbar.fullscreen.enter" aria-label="Toggle full screen">⛶</button>
             <div class="toolbar-more" id="toolbar-more-wrap">
               <button
                 class="tool-btn toolbar-more-toggle"
@@ -327,9 +327,9 @@
             <div class="viewer-footer">
               <div class="toolbar-buttons">
                 <div class="toolbar-cluster toolbar-cluster-transport">
-                  <button class="tool-btn" id="btn-prev" data-i18n-aria-label="toolbar.frame.previous" aria-label="Previous frame">◀</button>
-                  <button class="tool-btn" id="btn-next" data-i18n-aria-label="toolbar.frame.next" aria-label="Next frame">▶</button>
-                  <button class="tool-btn" id="btn-play" data-icon="play" data-i18n-aria-label="toolbar.play.toggle" aria-label="Play">⏯</button>
+                  <button class="tool-btn" id="btn-prev" aria-keyshortcuts="ArrowLeft" data-i18n-aria-label="toolbar.frame.previous" aria-label="Previous frame">◀</button>
+                  <button class="tool-btn" id="btn-next" aria-keyshortcuts="ArrowRight" data-i18n-aria-label="toolbar.frame.next" aria-label="Next frame">▶</button>
+                  <button class="tool-btn" id="btn-play" data-icon="play" aria-keyshortcuts="Tab" data-i18n-aria-label="toolbar.play.toggle" aria-label="Play">⏯</button>
                 </div>
                   <div class="toolbar-cluster toolbar-cluster-frame">
                     <div class="toolbar-frame is-hidden" id="toolbar-frame-wrap">
@@ -455,7 +455,8 @@
             data-i18n-aria-label="panel.fab.aria.open_panel"
             aria-expanded="false"
             aria-controls="side-panel"
-            title="Open side menu (M)"
+            aria-keyshortcuts="M"
+            title="Open side menu"
             data-i18n-title="panel.fab.title.open_side_menu"
             data-i18n="panel.fab.open_menu"
           >
@@ -480,7 +481,7 @@
               data-i18n-aria-label="panel.fab.aria.collapse_panel"
               aria-controls="side-panel"
               aria-keyshortcuts="M"
-              title="Close side menu (M)"
+              title="Close side menu"
               data-i18n-title="panel.fab.title.close_side_menu"
             >
               ▸
@@ -500,6 +501,7 @@
                 <button id="reset-view" class="btn" data-i18n="view.fit_to_window">Fit to Window</button>
                 <input id="zoom-range" type="range" min="-5.64" max="5.64" step="any" value="0" aria-label="Zoom" data-i18n-aria-label="view.zoom" />
                 <input id="zoom-value" class="zoom-value-input" type="text" inputmode="decimal" value="1.0x" aria-label="Zoom factor" data-i18n-aria-label="view.zoom_factor" />
+                <button type="button" class="info-tip" data-info-key="info.canvas.controls" aria-label="More information" data-i18n-aria-label="info.button_label"></button>
               </div>
             </section>
 
@@ -689,7 +691,7 @@
               </label>
               <div class="autoload-group is-hidden" id="autoload-simplon">
                 <label class="field">
-                  <span data-i18n="data_source.field.base_url">Base URL</span>
+                  <span class="field-label-row"><span data-i18n="data_source.field.base_url">Base URL</span><button type="button" class="info-tip" data-info-key="info.simplon.url" aria-label="More information" data-i18n-aria-label="info.button_label"></button></span>
                   <div class="inline autoload-source-inline">
                     <input
                       id="simplon-url"
@@ -897,8 +899,8 @@
                 <label class="field">
                   <span data-i18n="geometry.label.pixel_size">Pixel size</span>
                   <div class="ring-center">
-                    <span class="geometry-axis" data-unit="µm"><span class="geometry-axis-label" aria-hidden="true" data-i18n="analysis.rings.placeholder.center_x">X</span><input id="geometry-pixel-x" type="number" min="0" step="0.1" placeholder="—" /></span>
-                    <span class="geometry-axis" data-unit="µm"><span class="geometry-axis-label" aria-hidden="true" data-i18n="analysis.rings.placeholder.center_y">Y</span><input id="geometry-pixel-y" type="number" min="0" step="0.1" placeholder="—" /></span>
+                    <span class="geometry-axis" data-unit="µm"><span class="geometry-axis-label" aria-hidden="true" data-i18n="analysis.rings.placeholder.center_x">X</span><input id="geometry-pixel-x" data-i18n-title="geometry.title.pixel_size_x" title="Pixel size along X (µm): horizontal, across the image&#39;s columns." type="number" min="0" step="0.1" placeholder="—" /></span>
+                    <span class="geometry-axis" data-unit="µm"><span class="geometry-axis-label" aria-hidden="true" data-i18n="analysis.rings.placeholder.center_y">Y</span><input id="geometry-pixel-y" data-i18n-title="geometry.title.pixel_size_y" title="Pixel size along Y (µm): vertical, across the image&#39;s rows." type="number" min="0" step="0.1" placeholder="—" /></span>
                   </div>
                   <div class="field-hint is-hidden" id="geometry-pixel-hint"></div>
                 </label>
@@ -910,8 +912,8 @@
                 <label class="field">
                   <span data-i18n="geometry.label.beam_center">Beam center</span>
                   <div class="ring-center">
-                    <span class="geometry-axis" data-unit="px"><span class="geometry-axis-label" aria-hidden="true" data-i18n="analysis.rings.placeholder.center_x">X</span><input id="geometry-center-x" type="number" step="0.1" placeholder="—" /></span>
-                    <span class="geometry-axis" data-unit="px"><span class="geometry-axis-label" aria-hidden="true" data-i18n="analysis.rings.placeholder.center_y">Y</span><input id="geometry-center-y" type="number" step="0.1" placeholder="—" /></span>
+                    <span class="geometry-axis" data-unit="px"><span class="geometry-axis-label" aria-hidden="true" data-i18n="analysis.rings.placeholder.center_x">X</span><input id="geometry-center-x" data-i18n-title="geometry.title.beam_center_x" title="Beam center X (px): the column where the direct beam hits the detector." type="number" step="0.1" placeholder="—" /></span>
+                    <span class="geometry-axis" data-unit="px"><span class="geometry-axis-label" aria-hidden="true" data-i18n="analysis.rings.placeholder.center_y">Y</span><input id="geometry-center-y" data-i18n-title="geometry.title.beam_center_y" title="Beam center Y (px): the row where the direct beam hits the detector." type="number" step="0.1" placeholder="—" /></span>
                   </div>
                   <div class="field-hint is-hidden" id="geometry-center-hint"></div>
                 </label>
@@ -1127,7 +1129,7 @@
                   <div class="meta-row"><span data-i18n="analysis.roi.stats.median">Median</span><strong id="roi-median">-</strong></div>
                   <div class="meta-row"><span data-i18n="analysis.roi.stats.mean">Mean</span><strong id="roi-mean">-</strong></div>
                   <div class="meta-row"><span data-i18n="analysis.roi.stats.std">Std</span><strong id="roi-std">-</strong></div>
-                  <div class="meta-row"><span data-i18n="analysis.roi.stats.below_bg">Below BG</span><strong id="roi-below-bg">-</strong></div>
+                  <div class="meta-row"><span class="field-label-row"><span data-i18n="analysis.roi.stats.below_bg">Below BG</span><button type="button" class="info-tip" data-info-key="info.roi.level_bands" aria-label="More information" data-i18n-aria-label="info.button_label"></button></span><strong id="roi-below-bg">-</strong></div>
                   <div class="meta-row"><span data-i18n="analysis.roi.stats.bg_to_fg">BG to FG</span><strong id="roi-bg-to-fg">-</strong></div>
                   <div class="meta-row"><span data-i18n="analysis.roi.stats.above_fg">Above FG</span><strong id="roi-above-fg">-</strong></div>
                 </div>
@@ -1140,6 +1142,7 @@
                 <button id="roi-export-csv" class="btn btn-secondary roi-export-btn" type="button" data-i18n="analysis.roi.export_csv">
                   Export CSV
                 </button>
+                <button type="button" class="info-tip" data-info-key="info.roi.plot_controls" aria-label="More information" data-i18n-aria-label="info.button_label"></button>
               </div>
               <div class="roi-plots">
                 <div class="roi-plot" id="roi-line-plot">
@@ -2262,7 +2265,7 @@
 
           <div class="settings-tabpage is-active" data-settings-tab="viewer" role="tabpanel"
                id="settings-tabpanel-viewer" aria-labelledby="settings-tab-viewer" tabindex="0">
-            <p class="settings-tabpage-hint" data-i18n="settings.section.viewer.description">Interaction hints, pixel labels, and frame memory.</p>
+            <p class="settings-tabpage-hint" data-i18n="settings.section.viewer.description">Pixel labels and frame memory.</p>
             <div class="settings-grid">
               <label class="field"><span data-i18n="settings.viewer.theme">Appearance</span>
                 <select id="settings-theme"><option value="dark" data-i18n="settings.viewer.theme.dark">Dark</option><option value="light" data-i18n="settings.viewer.theme.light">Light</option><option value="system" data-i18n="settings.viewer.theme.system">System</option></select></label>
@@ -2308,10 +2311,6 @@
               <label class="checkbox settings-check">
                 <input id="settings-pixel-label-drag" type="checkbox" />
                 <span data-i18n="settings.viewer.pixel_label_drag">Draw labels during pan/zoom</span>
-              </label>
-              <label class="checkbox settings-check settings-span-2">
-                <input id="settings-tool-hints" type="checkbox" />
-                <span data-i18n="settings.viewer.tool_hints">Enable tool hints</span>
               </label>
             </div>
           </div>

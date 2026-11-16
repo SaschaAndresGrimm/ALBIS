@@ -149,11 +149,6 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "tool_hints": {
-          "type": "boolean",
-          "default": false,
-          "description": "Enable additional tool-hint text in the UI."
-        },
         "auto_check_updates": {
           "type": "boolean",
           "default": true,
@@ -275,7 +270,6 @@
       "dir": ""
     },
     "ui": {
-      "tool_hints": false,
       "auto_check_updates": true,
       "allow_update_download": true,
       "allow_update_apply": false,

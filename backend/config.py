@@ -61,7 +61,6 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "dir": "",
     },
     "ui": {
-        "tool_hints": False,
         "auto_check_updates": True,
         "allow_update_download": True,
         "allow_update_apply": False,
@@ -114,7 +113,6 @@ _CONFIG_VALUE_TYPES: dict[tuple[str, str], tuple[type, ...]] = {
     ("data", "max_upload_mb"): (int, float, str),
     ("logging", "level"): (str,),
     ("logging", "dir"): (str,),
-    ("ui", "tool_hints"): (bool, int, float, str),
     ("ui", "auto_check_updates"): (bool, int, float, str),
     ("ui", "allow_update_download"): (bool, int, float, str),
     ("ui", "allow_update_apply"): (bool, int, float, str),
@@ -353,6 +351,11 @@ def _apply_legacy_config_compat(raw: dict[str, Any]) -> dict[str, Any]:
             migrated["server"] = server
         if isinstance(server, dict) and "port" not in server:
             server["port"] = legacy_port
+    # ui.tool_hints switched the old hover hints on; the tooltip that replaced
+    # them is always on. Dropped, so a config that still sets it keeps loading.
+    ui = migrated.get("ui")
+    if isinstance(ui, dict):
+        ui.pop("tool_hints", None)
     return migrated
 
 
@@ -451,7 +454,6 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
             "dir": get_str(merged, ("logging", "dir"), ""),
         },
         "ui": {
-            "tool_hints": get_bool(merged, ("ui", "tool_hints"), False),
             "auto_check_updates": get_bool(merged, ("ui", "auto_check_updates"), True),
             "allow_update_download": get_bool(merged, ("ui", "allow_update_download"), True),
             "allow_update_apply": get_bool(merged, ("ui", "allow_update_apply"), False),

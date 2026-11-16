@@ -77,7 +77,6 @@ async function mount(payload) {
       closeMenu: vi.fn(),
       openModal: vi.fn(),
       closeModal: vi.fn(),
-      setToolHintsEnabled: vi.fn(),
       applyLanguagePreference: vi.fn(),
     },
     core: {

@@ -97,6 +97,14 @@ def test_normalize_config_prefers_server_port_over_legacy_launcher_port() -> Non
     assert config["server"]["port"] == 8080
 
 
+def test_normalize_config_drops_retired_tool_hints() -> None:
+    # The setting is gone, but configs written before still carry it, and the
+    # strict key check would otherwise refuse the whole file.
+    config = normalize_config({"ui": {"tool_hints": True, "language": "de"}})
+    assert "tool_hints" not in config["ui"]
+    assert config["ui"]["language"] == "de"
+
+
 def test_resolve_log_dir_uses_relative_logging_dir(tmp_path: Path) -> None:
     config = normalize_config({"logging": {"dir": "./custom-logs"}})
     config_path = tmp_path / "albis.config.json"

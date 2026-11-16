@@ -38,20 +38,6 @@ const STATUS_BUCKETS = new Set([
   "upload",
 ]);
 
-const HINT_BUCKETS = new Set([
-  "autoload",
-  "frame",
-  "jfjoch",
-  "overlay",
-  "remote",
-  "rings",
-  "roi",
-  "series",
-  "simplon",
-  "toolbar",
-  "view",
-]);
-
 function normalizeText(value) {
   return String(value || "").replace(WHITESPACE_PATTERN, " ").trim();
 }
@@ -164,10 +150,6 @@ export function getTechnicalBucket(key) {
   if (normalizedKey.startsWith("status.")) {
     const second = normalizedKey.split(".")[1];
     return STATUS_BUCKETS.has(second) ? `status.${second}` : null;
-  }
-  if (normalizedKey.startsWith("hint.")) {
-    const second = normalizedKey.split(".")[1];
-    return HINT_BUCKETS.has(second) ? `hint.${second}` : null;
   }
   return null;
 }

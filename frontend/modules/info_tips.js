@@ -1,10 +1,10 @@
 /**
  * "?" buttons that explain an option where it is.
  *
- * The hover hints of help_tooltips.js are off by default (`ui.tool_hints`) and
- * describe what a control does in a line. Some options need more than that and
- * should not depend on a setting: what the series normalizations divide by, what
- * the masks hide. Those carry a small "?" (`.info-tip[data-info-key]`) that shows
+ * The hover tooltip (hover_tips.js) only names a control. What an option means
+ * needs more than a name: what the series normalizations divide by, what the
+ * masks hide, what the mouse does on the image. Those carry a small "?"
+ * (`.info-tip[data-info-key]`) that shows
  * the explanation on hover or keyboard focus, keeps it on a click or tap until
  * dismissed, and closes on Escape. It takes no room until asked.
  *

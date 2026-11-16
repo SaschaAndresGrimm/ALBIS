@@ -19,3 +19,4 @@ by the maintainer.
 | [0007](0007-windows-signing-azure-artifact-signing.md) | Windows releases are signed with Azure Artifact Signing |
 | [0008](0008-workspace-layout.md) | The workspace layout: docked side panel, one header, a timeline |
 | [0009](0009-light-and-dark-themes.md) | Light and dark themes: tokens with two values, the choice per browser, the image area dark in both |
+| [0010](0010-tooltips-name-controls.md) | Tooltips name a control and are always on; explanations go in a "?" |

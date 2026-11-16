@@ -49,7 +49,6 @@ export function createSettingsController({
     settingsAutoCheckUpdates,
     settingsAllowUpdateDownload,
     settingsAllowUpdateApply,
-    settingsToolHints,
     settingsDetectorControl,
     settingsPixelMask,
     settingsHiddenTools,
@@ -72,7 +71,6 @@ export function createSettingsController({
   } = elements;
 
   const {
-    setToolHintsEnabled,
     openModal,
     closeModal,
     closeMenu,
@@ -257,7 +255,6 @@ export function createSettingsController({
       "data.max_upload_mb": settingsMaxUpload,
       "logging.level": settingsLogLevel,
       "logging.dir": settingsLogDir,
-      "ui.tool_hints": settingsToolHints,
       "ui.detector_control": settingsDetectorControl,
       "ui.pixel_mask": settingsPixelMask,
       "ui.hidden_tools": settingsHiddenTools,
@@ -429,10 +426,6 @@ export function createSettingsController({
       // is not something a shared workstation should do unasked.
       settingsAllowUpdateApply.checked = Boolean(config?.ui?.allow_update_apply ?? false);
     }
-    if (settingsToolHints) {
-      const toolHints = config?.ui?.tool_hints;
-      settingsToolHints.checked = Boolean(toolHints ?? state.toolHintsEnabled);
-    }
     if (settingsDetectorControl) {
       settingsDetectorControl.checked = Boolean(config?.ui?.detector_control ?? state.detectorControl ?? false);
     }
@@ -540,7 +533,6 @@ export function createSettingsController({
       },
       ui: {
         ...(loadedConfig?.ui || {}),
-        tool_hints: Boolean(settingsToolHints?.checked),
         detector_control: Boolean(settingsDetectorControl?.checked),
         ...(settingsPixelMask ? { pixel_mask: Boolean(settingsPixelMask.checked) } : {}),
         ...(settingsHiddenTools ? { hidden_tools: collectHiddenTools() } : {}),
@@ -572,9 +564,6 @@ export function createSettingsController({
   function applyUiSettings(uiConfig, options = {}) {
     const { source = "config" } = options;
     const cfg = uiConfig && typeof uiConfig === "object" ? uiConfig : {};
-    if (typeof cfg.tool_hints !== "undefined") {
-      setToolHintsEnabled(Boolean(cfg.tool_hints));
-    }
     if (typeof cfg.auto_check_updates !== "undefined") {
       state.autoCheckUpdates = Boolean(cfg.auto_check_updates);
     }
@@ -666,9 +655,6 @@ export function createSettingsController({
       applyEnvOverrides(payload?.env_overrides);
       applyConfigLoadError(payload?.load_error, payload?.path);
       applyUiSettings(config?.ui, { source: "config" });
-      if (settingsToolHints) {
-        settingsToolHints.checked = Boolean(config?.ui?.tool_hints ?? state.toolHintsEnabled);
-      }
       updateExternalAccessUi();
       // Nothing to say until something happens: a standing "edit and save"
       // read as a status and hid the messages that are one.

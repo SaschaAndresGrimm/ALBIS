@@ -56,7 +56,6 @@ function renderSettingsShell() {
       <input id="settings-auto-check-updates" type="checkbox" />
       <input id="settings-allow-update-download" type="checkbox" />
       <input id="settings-allow-update-apply" type="checkbox" />
-      <input id="settings-tool-hints" type="checkbox" />
       <select id="settings-language"><option value="en">English</option></select>
       <input id="settings-pixel-label-min" type="number" />
       <input id="settings-pixel-label-max" type="number" />
@@ -143,7 +142,6 @@ async function initializeController({
   const { createSettingsController } = await import("../modules/settings_controller.js");
 
   const state = {
-      toolHintsEnabled: false,
       autoCheckUpdates: true,
       language: "en",
       pixelLabelMinCellPx: 18,
@@ -180,7 +178,6 @@ async function initializeController({
       settingsAutoCheckUpdates: document.getElementById("settings-auto-check-updates"),
       settingsAllowUpdateDownload: document.getElementById("settings-allow-update-download"),
       settingsAllowUpdateApply: document.getElementById("settings-allow-update-apply"),
-      settingsToolHints: document.getElementById("settings-tool-hints"),
       settingsLanguage: document.getElementById("settings-language"),
       settingsPixelLabelMin: document.getElementById("settings-pixel-label-min"),
       settingsPixelLabelMax: document.getElementById("settings-pixel-label-max"),
@@ -198,7 +195,6 @@ async function initializeController({
       settingsTheme: document.getElementById("settings-theme"),
     },
     callbacks: {
-      setToolHintsEnabled: vi.fn(),
       openModal: vi.fn(),
       closeModal: vi.fn(),
       closeMenu: vi.fn(),
@@ -234,7 +230,7 @@ describe("settings controller external access warning", () => {
         launcher: { startup_timeout_sec: 10, open_browser: true },
         data: { root: "", allow_abs_paths: true, scan_cache_sec: 2, max_scan_depth: -1, max_upload_mb: 0 },
         logging: { level: "INFO", dir: "" },
-        ui: { tool_hints: false, auto_check_updates: true, pixel_label_min_cell_px: 18, pixel_label_max_labels: 4000, pixel_label_format: "auto", pixel_label_show_during_drag: false, language: "en" },
+        ui: { auto_check_updates: true, pixel_label_min_cell_px: 18, pixel_label_max_labels: 4000, pixel_label_format: "auto", pixel_label_show_during_drag: false, language: "en" },
       },
     });
 
@@ -272,7 +268,7 @@ describe("settings controller external access warning", () => {
         launcher: { startup_timeout_sec: 10, open_browser: true },
         data: { root: "", allow_abs_paths: true, scan_cache_sec: 2, max_scan_depth: -1, max_upload_mb: 0 },
         logging: { level: "INFO", dir: "" },
-        ui: { tool_hints: false, auto_check_updates: true, pixel_label_min_cell_px: 18, pixel_label_max_labels: 4000, pixel_label_format: "auto", pixel_label_show_during_drag: false, language: "en" },
+        ui: { auto_check_updates: true, pixel_label_min_cell_px: 18, pixel_label_max_labels: 4000, pixel_label_format: "auto", pixel_label_show_during_drag: false, language: "en" },
       },
     });
 
@@ -302,7 +298,7 @@ describe("settings controller external access warning", () => {
         launcher: { startup_timeout_sec: 10, open_browser: true },
         data: { root: "", allow_abs_paths: true, scan_cache_sec: 2, max_scan_depth: -1, max_upload_mb: 0 },
         logging: { level: "INFO", dir: "" },
-        ui: { tool_hints: false, auto_check_updates: true, pixel_label_min_cell_px: 18, pixel_label_max_labels: 4000, pixel_label_format: "auto", pixel_label_show_during_drag: false, language: "en" },
+        ui: { auto_check_updates: true, pixel_label_min_cell_px: 18, pixel_label_max_labels: 4000, pixel_label_format: "auto", pixel_label_show_during_drag: false, language: "en" },
       },
     });
 
@@ -326,7 +322,6 @@ describe("settings controller external access warning", () => {
         data: { root: "", allow_abs_paths: true, scan_cache_sec: 2, max_scan_depth: -1, max_upload_mb: 0 },
         logging: { level: "INFO", dir: "" },
         ui: {
-          tool_hints: false,
           auto_check_updates: true,
           allow_update_download: true,
           allow_update_apply: false,
@@ -364,7 +359,7 @@ describe("settings controller external access warning", () => {
         launcher: { startup_timeout_sec: 10, open_browser: true },
         data: { root: "", allow_abs_paths: true, scan_cache_sec: 2, max_scan_depth: -1, max_upload_mb: 0 },
         logging: { level: "INFO", dir: "" },
-        ui: { tool_hints: false, auto_check_updates: true, language: "en" },
+        ui: { auto_check_updates: true, language: "en" },
       },
     });
 
@@ -401,7 +396,6 @@ describe("settings controller preserves config it has no form control for", () =
     data: { root: "", allow_abs_paths: true, scan_cache_sec: 2, max_scan_depth: -1, max_upload_mb: 0 },
     logging: { level: "INFO", dir: "" },
     ui: {
-      tool_hints: false,
       auto_check_updates: true,
       pixel_label_min_cell_px: 18,
       pixel_label_max_labels: 4000,
@@ -524,7 +518,7 @@ describe("settings controller fields added for reverse-proxy deployments", () =>
     data: { root: "", allow_abs_paths: true, scan_cache_sec: 2, max_scan_depth: -1, max_upload_mb: 0 },
     logging: { level: "INFO", dir: "" },
     ui: {
-      tool_hints: false, auto_check_updates: true, pixel_label_min_cell_px: 18,
+      auto_check_updates: true, pixel_label_min_cell_px: 18,
       pixel_label_max_labels: 4000, pixel_label_format: "auto",
       pixel_label_show_during_drag: false, language: "en",
     },
@@ -601,7 +595,7 @@ describe("settings controller tabs and the restart notice", () => {
     data: { root: "", allow_abs_paths: true, scan_cache_sec: 2, max_scan_depth: -1, max_upload_mb: 0 },
     logging: { level: "INFO", dir: "" },
     ui: {
-      tool_hints: false, auto_check_updates: true, pixel_label_min_cell_px: 18,
+      auto_check_updates: true, pixel_label_min_cell_px: 18,
       pixel_label_max_labels: 4000, pixel_label_format: "auto",
       pixel_label_show_during_drag: false, language: "en",
     },
@@ -959,7 +953,7 @@ describe("settings controller appearance", () => {
         launcher: { startup_timeout_sec: 10, open_browser: true },
         data: { root: "", allow_abs_paths: true, scan_cache_sec: 2, max_scan_depth: -1, max_upload_mb: 0 },
         logging: { level: "INFO", dir: "" },
-        ui: { tool_hints: false, auto_check_updates: true, pixel_label_min_cell_px: 18, pixel_label_max_labels: 4000, pixel_label_format: "auto", pixel_label_show_during_drag: false, language: "en" },
+        ui: { auto_check_updates: true, pixel_label_min_cell_px: 18, pixel_label_max_labels: 4000, pixel_label_format: "auto", pixel_label_show_during_drag: false, language: "en" },
       } });
     const select = document.getElementById("settings-theme");
     const root = document.documentElement;

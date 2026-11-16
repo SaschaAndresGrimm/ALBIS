@@ -30,7 +30,7 @@ import { setSectionBadgeState, setSummaryChip } from "./modules/section_badges.j
 import { applyPanelTab, loadStoredPanelTab } from "./modules/ui_panels.js";
 import { createFileBrowserController } from "./modules/file_browser.js";
 import { bindAnalysisControlInteractions } from "./modules/analysis_controls_bindings.js";
-import { createHelpTooltipController } from "./modules/help_tooltips.js";
+import { createHoverTips } from "./modules/hover_tips.js";
 import { createInfoTips } from "./modules/info_tips.js";
 import { finalizeRuntimeBootstrap, initializeUiDefaults } from "./modules/runtime_bootstrap.js";
 import { bindClientLogging } from "./modules/client_logging_bindings.js";
@@ -497,16 +497,8 @@ function formatPixelLabelValue(value, cellPx, mode = "auto") {
   return formatPixelLabelValueUtil(value, cellPx, mode, state.dtype);
 }
 
-const {
-  setToolHintsEnabled,
-  initHelpTooltips,
-  refreshHelpTooltips,
-} = createHelpTooltipController({
-  state,
-  platformShortcutLabel,
-  roiCanvases: [roiLineCanvas, roiXCanvas, roiYCanvas],
-});
-
+const hoverTips = createHoverTips();
+const initHelpTooltips = () => hoverTips.init();
 window.addEventListener("DOMContentLoaded", initHelpTooltips, { once: true });
 const infoTips = createInfoTips();
 
@@ -1083,7 +1075,7 @@ function refreshLocalizedUi() {
   pixelMaskController?.render();
   pixelMaskEditController?.localize();
   localizePlaybackOptionLabels();
-  refreshHelpTooltips();
+  hoverTips.refresh();
   updateRoiModeUI();
   core.roiInteraction.scheduleRoiUpdate();
   applyPanelState();
@@ -1207,7 +1199,7 @@ function updateFullscreenUi() {
     fullscreenToggle.textContent = active ? "🗗" : "⛶";
     const ariaLabel = active ? t("toolbar.fullscreen.exit") : t("toolbar.fullscreen.enter");
     fullscreenToggle.setAttribute("aria-label", ariaLabel);
-    fullscreenToggle.title = `${ariaLabel} (F)`;
+    fullscreenToggle.title = ariaLabel;
   }
   core.chromeToolbar?.syncToolbarMoreControls();
   syncOverlayAnchors();
@@ -1983,7 +1975,6 @@ const settingsController = createSettingsController({
     settingsTabs,
   },
   callbacks: {
-    setToolHintsEnabled,
     openModal: (...args) => openModal(...args),
     closeModal: (...args) => closeModal(...args),
     closeMenu,
