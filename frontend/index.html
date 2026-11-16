@@ -2049,21 +2049,7 @@
                 <span class="data-export-type-hint" id="data-export-data-type-hint" aria-live="polite"></span>
               </div>
             </label>
-            <label class="field data-export-span-2">
-              <span data-i18n="data_export.output_dir">Output folder</span>
-              <div class="inline data-export-output-row">
-                <input id="data-export-output-dir" type="text" />
-                <button id="data-export-output-browse" class="btn btn-secondary" type="button" data-i18n="series.ui.browse">Browse</button>
-              </div>
-            </label>
-            <label class="field">
-              <span data-i18n="data_export.prefix">File prefix</span>
-              <input id="data-export-prefix" type="text" />
-            </label>
-            <label class="checkbox data-export-overwrite">
-              <input id="data-export-overwrite" type="checkbox" />
-              <span data-i18n="data_export.overwrite">Overwrite existing files</span>
-            </label>
+            <div class="data-export-section-title data-export-span-2" data-i18n="data_export.section.corrections">Corrections</div>
             <div class="data-export-option">
               <label class="checkbox data-export-flatfield">
                 <input id="data-export-flatfield" type="checkbox" />
@@ -2078,6 +2064,23 @@
               </label>
               <button type="button" class="info-tip" id="data-export-inpaint-info" data-info-key="info.data_export.inpaint" aria-label="More information" data-i18n-aria-label="info.button_label"></button>
             </div>
+            <div class="data-export-section-title data-export-span-2" data-i18n="data_export.section.output">Output</div>
+            <label class="field data-export-span-2">
+              <span data-i18n="data_export.output_dir">Output folder</span>
+              <div class="inline data-export-output-row">
+                <input id="data-export-output-dir" type="text" />
+                <button id="data-export-output-browse" class="btn btn-secondary" type="button" data-i18n="series.ui.browse">Browse</button>
+              </div>
+            </label>
+            <label class="field data-export-span-2">
+              <span data-i18n="data_export.prefix">File prefix</span>
+              <input id="data-export-prefix" type="text" />
+              <span class="field-hint data-export-names" id="data-export-names"></span>
+            </label>
+            <label class="checkbox data-export-overwrite data-export-span-2">
+              <input id="data-export-overwrite" type="checkbox" />
+              <span data-i18n="data_export.overwrite">Overwrite existing files</span>
+            </label>
           </div>
           <div class="data-export-progress" id="data-export-progress">
             <div class="data-export-progress-fill" id="data-export-progress-fill"></div>

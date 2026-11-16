@@ -407,6 +407,7 @@ export function queryAppElements(doc = document) {
     dataExportProgress: byId("data-export-progress"),
     dataExportProgressFill: byId("data-export-progress-fill"),
     dataExportProgressText: byId("data-export-progress-text"),
+    dataExportNames: byId("data-export-names"),
     imageExportModal: byId("image-export-modal"),
     imageExportClose: byId("image-export-close"),
     imageExportSource: byId("image-export-source"),

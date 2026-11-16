@@ -46,7 +46,9 @@ const LINE_BASELINE = {
   // ring_list_controller.js builds from calibrant_data.js; -5 for the Presets
   // row it replaced (Ice rings is now a reference, Clear sits by Add ring).
   // +5 for the Find bad pixels "by value" row.
-  "frontend/index.html": 2619,
+  // +3 for Convert Dataset's Corrections and Output titles and the planned
+  // file names under its prefix.
+  "frontend/index.html": 2622,
 };
 
 // The only modules that call fetch() themselves: http.js, which every other

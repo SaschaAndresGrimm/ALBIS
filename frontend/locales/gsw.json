@@ -279,6 +279,8 @@
   "data_export.output_dir": "Uusgab-Ordner",
   "data_export.overwrite": "Bestehendi Dateie iberschriibe",
   "data_export.prefix": "Dateipräfix",
+  "data_export.section.corrections": "Korrekture",
+  "data_export.section.output": "Uusgab",
   "data_export.progress.idle": "Parat",
   "data_export.progress.live_failed": "Fählgschlage: {{reason}}",
   "data_export.progress.live_frame": "Bild {{n}} vo {{total}}",

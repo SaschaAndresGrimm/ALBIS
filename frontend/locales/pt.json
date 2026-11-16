@@ -279,6 +279,8 @@
   "data_export.output_dir": "Pasta de saída",
   "data_export.overwrite": "Sobrescrever arquivos existentes",
   "data_export.prefix": "Prefixo do arquivo",
+  "data_export.section.corrections": "Correções",
+  "data_export.section.output": "Saída",
   "data_export.progress.idle": "Inativo",
   "data_export.progress.live_failed": "Falhou: {{reason}}",
   "data_export.progress.live_frame": "Imagem {{n}} de {{total}}",

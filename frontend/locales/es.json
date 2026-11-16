@@ -279,6 +279,8 @@
   "data_export.output_dir": "Carpeta de salida",
   "data_export.overwrite": "Sobrescribir archivos existentes",
   "data_export.prefix": "Prefijo de archivo",
+  "data_export.section.corrections": "Correcciones",
+  "data_export.section.output": "Salida",
   "data_export.progress.idle": "Inactivo",
   "data_export.progress.live_failed": "Error: {{reason}}",
   "data_export.progress.live_frame": "Imagen {{n}} de {{total}}",

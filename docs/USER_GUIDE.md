@@ -611,7 +611,9 @@ thresholds gets one series per threshold (`series_190_thr2_00007.cbf`, template
 `series_190_thr2_?????.cbf`). A frame keeps its number: its place in the
 dataset, or the number in a source image's name. With **Overwrite existing
 files** off and files of that name already there, the whole export takes a new
-name (`series_190_2_…`) rather than numbering some files twice.
+name (`series_190_2_…`) rather than numbering some files twice. The names the
+files will get are shown under **File prefix** as you type it; a name too long
+for the dialog is shortened in the middle, so the number stays in sight.
 
 It works for a live source too — the SIMPLON monitor, a JUNGFRAUJOCH preview or
 the Remote Stream: choose **Current image** or **All images in the live

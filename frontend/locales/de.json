@@ -279,6 +279,8 @@
   "data_export.output_dir": "Ausgabeordner",
   "data_export.overwrite": "Vorhandene Dateien überschreiben",
   "data_export.prefix": "Dateipräfix",
+  "data_export.section.corrections": "Korrekturen",
+  "data_export.section.output": "Ausgabe",
   "data_export.progress.idle": "Bereit",
   "data_export.progress.live_failed": "Fehlgeschlagen: {{reason}}",
   "data_export.progress.live_frame": "Bild {{n}} von {{total}}",

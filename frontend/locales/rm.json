@@ -279,6 +279,8 @@
   "data_export.output_dir": "Ordinatur da sortida",
   "data_export.overwrite": "Surscriver datotecas existentas",
   "data_export.prefix": "Prefix da datoteca",
+  "data_export.section.corrections": "Correcturas",
+  "data_export.section.output": "Resultat",
   "data_export.progress.idle": "Inactiv",
   "data_export.progress.live_failed": "Betg reussì: {{reason}}",
   "data_export.progress.live_frame": "Maletg {{n}} da {{total}}",

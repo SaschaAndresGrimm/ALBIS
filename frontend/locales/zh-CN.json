@@ -279,6 +279,8 @@
   "data_export.output_dir": "输出文件夹",
   "data_export.overwrite": "覆盖现有文件",
   "data_export.prefix": "文件前缀",
+  "data_export.section.corrections": "校正",
+  "data_export.section.output": "输出",
   "data_export.progress.idle": "空闲",
   "data_export.progress.live_failed": "失败：{{reason}}",
   "data_export.progress.live_frame": "第 {{n}} 张，共 {{total}} 张",

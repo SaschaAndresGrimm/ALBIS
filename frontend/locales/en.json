@@ -279,6 +279,8 @@
   "data_export.output_dir": "Output folder",
   "data_export.overwrite": "Overwrite existing files",
   "data_export.prefix": "File prefix",
+  "data_export.section.corrections": "Corrections",
+  "data_export.section.output": "Output",
   "data_export.progress.idle": "Idle",
   "data_export.progress.live_failed": "Failed: {{reason}}",
   "data_export.progress.live_frame": "Image {{n}} of {{total}}",

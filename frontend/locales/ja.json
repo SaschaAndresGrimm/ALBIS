@@ -279,6 +279,8 @@
   "data_export.output_dir": "出力フォルダー",
   "data_export.overwrite": "既存ファイルを上書き",
   "data_export.prefix": "ファイル接頭辞",
+  "data_export.section.corrections": "補正",
+  "data_export.section.output": "出力",
   "data_export.progress.idle": "待機中",
   "data_export.progress.live_failed": "失敗しました: {{reason}}",
   "data_export.progress.live_frame": "{{total}} 枚中 {{n}} 枚目",

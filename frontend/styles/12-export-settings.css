@@ -71,6 +71,29 @@
   grid-column: 1 / -1;
 }
 
+/* What a group of fields is about (Corrections, Output), as the Combine
+   Frames panel titles its cards: small capitals, muted, a little space above
+   so a group reads as one. */
+.data-export-section-title {
+  margin: 4px 0 -4px;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* The names the files get, under the prefix that makes them: one line, cut
+   in the middle by field_text_fit.js so the frame number stays in sight. */
+.data-export-names {
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.data-export-names:empty {
+  display: none;
+}
+
 /* The include checkboxes, side by side, each with why it is unavailable. */
 .data-export-options {
   display: grid;

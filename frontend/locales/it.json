@@ -279,6 +279,8 @@
   "data_export.output_dir": "Cartella di output",
   "data_export.overwrite": "Sovrascrivi file esistenti",
   "data_export.prefix": "Prefisso file",
+  "data_export.section.corrections": "Correzioni",
+  "data_export.section.output": "Uscita",
   "data_export.progress.idle": "Inattivo",
   "data_export.progress.live_failed": "Non riuscito: {{reason}}",
   "data_export.progress.live_frame": "Immagine {{n}} di {{total}}",

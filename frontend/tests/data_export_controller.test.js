@@ -86,7 +86,7 @@ describe("data_export_controller", () => {
       <select id="dtype"><option value="auto">A</option><option value="uint16">16</option></select><span id="hint"></span>
       <select id="frames"><option value="all">All</option><option value="current">Current</option><option value="range">Range</option></select>
       <input id="start" value="1" /><input id="end" value="10" />
-      <input id="prefix" /><input id="flat" type="checkbox" /><span id="flat-label"></span>
+      <input id="prefix" /><span id="names"></span><label class="checkbox"><input id="flat" type="checkbox" /><span id="flat-label"></span></label>
       <div id="text"></div>`;
     const $ = (id) => document.getElementById(id);
     const state = makeState({ file: "/data/img_th2_01999.tif", frameCount: 2000, frameIndex: 1999, width: 1000, height: 1000 });
@@ -96,21 +96,26 @@ describe("data_export_controller", () => {
       elements: {
         dataExportSource: $("source"), dataExportFormat: $("format"), dataExportDataType: $("dtype"), dataExportDataTypeHint: $("hint"),
         dataExportFrameMode: $("frames"), dataExportRangeStart: $("start"), dataExportRangeEnd: $("end"),
-        dataExportPrefix: $("prefix"), dataExportFlatfield: $("flat"), dataExportFlatfieldLabel: $("flat-label"), dataExportProgressText: $("text"),
+        dataExportPrefix: $("prefix"), dataExportFlatfield: $("flat"), dataExportFlatfieldLabel: $("flat-label"), dataExportProgressText: $("text"), dataExportNames: $("names"),
       },
       callbacks: { isHdfFile, openModal: vi.fn(), closeModal: vi.fn(), setStatus: vi.fn() },
     });
     controller.openDialog();
     expect($("source").textContent).toBe("/data/img_th2_01999.tif · frame 2000 of 2000");
-    expect($("text").textContent).toBe("Writes 2000 TIFF files · Signed 32-bit · ≈ 8.0 GB · img_th2_?????.tiff");
+    expect($("text").textContent).toBe("Writes 2000 TIFF files · Signed 32-bit · ≈ 8.0 GB");
+    // The names, under the prefix that makes them.
+    expect($("names").textContent).toBe("img_th2_?????.tiff");
     $("dtype").value = "uint16";
     $("frames").value = "range";
     $("dtype").dispatchEvent(new Event("change"));
-    expect($("text").textContent).toBe("Writes 10 TIFF files · Unsigned 16-bit · ≈ 20.0 MB · img_th2_?????.tiff");
+    expect($("text").textContent).toBe("Writes 10 TIFF files · Unsigned 16-bit · ≈ 20.0 MB");
     $("format").value = "cbf";
     $("format").dispatchEvent(new Event("change"));
-    expect($("text").textContent).toBe("Writes 10 CBF files · Signed 32-bit · img_th2_?????.cbf");
-    expect($("flat-label").textContent).toBe(EN["data_export.flatfield_none"]);
+    expect($("text").textContent).toBe("Writes 10 CBF files · Signed 32-bit");
+    expect($("names").textContent).toBe("img_th2_?????.cbf");
+    // A short label; why it cannot be ticked is in its tooltip.
+    expect($("flat-label").textContent).toBe(EN["data_export.flatfield_label"]);
+    expect($("flat-label").closest("label").dataset.helpReason).toBe(EN["data_export.flatfield_none"]);
     expect($("flat").disabled).toBe(true);
     localStorage.clear();
   });
@@ -126,7 +131,7 @@ describe("data_export_controller", () => {
       <select id="format"><option value="tiff">TIFF</option><option value="cbf">CBF</option></select>
       <select id="dtype"><option value="auto">A</option></select><span id="hint"></span>
       <select id="frames"><option value="all">All</option></select>
-      <input id="prefix" /><input id="flat" type="checkbox" /><span id="flat-label"></span>
+      <input id="prefix" /><span id="names"></span><label class="checkbox"><input id="flat" type="checkbox" /><span id="flat-label"></span></label>
       <div id="text"></div>`;
     const $ = (id) => document.getElementById(id);
     const state = makeState({ file: "/data/proj_0438_corrected.tiff", frameCount: 1, width: 1000, height: 1000, dtype: "<f8" });
@@ -136,22 +141,22 @@ describe("data_export_controller", () => {
       elements: {
         dataExportSource: $("source"), dataExportFormat: $("format"), dataExportDataType: $("dtype"), dataExportDataTypeHint: $("hint"),
         dataExportFrameMode: $("frames"), dataExportPrefix: $("prefix"), dataExportFlatfield: $("flat"),
-        dataExportFlatfieldLabel: $("flat-label"), dataExportProgressText: $("text"),
+        dataExportFlatfieldLabel: $("flat-label"), dataExportProgressText: $("text"), dataExportNames: $("names"),
       },
       callbacks: { isHdfFile, openModal: vi.fn(), closeModal: vi.fn(), setStatus: vi.fn() },
     });
     controller.openDialog();
-    expect($("text").textContent).toBe("Writes 1 TIFF file · 64-bit floating point · ≈ 8.0 MB · proj_0438_corrected_?????.tiff");
+    expect($("text").textContent).toBe("Writes 1 TIFF file · 64-bit floating point · ≈ 8.0 MB");
     expect($("hint").textContent).toBe("");
     $("format").value = "cbf";
     $("format").dispatchEvent(new Event("change"));
-    expect($("text").textContent).toBe("Writes 1 CBF file · Signed 32-bit · proj_0438_corrected_?????.cbf");
+    expect($("text").textContent).toBe("Writes 1 CBF file · Signed 32-bit");
     expect($("hint").textContent).toBe(`${EN["data_export.data_type.hint_cbf"]} · ${EN["data_export.data_type.hint_cbf_rounded"]}`);
     expect($("hint").classList.contains("is-warning")).toBe(true);
   });
 
   it("names what Automatic writes, as the backend decides it", async () => {
-    const { autoExportType } = await import("../modules/data_export_controller.js");
+    const { autoExportType } = await import("../modules/data_export_type_utils.js");
     expect(autoExportType("<u4", false, "tiff")).toBe("signed32");
     expect(autoExportType("<u4", true, "tiff")).toBe("float32");
     expect(autoExportType("<f4", false, "tiff")).toBe("float32");
@@ -327,7 +332,7 @@ describe("data_export_controller, live sources", () => {
     expect(hint.textContent).toBe("");
     // In place of "Idle": what Start Export will do.
     expect(elements.dataExportProgressText.textContent).toBe(
-      "Writes 1 TIFF file · Signed 32-bit · ≈ 1 kB · simplon_monitor_s189_00009.tiff",
+      "Writes 1 TIFF file · Signed 32-bit · ≈ 1 kB",
     );
     // 16 bits for 32-bit data: what will be clipped, said before it is.
     select.value = "uint16";
@@ -414,7 +419,7 @@ describe("data_export_controller, live sources", () => {
   });
 
   it("reads the bits of a dtype", async () => {
-    const { mod } = await buildLive(liveState([entry(1, [0, 0, 0, 0])]));
+    const mod = await import("../modules/data_export_type_utils.js");
     expect(mod.dtypeBits("<u2")).toBe(16);
     expect(mod.dtypeBits("<i4")).toBe(32);
     expect(mod.dtypeBits("|u1")).toBe(8);

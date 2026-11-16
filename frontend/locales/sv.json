@@ -279,6 +279,8 @@
   "data_export.output_dir": "Utdatamapp",
   "data_export.overwrite": "Skriv över befintliga filer",
   "data_export.prefix": "Filprefix",
+  "data_export.section.corrections": "Korrigeringar",
+  "data_export.section.output": "Utdata",
   "data_export.progress.idle": "På tomgång",
   "data_export.progress.live_failed": "Misslyckades: {{reason}}",
   "data_export.progress.live_frame": "Bild {{n}} av {{total}}",

@@ -9,6 +9,9 @@ import { normalizeInpaintMargin, normalizeInpaintMethod, normalizeInpaintValue }
 import { formatBytes } from "./detector_control_utils.js";
 import { chooseNativePath } from "./native_picker.js";
 import { failureDetail } from "./http.js";
+import { setControlAvailability } from "./control_availability.js";
+import { autoExportType, dtypeBits, liveFrameDtype } from "./data_export_type_utils.js";
+import { fitMiddle, showEnd } from "./field_text_fit.js";
 
 function fileStem(path) {
   const normalized = String(path || "").replace(/\\/g, "/");
@@ -123,23 +126,6 @@ export function liveFrameName(prefix, entry, index) {
   return `${base}_${number(index + 1)}`;
 }
 
-const DTYPE_OF_ARRAY = new Map([
-  [Uint8Array, "<u1"],
-  [Uint16Array, "<u2"],
-  [Uint32Array, "<u4"],
-  [Int8Array, "<i1"],
-  [Int16Array, "<i2"],
-  [Int32Array, "<i4"],
-  [Float32Array, "<f4"],
-  [Float64Array, "<f8"],
-]);
-
-function liveFrameDtype(entry) {
-  const declared = String(entry?.dtype || "");
-  if (declared) return declared;
-  return DTYPE_OF_ARRAY.get(entry?.data?.constructor) || "";
-}
-
 // The data type asked for, remembered per browser: the software the files go
 // to stays the same from one export to the next. TIFF only; a CBF is signed.
 const DATA_TYPE_KEY = "albis.dataExport.dataType";
@@ -162,22 +148,6 @@ function writeDataType(value) {
   } catch {
     // A remembered preference only.
   }
-}
-
-// Bits per value of a dtype string: "<u4" -> 32, "<f8" -> 64.
-export function dtypeBits(dtype) {
-  const match = /^[<>|=]?[uif](\d+)$/.exec(String(dtype || ""));
-  return match ? Number(match[1]) * 8 : null;
-}
-
-// What "Automatic" writes, as the backend's auto_float_type decides it: a
-// CBF and an integer source signed 32-bit, a flatfielded TIFF float32, a
-// floating-point source its own float type, never rounded.
-export function autoExportType(dtype, flatfielded, format) {
-  if (String(format || "tiff").toLowerCase() === "cbf") return "signed32";
-  if (flatfielded) return "float32";
-  if (!/^[<>|=]?f\d+$/.test(String(dtype || ""))) return "signed32";
-  return dtypeBits(dtype) > 32 ? "float64" : "float32";
 }
 
 export function createDataExportController({
@@ -217,6 +187,7 @@ export function createDataExportController({
     dataExportProgress,
     dataExportProgressFill,
     dataExportProgressText,
+    dataExportNames,
   } = elements;
 
   const {
@@ -421,6 +392,7 @@ export function createDataExportController({
       // Whole on hover, where the bar cuts it short.
       dataExportProgressText.title = dataExportProgressText.textContent;
     }
+    fitMiddle(dataExportNames, ready ? plannedFiles().names : "");
     if (dataExportCancel) {
       dataExportCancel.classList.toggle("is-hidden", !running);
       dataExportCancel.disabled = !running || state.dataExport.cancelling || (!state.dataExport.jobId && !state.dataExport.live);
@@ -647,15 +619,15 @@ export function createDataExportController({
   }
 
   // In place of "Idle": what Start Export will do. "Writes 2000 TIFF files ·
-  // Unsigned 16-bit · ≈ 4.2 GB · img_th2_?????.tiff". A TIFF is
+  // Unsigned 16-bit · ≈ 4.2 GB"; the names are under the prefix. A TIFF is
   // uncompressed, so its size is known; a CBF's depends on the data.
   function exportSummary() {
-    const { count, names, pixels, ext } = plannedFiles();
+    const { count, pixels, ext } = plannedFiles();
     if (!count) return t("data_export.progress.idle");
     const type = dataTypeChoice();
     const perPixel = type === "uint16" ? 2 : type === "auto" && autoType() === "float64" ? 8 : 4;
     const size = ext === "tiff" && pixels > 0 ? `≈ ${formatBytes(count * pixels * perPixel)}` : "";
-    return [t("data_export.summary", { count, format: ext.toUpperCase() }), typeText(), size, names].filter(Boolean).join(" · ");
+    return [t("data_export.summary", { count, format: ext.toUpperCase() }), typeText(), size].filter(Boolean).join(" · ");
   }
 
   function idle() {
@@ -869,6 +841,7 @@ export function createDataExportController({
       const path = await chooseNativePath(apiBase, { kind: "folder", purpose: "export_output" });
       if (path && dataExportOutputDir) {
         dataExportOutputDir.value = path.replace(/[\\/]$/, "");
+        showEnd(dataExportOutputDir);
       }
     } catch (err) {
       console.error(err);
@@ -907,16 +880,12 @@ export function createDataExportController({
     if (dataExportFlatfield && !state.dataExport.running) {
       dataExportFlatfield.checked = Boolean(state.flatEnabled && flatFor(sourceShape()));
     }
-    // Short, with the flat in its "?"; unavailable, it says why: no flat
-    // yet, or one of another size.
+    // "Flatfield", with the flat in its "?"; unavailable, its tooltip says
+    // why (no flat yet, or one of another size), not a label that wraps.
     const flatName = String(state.flatPath || "").split(/[\\/]/).pop();
-    if (dataExportFlatfieldLabel) {
-      dataExportFlatfieldLabel.textContent = !flatName
-        ? t("data_export.flatfield_none")
-        : flatFor(sourceShape())
-          ? t("data_export.flatfield_label")
-          : t("data_export.flatfield_mismatch", { name: flatName });
-    }
+    const flatReason = !flatName ? t("data_export.flatfield_none") : flatFor(sourceShape()) ? "" : t("data_export.flatfield_mismatch", { name: flatName });
+    if (dataExportFlatfieldLabel) dataExportFlatfieldLabel.textContent = t("data_export.flatfield_label");
+    setControlAvailability(dataExportFlatfieldLabel?.closest("label"), flatReason);
     if (dataExportFlatfieldInfo) {
       dataExportFlatfieldInfo.dataset.infoDetail = flatName
         ? `${t("data_export.flatfield_named", { name: flatName })} · ${t(`flatfield.scale.${normalizeFlatScale(state.flatScale)}`)}`
@@ -939,6 +908,9 @@ export function createDataExportController({
     }
     updateUi();
     openModal(dataExportModal, { focusTarget: dataExportFormat });
+    // Laid out now: paths by their end, the names cut to the width.
+    [dataExportOutputDir, dataExportPrefix].forEach(showEnd);
+    fitMiddle(dataExportNames, plannedFiles().names);
   }
 
   function closeDialog() {
@@ -981,6 +953,7 @@ export function createDataExportController({
     element?.addEventListener("input", updateUi);
     element?.addEventListener("change", updateUi);
   });
+  [dataExportOutputDir, dataExportPrefix].forEach((input) => input?.addEventListener("change", () => showEnd(input)));
   dataExportOutputBrowse?.addEventListener("click", browseOutputDir);
   dataExportStart?.addEventListener("click", startExport);
   dataExportCancel?.addEventListener("click", cancelExport);

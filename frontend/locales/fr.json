@@ -279,6 +279,8 @@
   "data_export.output_dir": "Dossier de sortie",
   "data_export.overwrite": "Écraser les fichiers existants",
   "data_export.prefix": "Préfixe de fichier",
+  "data_export.section.corrections": "Corrections",
+  "data_export.section.output": "Sortie",
   "data_export.progress.idle": "Inactif",
   "data_export.progress.live_failed": "Échec : {{reason}}",
   "data_export.progress.live_frame": "Image {{n}} sur {{total}}",

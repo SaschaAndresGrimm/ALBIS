@@ -205,6 +205,10 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - The animated GIF export and a dependency-free GIF encoder.
 - `frontend/modules/data_export_controller.js`, `frontend/modules/csv_export_utils.js`:
   - The data-format (TIFF/CBF/HDF5) export workflow, and the one CSV shape every CSV export uses.
+- `frontend/modules/data_export_type_utils.js`:
+  - Convert Dataset's data types: a live frame's dtype, bits per value, and what "Automatic" writes (mirrors the backend's `auto_float_type`).
+- `frontend/modules/text_fit_utils.js`, `frontend/modules/field_text_fit.js`:
+  - Long paths and file names shown by their end: a name cut in its middle to fit, a text field scrolled to its end, the whole text in the tooltip.
 
 ## Backend Route Modules
 

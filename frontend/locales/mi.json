@@ -279,6 +279,8 @@
   "data_export.output_dir": "Kōpaki putanga",
   "data_export.overwrite": "Tuhirua i ngā kōnae tīariari",
   "data_export.prefix": "Kupu tīmatanga kōnae",
+  "data_export.section.corrections": "Ngā whakatika",
+  "data_export.section.output": "Putanga",
   "data_export.progress.idle": "Noho",
   "data_export.progress.live_failed": "I hapa: {{reason}}",
   "data_export.progress.live_frame": "Atahanga {{n}} o {{total}}",
