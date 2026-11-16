@@ -682,6 +682,32 @@ def test_flatfielded_export_divides_by_the_flat(tmp_path: Path) -> None:
     assert CbfImage().read(str(counts_cbf[0])).data[1, 0] == round(0.5 * mean)
 
 
+def test_a_float_source_stays_float_in_a_tiff(tmp_path: Path) -> None:
+    # A flatfield-corrected TIFF holds values around 1: rounding them to whole
+    # counts would leave mostly 0s and 1s.
+    corrected = np.array([[0.25, 1.5, 2.75], [np.nan, 0.125, 1.0]], dtype=np.float32)
+    source = tmp_path / "projection_corrected.tiff"
+    tifffile.imwrite(source, corrected)
+    client = _client()
+    base = {"file": str(source), "frame_mode": "all"}
+    out = _export(client, {**base, "format": "tiff", "output_dir": str(tmp_path / "t")})
+    image = tifffile.imread(out[0])
+    assert image.dtype == np.float32
+    np.testing.assert_array_equal(image[0], corrected[0])
+    assert image[1, 0] == -2  # not a number: a bad pixel, as for a flatfield
+    np.testing.assert_array_equal(image[1, 1:], corrected[1, 1:])
+
+    wide = tmp_path / "wide.tiff"
+    tifffile.imwrite(wide, np.array([[1 / 3, 2.5]], dtype=np.float64))
+    out = _export(client, {"file": str(wide), "format": "tiff", "output_dir": str(tmp_path / "w")})
+    image = tifffile.imread(out[0])
+    assert image.dtype == np.float64 and image[0, 0] == 1 / 3
+
+    # A CBF holds whole numbers: there the values are still rounded.
+    cbf = _export(client, {**base, "format": "cbf", "output_dir": str(tmp_path / "c")})
+    assert CbfImage().read(str(cbf[0])).data[0].tolist() == [0, 2, 3]
+
+
 def test_flatfield_refusals(tmp_path: Path) -> None:
     source, flat_path = _flat_source(tmp_path)
     client = _client()

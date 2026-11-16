@@ -583,6 +583,10 @@ screenshot of the whole window, the image in it as sharp as on screen.
 are signed integers using the common detector convention: module gaps are `-1`,
 bad or saturated pixels are `-2` — or, with **Inpaint** ticked, filled from
 their neighbours (see [Fill gaps and defective pixels](#fill-gaps-and-defective-pixels)).
+Data that is already floating point, such as an image corrected elsewhere, keeps
+its values in a TIFF: it is written as 32-bit floats (64-bit if it was 64-bit),
+with the same `-1` and `-2`. A CBF holds whole numbers only, so there it is
+rounded, and the dialog says so.
 
 <details>
 <summary><b>Unsigned data types</b></summary>

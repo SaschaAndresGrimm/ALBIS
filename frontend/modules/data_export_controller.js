@@ -170,6 +170,16 @@ export function dtypeBits(dtype) {
   return match ? Number(match[1]) * 8 : null;
 }
 
+// What "Automatic" writes, as the backend's auto_float_type decides it: a
+// CBF and an integer source signed 32-bit, a flatfielded TIFF float32, a
+// floating-point source its own float type, never rounded.
+export function autoExportType(dtype, flatfielded, format) {
+  if (String(format || "tiff").toLowerCase() === "cbf") return "signed32";
+  if (flatfielded) return "float32";
+  if (!/^[<>|=]?f\d+$/.test(String(dtype || ""))) return "signed32";
+  return dtypeBits(dtype) > 32 ? "float64" : "float32";
+}
+
 export function createDataExportController({
   apiBase,
   state,
@@ -563,6 +573,9 @@ export function createDataExportController({
     let warn = false;
     if (lock) {
       text = t(`data_export.data_type.hint_${lock}`);
+      // A float source loses its fractions in a CBF: say so beside it.
+      warn = lock === "cbf" && /^[<>|=]?f/.test(String(sourceDtype() || ""));
+      if (warn) text = `${text} · ${t("data_export.data_type.hint_cbf_rounded")}`;
       visible = text;
     } else {
       const type = dataTypeChoice();
@@ -597,9 +610,11 @@ export function createDataExportController({
   function typeText() {
     const type = dataTypeChoice();
     if (type !== "auto") return t(`data_export.data_type.${type}`);
-    const flat = flatfieldFields(sourceShape());
-    const float = flat.flatfield && String(dataExportFormat?.value || "tiff").toLowerCase() !== "cbf";
-    return t(float ? "data_export.data_type.float32" : "data_export.data_type.signed32");
+    return t(`data_export.data_type.${autoType()}`);
+  }
+
+  function autoType() {
+    return autoExportType(sourceDtype(), flatfieldFields(sourceShape()).flatfield, dataExportFormat?.value);
   }
 
   // How many files the export writes, and the names they get: the template a
@@ -637,7 +652,8 @@ export function createDataExportController({
   function exportSummary() {
     const { count, names, pixels, ext } = plannedFiles();
     if (!count) return t("data_export.progress.idle");
-    const perPixel = dataTypeChoice() === "uint16" ? 2 : 4;
+    const type = dataTypeChoice();
+    const perPixel = type === "uint16" ? 2 : type === "auto" && autoType() === "float64" ? 8 : 4;
     const size = ext === "tiff" && pixels > 0 ? `≈ ${formatBytes(count * pixels * perPixel)}` : "";
     return [t("data_export.summary", { count, format: ext.toUpperCase() }), typeText(), size, names].filter(Boolean).join(" · ");
   }

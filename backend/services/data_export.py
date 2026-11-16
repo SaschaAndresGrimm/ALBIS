@@ -20,7 +20,7 @@ from typing import Any
 import numpy as np
 from fastapi import HTTPException
 
-from .data_export_frames import UNSIGNED_TYPES, DataExportFrameMixin
+from .data_export_frames import UNSIGNED_TYPES, DataExportFrameMixin, auto_float_type
 from .data_export_live import DataExportLiveMixin
 from .data_export_metadata import DataExportMetadataMixin
 from .data_export_names import DataExportNamesMixin
@@ -466,8 +466,9 @@ class DataExportService(
             flat=flat,
             flatfield_scale=flatfield_scale,
             data_type=data_type,
-            # A corrected value is rarely a whole number: TIFF keeps it.
-            keep_float=flat is not None and output_format != "cbf",
+            # A corrected value is rarely a whole number, and a float source's
+            # values are not counts to round: TIFF keeps them.
+            keep_float=auto_float_type(np.asarray(arr).dtype, flat is not None, output_format),
         )
         if flat is not None:
             metadata = {

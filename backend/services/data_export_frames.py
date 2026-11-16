@@ -14,8 +14,26 @@ from .inpainting import add_noise, grow_holes
 from .inpainting import inpaint as inpaint_frame
 
 # The data types an export can be asked for besides "auto" (signed 32-bit
-# integers, or float32 for a flatfielded TIFF). TIFF only: a CBF is signed.
+# integers, or floating point for a flatfielded or float TIFF: see
+# auto_float_type). TIFF only: a CBF is signed.
 UNSIGNED_TYPES = ("uint16", "uint32")
+
+
+def auto_float_type(source: np.dtype, flatfielded: bool, output_format: str) -> type | None:
+    """The floating-point type "auto" writes, or None for signed integers.
+
+    A CBF holds whole numbers only. A flatfielded TIFF is float32; a frame
+    that already is floating point keeps its values and its width (float64
+    stays float64) instead of being rounded to whole counts.
+    """
+    if output_format == "cbf":
+        return None
+    if flatfielded:
+        return np.float32
+    if np.issubdtype(source, np.floating):
+        return np.float64 if np.dtype(source).itemsize > 4 else np.float32
+    return None
+
 
 if TYPE_CHECKING:
     from .data_export import DataExportDeps
@@ -75,7 +93,7 @@ class DataExportFrameMixin:
         inpaint_noise: bool = False,
         flat: Flat | None = None,
         flatfield_scale: str = "counts",
-        keep_float: bool = False,
+        keep_float: type | None = None,
         data_type: str = "auto",
     ) -> tuple[np.ndarray, int, int]:
         """The frame as written, how many of its pixels were inpainted, and how
@@ -88,7 +106,8 @@ class DataExportFrameMixin:
         fills them from their neighbours: "defects" fills the gaps, defective
         and uncorrectable pixels (by the mask, or a signed frame's own -1 and
         -2 without one), "saturated" the saturated pixels too. `keep_float`
-        writes the values as float32 (a flatfielded TIFF) instead of integers.
+        writes the values as that floating-point type (see `auto_float_type`)
+        instead of integers.
 
         `data_type` "uint16" or "uint32" writes unsigned integers instead, for
         software that wants exactly that. No -1 or -2 there: gaps, bad and
@@ -216,8 +235,8 @@ class DataExportFrameMixin:
             if cast_mask is not None and np.any(cast_mask):
                 output[cast_mask] = np.iinfo(output.dtype).max
             return output, filled, clipped
-        if keep_float:
-            output = np.where(np.isfinite(cast_source), cast_source, 0).astype(np.float32)
+        if keep_float is not None:
+            output = np.where(np.isfinite(cast_source), cast_source, 0).astype(keep_float)
         else:
             output = self._cast_frame_to_int(cast_source)
         if gap_mask is not None or bad_mask is not None:

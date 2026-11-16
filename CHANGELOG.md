@@ -9,6 +9,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- **Convert Dataset keeps a floating-point image's values when it writes a TIFF.** A float image, such as a projection already corrected by another program, was rounded to whole numbers and written as signed 32-bit integers, so values around 1 came out as mostly 0s and 1s, without a warning. With **Data type** on **Automatic**, the TIFF is now written as 32-bit floats (64-bit if the source is 64-bit), and the dialog's summary says so. A CBF holds whole numbers only, so there the values are still rounded; the dialog now warns about that before the export.
+
 - **The start screen no longer cuts off the DECTRIS wordmark in a tall or zoomed-out window.** With recent files listed, the picture's height kept growing with the window while its width stopped at 960 pixels, so the picture was cropped at its sides, the wordmark with it. It now keeps its proportions, and is never cropped whatever shape its space takes.
 
 - **The Data Source status no longer says "Choose an image source to begin." with a file open.** The status tag kept the start-up text as its translation, so any time the page's text was translated again (a language switch, among others) that text came back over the current one, while the tag stayed blue. Every section's tags now keep what they show, and the Data Source status follows a language switch.

@@ -115,6 +115,53 @@ describe("data_export_controller", () => {
     localStorage.clear();
   });
 
+  it("keeps a floating-point source float in a TIFF and warns that a CBF rounds it", async () => {
+    vi.resetModules();
+    global.fetch = vi.fn(async () => ({ ok: true, json: async () => EN }));
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createDataExportController } = await import("../modules/data_export_controller.js");
+    document.body.innerHTML = `
+      <div id="source"></div>
+      <select id="format"><option value="tiff">TIFF</option><option value="cbf">CBF</option></select>
+      <select id="dtype"><option value="auto">A</option></select><span id="hint"></span>
+      <select id="frames"><option value="all">All</option></select>
+      <input id="prefix" /><input id="flat" type="checkbox" /><span id="flat-label"></span>
+      <div id="text"></div>`;
+    const $ = (id) => document.getElementById(id);
+    const state = makeState({ file: "/data/proj_0438_corrected.tiff", frameCount: 1, width: 1000, height: 1000, dtype: "<f8" });
+    const controller = createDataExportController({
+      apiBase: "/api",
+      state,
+      elements: {
+        dataExportSource: $("source"), dataExportFormat: $("format"), dataExportDataType: $("dtype"), dataExportDataTypeHint: $("hint"),
+        dataExportFrameMode: $("frames"), dataExportPrefix: $("prefix"), dataExportFlatfield: $("flat"),
+        dataExportFlatfieldLabel: $("flat-label"), dataExportProgressText: $("text"),
+      },
+      callbacks: { isHdfFile, openModal: vi.fn(), closeModal: vi.fn(), setStatus: vi.fn() },
+    });
+    controller.openDialog();
+    expect($("text").textContent).toBe("Writes 1 TIFF file · 64-bit floating point · ≈ 8.0 MB · proj_0438_corrected_?????.tiff");
+    expect($("hint").textContent).toBe("");
+    $("format").value = "cbf";
+    $("format").dispatchEvent(new Event("change"));
+    expect($("text").textContent).toBe("Writes 1 CBF file · Signed 32-bit · proj_0438_corrected_?????.cbf");
+    expect($("hint").textContent).toBe(`${EN["data_export.data_type.hint_cbf"]} · ${EN["data_export.data_type.hint_cbf_rounded"]}`);
+    expect($("hint").classList.contains("is-warning")).toBe(true);
+  });
+
+  it("names what Automatic writes, as the backend decides it", async () => {
+    const { autoExportType } = await import("../modules/data_export_controller.js");
+    expect(autoExportType("<u4", false, "tiff")).toBe("signed32");
+    expect(autoExportType("<u4", true, "tiff")).toBe("float32");
+    expect(autoExportType("<f4", false, "tiff")).toBe("float32");
+    expect(autoExportType("<f2", false, "TIFF")).toBe("float32");
+    expect(autoExportType("<f8", false, "tiff")).toBe("float64");
+    expect(autoExportType("<f8", true, "tiff")).toBe("float32");
+    expect(autoExportType("<f4", false, "cbf")).toBe("signed32");
+    expect(autoExportType("", false, "tiff")).toBe("signed32");
+  });
+
   it("opens the dialog for an exportable source without a warning", async () => {
     const { controller, setStatus, openModal } = await build(
       makeState({ file: "/data/frame.cbf" })
