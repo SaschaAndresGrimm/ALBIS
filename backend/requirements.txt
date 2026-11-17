@@ -1,4 +1,4 @@
-fastapi==0.162.2
+fastapi==0.163.0
 # Pinned explicitly: fastapi allows starlette>=0.46.0 unbounded, and
 # backend/response_compression.py subclasses starlette's compression responder,
 # whose apply_compression hook became a coroutine in 1.6.
@@ -15,9 +15,9 @@ python-multipart==0.0.33
 hdf5plugin==7.1.0
 h5py==3.16.0
 numpy==2.5.4
-tifffile==2026.10.15
+tifffile==2026.11.12
 fabio==2026.6.0
-cbor2==6.2.1
+cbor2==6.3.0
 pyzmq==27.3.0
 dectris-compression==0.4.0
 zstandard==0.25.0
