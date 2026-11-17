@@ -229,3 +229,9 @@ def test_the_rosetta_check_gives_each_image_time_to_translate() -> None:
     assert int(match.group(2)) >= 60
     native = _release_jobs()["build_macos"]["steps"]
     assert not any("--decode-timeout" in str(step.get("run", "")) for step in native)
+
+
+def test_the_mounted_dmg_carries_the_albis_icon() -> None:
+    script = (REPO_ROOT / "scripts" / "build_styled_dmg.sh").read_text()
+    assert '--volicon "$VOLUME_ICON"' in script
+    assert (REPO_ROOT / "albis_assets" / "dmg_volume_icon.icns").is_file()

@@ -30,10 +30,13 @@ PYTHON_BIN="${PYTHON_BIN:-python3}"
 CREATE_DMG="$ROOT/scripts/vendor/create-dmg/create-dmg"
 BACKGROUND_1X="$BACKGROUND_DIR/dmg_background.png"
 BACKGROUND_2X="$BACKGROUND_DIR/dmg_background@2x.png"
+# The icon of the mounted volume (desktop, Finder sidebar). Without one,
+# macOS shows its generic drive.
+VOLUME_ICON="$ROOT/albis_assets/dmg_volume_icon.icns"
 
 [ -d "$APP_PATH" ] || { echo "[build_styled_dmg] Missing app bundle: $APP_PATH"; exit 1; }
 [ -x "$CREATE_DMG" ] || { echo "[build_styled_dmg] Missing vendored create-dmg: $CREATE_DMG"; exit 1; }
-for image in "$BACKGROUND_1X" "$BACKGROUND_2X"; do
+for image in "$BACKGROUND_1X" "$BACKGROUND_2X" "$VOLUME_ICON"; do
   [ -f "$image" ] || { echo "[build_styled_dmg] Missing $image (run scripts/generate_dmg_background.py)"; exit 1; }
 done
 command -v tiffutil >/dev/null 2>&1 || { echo "[build_styled_dmg] tiffutil not available (macOS only)."; exit 1; }
@@ -83,6 +86,7 @@ while [ "$attempt" -le "$MAX_ATTEMPTS" ]; do
     --hide-extension "$APP_NAME" \
     --app-drop-link "$DMG_APPLICATIONS_ICON_X" "$DMG_APPLICATIONS_ICON_Y" \
     --background "$BACKGROUND" \
+    --volicon "$VOLUME_ICON" \
     --no-internet-enable \
     --overwrite \
     "$OUTPUT_DMG" \

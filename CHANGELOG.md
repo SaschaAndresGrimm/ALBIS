@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **The mounted ALBIS disk image now shows the ALBIS icon.** Opening the macOS download used to put a generic grey drive on the desktop and in the Finder sidebar. It now shows the ALBIS icon on a silver drive, so the installer is easy to recognise and to eject.
+
 ## [0.45.1] - 2026-11-16
 
 ### Fixed
