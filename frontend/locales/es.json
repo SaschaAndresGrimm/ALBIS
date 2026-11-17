@@ -1551,6 +1551,7 @@
   "update_check.progress.downloading": "{{done}} de {{total}} descargados ({{percent}} %)",
   "update_check.progress.downloading_unsized": "{{done}} descargados",
   "update_check.progress.verifying": "Verificando la suma de comprobación...",
+  "update_check.reveal.failed": "No se pudo abrir la carpeta. El archivo está en {{path}}",
   "update_check.skip_startup": "No buscar actualizaciones al iniciar",
   "update_check.skip_startup.done": "La búsqueda de actualizaciones al iniciar está desactivada. Vuelva a activarla en Configuración → Conexión.",
   "update_check.skip_startup.failed": "No se pudo desactivar la búsqueda de actualizaciones al iniciar. {{reason}}",

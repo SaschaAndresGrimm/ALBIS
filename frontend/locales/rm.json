@@ -1551,6 +1551,7 @@
   "update_check.progress.downloading": "{{done}} da {{total}} telechargiads ({{percent}} %)",
   "update_check.progress.downloading_unsized": "{{done}} telechargiads",
   "update_check.progress.verifying": "Controllar la summa da controlla ...",
+  "update_check.reveal.failed": "Impussibel dad avrir l'ordinatur. La datoteca sa chatta en {{path}}",
   "update_check.skip_startup": "Betg controllar actualisaziuns al cumenzament",
   "update_check.skip_startup.done": "Il controll d'actualisaziuns al cumenzament è deactivà. Reactivar en Parameters → Connexiun.",
   "update_check.skip_startup.failed": "Il controll d'actualisaziuns al cumenzament n'ha betg pudì vegnir deactivà. {{reason}}",

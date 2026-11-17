@@ -56,6 +56,32 @@ def test_update_check_reports_download_support_from_the_setting(monkeypatch) -> 
     assert _client().get("/api/update-check").json()["download_supported"] is False
 
 
+def test_a_remote_server_leaves_the_download_to_the_browser(monkeypatch) -> None:
+    _reset(monkeypatch)
+    monkeypatch.setattr(update_check_service, "current_version", "0.9.3")
+    monkeypatch.setattr(update_check_service, "install_kind", INSTALL_KIND_MACOS_APP)
+    monkeypatch.setattr(update_check_service, "target_arch", "arm64")
+    monkeypatch.setattr(
+        update_check_service,
+        "_fetch_latest_release",
+        lambda: ReleaseMetadata(
+            "1.0.0",
+            "https://example.invalid/releases/v1.0.0",
+            (ReleaseAsset(name=ASSET_NAME, download_url=ASSET_URL),),
+        ),
+    )
+    monkeypatch.setattr(runtime_state, "bind_host", "0.0.0.0")
+
+    payload = _client().get("/api/update-check").json()
+    # The link is still offered; only the server-side fetch and the file
+    # manager are withdrawn, since the file would land on a disk the user
+    # cannot reach.
+    assert payload["download_url"] == ASSET_URL
+    assert payload["download_supported"] is False
+    assert payload["reveal_supported"] is False
+    assert _client().post("/api/update-download/reveal").status_code == 403
+
+
 def test_update_check_reports_no_download_support_without_a_matching_asset(monkeypatch) -> None:
     _reset(monkeypatch)
     monkeypatch.setattr(update_check_service, "current_version", "0.9.3")

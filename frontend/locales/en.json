@@ -1551,6 +1551,7 @@
   "update_check.progress.downloading": "Downloading {{done}} of {{total}} ({{percent}}%)",
   "update_check.progress.downloading_unsized": "Downloading {{done}}",
   "update_check.progress.verifying": "Verifying checksum...",
+  "update_check.reveal.failed": "The folder could not be opened. The file is at {{path}}",
   "update_check.skip_startup": "Don't check for updates at startup",
   "update_check.skip_startup.done": "Update check at startup is off. Turn it back on in Settings → Connection.",
   "update_check.skip_startup.failed": "Could not turn off the update check at startup. {{reason}}",

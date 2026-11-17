@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **Checking for updates on a remote ALBIS no longer offers "Show in Folder", and the download goes to your own computer.** When ALBIS runs on another machine and you open it in a browser, **Download Update** saved the file on that machine's disk and **Show in Folder** opened a file manager on its screen, where nobody could see it. Now the download goes through your browser, to your own computer, and the folder button appears only when ALBIS runs on the computer you are sitting at. If the folder cannot be opened there either (a machine without a desktop, say), ALBIS tells you where the file is.
+
 ### Changed
 
 - **The mounted ALBIS disk image now shows the ALBIS icon.** Opening the macOS download used to put a generic grey drive on the desktop and in the Finder sidebar. It now shows the ALBIS icon on a silver drive, so the installer is easy to recognise and to eject.

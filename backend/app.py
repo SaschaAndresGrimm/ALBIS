@@ -736,6 +736,8 @@ register_system_routes(
         check_update=_check_update,
         allow_update_download=_get_allow_update_download,
         update_download=update_download_service,
+        # Loopback bind: the user sits at this server's screen and file manager.
+        on_this_computer=lambda: is_loopback_host(strip_port(runtime_state.bind_host)),
         allow_update_apply=_get_allow_update_apply,
         update_apply=update_apply_service,
         install_kind=ALBIS_INSTALL_KIND,

@@ -1551,6 +1551,7 @@
   "update_check.progress.downloading": "{{done}} sur {{total}} téléchargés ({{percent}} %)",
   "update_check.progress.downloading_unsized": "{{done}} téléchargés",
   "update_check.progress.verifying": "Vérification de la somme de contrôle...",
+  "update_check.reveal.failed": "Le dossier n'a pas pu être ouvert. Le fichier se trouve dans {{path}}",
   "update_check.skip_startup": "Ne pas rechercher de mises à jour au démarrage",
   "update_check.skip_startup.done": "La recherche de mises à jour au démarrage est désactivée. Réactivez-la dans Paramètres → Connexion.",
   "update_check.skip_startup.failed": "Impossible de désactiver la recherche de mises à jour au démarrage. {{reason}}",

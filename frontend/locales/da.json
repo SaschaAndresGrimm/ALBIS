@@ -1551,6 +1551,7 @@
   "update_check.progress.downloading": "{{done}} af {{total}} hentet ({{percent}} %)",
   "update_check.progress.downloading_unsized": "{{done}} hentet",
   "update_check.progress.verifying": "Kontrollerer checksum ...",
+  "update_check.reveal.failed": "Mappen kunne ikke åbnes. Filen ligger her: {{path}}",
   "update_check.skip_startup": "Søg ikke efter opdateringer ved start",
   "update_check.skip_startup.done": "Søgning efter opdateringer ved start er slået fra. Slå den til igen i Indstillinger → Forbindelse.",
   "update_check.skip_startup.failed": "Søgning efter opdateringer ved start kunne ikke slås fra. {{reason}}",

@@ -1551,6 +1551,7 @@
   "update_check.progress.downloading": "{{done}} de {{total}} baixados ({{percent}} %)",
   "update_check.progress.downloading_unsized": "{{done}} baixados",
   "update_check.progress.verifying": "Verificando a soma de verificação...",
+  "update_check.reveal.failed": "Não foi possível abrir a pasta. O arquivo está em {{path}}",
   "update_check.skip_startup": "Não verificar atualizações ao iniciar",
   "update_check.skip_startup.done": "A verificação de atualizações ao iniciar está desligada. Volte a ligá-la em Configurações → Ligação.",
   "update_check.skip_startup.failed": "Não foi possível desligar a verificação de atualizações ao iniciar. {{reason}}",

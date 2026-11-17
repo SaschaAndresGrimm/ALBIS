@@ -54,6 +54,10 @@ class SystemRouteDeps:
     # a download after it had been switched off.
     allow_update_download: Callable[[], bool]
     update_download: UpdateDownloadService
+    # Whether the server runs on the user's own computer. Read per request: the
+    # bind address is fixed for a run, but the answer is not part of the cached
+    # release check.
+    on_this_computer: Callable[[], bool]
     allow_update_apply: Callable[[], bool]
     update_apply: UpdateApplyService
     install_kind: str
@@ -114,7 +118,10 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
         # There is nothing to download when no asset matched this install --
         # Docker and source checkouts update by command -- so the capability is
         # reported as the conjunction rather than as the setting alone.
-        supported = bool(response.download_url) and deps.allow_update_download()
+        # Nor does it help to fetch it onto a server the user is not sitting at:
+        # a remote session downloads through the browser, onto their own disk.
+        local = deps.on_this_computer()
+        supported = bool(response.download_url) and deps.allow_update_download() and local
         # "Could this build ever apply an update", not "is one ready": the
         # interface needs to know whether to show the step at all, and the
         # readiness of a particular download is the apply status endpoint's
@@ -129,7 +136,11 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
             "target_unknown",
         )
         return response.model_copy(
-            update={"download_supported": supported, "apply_supported": apply_supported}
+            update={
+                "download_supported": supported,
+                "apply_supported": apply_supported,
+                "reveal_supported": local,
+            }
         )
 
     def _download_status() -> UpdateDownloadStatusResponse:
@@ -207,6 +218,10 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
         update. The path comes from the service's own record of what it wrote,
         so no client-supplied path is ever opened.
         """
+        if not deps.on_this_computer():
+            raise HTTPException(
+                status_code=403, detail="The folder can only be shown on the server's own computer"
+            )
         ready = deps.update_download.ready_path()
         if ready is None:
             raise HTTPException(status_code=404, detail="No verified download available")

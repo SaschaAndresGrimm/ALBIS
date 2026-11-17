@@ -55,6 +55,10 @@ class UpdateCheckResponse(_StrictModel):
     # the setting and the launcher all allow it, so the interface knows
     # whether to offer the step at all.
     apply_supported: bool = False
+    # Whether "Show in Folder" means anything: only when the server runs on the
+    # user's own computer. On a shared or remote server the file manager would
+    # open on a screen nobody is at, and the download goes through the browser.
+    reveal_supported: bool = False
 
 
 class UpdateDownloadStartRequest(_StrictModel):

@@ -41,6 +41,7 @@ function updatePayload(overrides = {}) {
     download_name: ASSET_NAME,
     update_command: "",
     download_supported: true,
+    reveal_supported: true,
     ...overrides,
   };
 }
@@ -264,6 +265,26 @@ describe("in-app update download", () => {
     action()?.click();
     await vi.advanceTimersByTimeAsync(0);
     expect(posts.at(-1)).toEqual({ url: "reveal" });
+  });
+
+  it("offers no folder for a download that sits on a remote server", async () => {
+    // A leftover verified file on a server the user is not at: showing its
+    // folder would open a window on someone else's screen.
+    const { controller } = await initialize({
+      update: updatePayload({ reveal_supported: false, apply_supported: false }),
+      initialStatus: downloadPayload({
+        status: "ready",
+        name: ASSET_NAME,
+        path: `/Users/x/Downloads/${ASSET_NAME}`,
+        sha256: SHA256,
+        checksum: "verified",
+        signature: "verified",
+      }),
+    });
+
+    await controller.openAndCheck();
+    expect(action()?.hidden).toBe(true);
+    expect(verify()?.textContent).toContain(`/Users/x/Downloads/${ASSET_NAME}`);
   });
 
   it("reports a checksum mismatch and falls back to the release page", async () => {

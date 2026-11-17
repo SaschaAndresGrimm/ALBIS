@@ -91,6 +91,7 @@ def test_update_check_endpoint_reports_newer_release(monkeypatch) -> None:
         # platform ALBIS applies an update on.
         "download_supported": False,
         "apply_supported": False,
+        "reveal_supported": True,
     }
 
 

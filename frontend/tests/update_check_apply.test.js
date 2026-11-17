@@ -45,6 +45,7 @@ function updatePayload(overrides = {}) {
     update_command: "",
     download_supported: true,
     apply_supported: true,
+    reveal_supported: true,
     ...overrides,
   };
 }

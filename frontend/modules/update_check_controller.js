@@ -148,6 +148,7 @@ export function createUpdateCheckController({
       update_command: "",
       download_supported: false,
       apply_supported: false,
+      reveal_supported: false,
     };
   }
 
@@ -183,6 +184,7 @@ export function createUpdateCheckController({
       update_command: String(payload?.update_command || ""),
       download_supported: Boolean(payload?.download_supported),
       apply_supported: Boolean(payload?.apply_supported),
+      reveal_supported: Boolean(payload?.reveal_supported),
     };
   }
 
@@ -465,7 +467,7 @@ export function createUpdateCheckController({
   }
 
   /**
-   * Which of the four things the primary button is, this render.
+   * Which thing the primary button is, this render.
    *
    * Resolved once, here, and stored: the click handler reads the same answer
    * the label was written from, so the button can never do something other
@@ -479,7 +481,12 @@ export function createUpdateCheckController({
     const active = activeDownload();
     if (active) {
       if (RUNNING_DOWNLOAD_STATES.includes(active.status)) return "busy";
-      if (active.status === "ready") return canApply() ? "apply" : "reveal";
+      if (active.status === "ready") {
+        if (canApply()) return "apply";
+        // A file on a server's disk cannot be shown to someone elsewhere; the
+        // path stays in the dialog and there is nothing left to press.
+        return latestPayload.reveal_supported ? "reveal" : "none";
+      }
       // A failed or cancelled download leaves the release page as the way out,
       // and the user can start over from there.
       if (active.status === "failed") return "release_page";
@@ -495,7 +502,8 @@ export function createUpdateCheckController({
     primaryIntent = resolvePrimaryIntent();
 
     if (updateCheckAction) {
-      updateCheckAction.hidden = modalState === "loading" || primaryIntent === "busy";
+      updateCheckAction.hidden =
+        modalState === "loading" || primaryIntent === "busy" || primaryIntent === "none";
       if (primaryIntent === "download" || primaryIntent === "open_download_link") {
         updateCheckAction.textContent = t("update_check.action.download");
       } else if (primaryIntent === "apply") {
@@ -519,14 +527,14 @@ export function createUpdateCheckController({
     // The file is on disk either way, so the folder stays reachable while the
     // primary button offers the install instead.
     if (updateCheckReveal) {
-      updateCheckReveal.hidden = primaryIntent !== "apply";
+      updateCheckReveal.hidden = primaryIntent !== "apply" || !latestPayload.reveal_supported;
       updateCheckReveal.textContent = t("update_check.action.reveal");
     }
 
     // Only worth its own button when the primary one is not already the
     // release page, and not once ALBIS is on its way out.
     const showReleaseNotes =
-      ["download", "open_download_link", "reveal"].includes(primaryIntent) ||
+      ["download", "open_download_link", "reveal", "none"].includes(primaryIntent) ||
       (primaryIntent === "busy" && isDownloadRunning());
     if (updateCheckReleaseNotes) {
       updateCheckReleaseNotes.hidden = !showReleaseNotes;
@@ -751,7 +759,14 @@ export function createUpdateCheckController({
 
   async function revealDownload() {
     try {
-      await fetchJSONWithInit(`${apiBase}/update-download/reveal`, { method: "POST" });
+      const result = await fetchJSONWithInit(`${apiBase}/update-download/reveal`, {
+        method: "POST",
+      });
+      // The server accepted but no file manager opened (a headless machine, a
+      // tunnel to another one): say where the file is rather than nothing.
+      if (result && result.opened === false && result.path) {
+        notifyError(t("update_check.reveal.failed", { path: result.path }));
+      }
     } catch (err) {
       console.warn("Downloaded update could not be revealed", err);
       // Most likely the file was moved or deleted after it was downloaded, in

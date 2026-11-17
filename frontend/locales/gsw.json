@@ -1551,6 +1551,7 @@
   "update_check.progress.downloading": "{{done}} vo {{total}} glade ({{percent}} %)",
   "update_check.progress.downloading_unsized": "{{done}} glade",
   "update_check.progress.verifying": "Prüefsumme wird prüeft ...",
+  "update_check.reveal.failed": "Dr Ordner het nid chöne göffnet wärde. D Datei isch under {{path}}",
   "update_check.skip_startup": "Bim Start nöd nach Updates sueche",
   "update_check.skip_startup.done": "D Update-Suechi bim Start isch us. Wider iischalte under Iistellige → Verbindig.",
   "update_check.skip_startup.failed": "D Update-Suechi bim Start het nöd chöne usgschaltet werde. {{reason}}",

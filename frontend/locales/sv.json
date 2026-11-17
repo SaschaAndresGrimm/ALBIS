@@ -1551,6 +1551,7 @@
   "update_check.progress.downloading": "{{done}} av {{total}} hämtade ({{percent}} %)",
   "update_check.progress.downloading_unsized": "{{done}} hämtade",
   "update_check.progress.verifying": "Kontrollerar kontrollsumman ...",
+  "update_check.reveal.failed": "Mappen kunde inte öppnas. Filen finns i {{path}}",
   "update_check.skip_startup": "Sök inte efter uppdateringar vid start",
   "update_check.skip_startup.done": "Sökning efter uppdateringar vid start är av. Slå på den igen i Inställningar → Anslutning.",
   "update_check.skip_startup.failed": "Det gick inte att stänga av sökningen efter uppdateringar vid start. {{reason}}",
