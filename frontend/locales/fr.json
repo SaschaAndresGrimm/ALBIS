@@ -1510,6 +1510,8 @@
   "toolbar.viewer_sync.contrast": "Contraste",
   "toolbar.viewer_sync.disable": "Dissocier la position du visualiseur",
   "toolbar.viewer_sync.enable": "Lier la position du visualiseur",
+  "toolbar.viewer_sync.frame": "Image",
+  "toolbar.viewer_sync.frame_title": "Avancer et lire ensemble, en gardant l’écart en images",
   "toolbar.viewer_sync.options": "Options de synchronisation du visualiseur",
   "toolbar.viewer_sync.position": "Position",
   "toolbar.viewer_sync.roi": "ROI",

@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Linked windows can step and play through frames together.** The link menu in the header has a new **Frame** option. With it on, stepping with the arrow keys, the slider or the previous and next buttons in one window moves the other linked windows by the same number of frames, and **Play** in one window plays them all. The windows keep the gap in frames they had when you linked them, so frame 10 next to frame 12 stays two apart, for comparing a frame with the one after it or two series whose event starts at different frames. A window that loads its frames more slowly skips some to keep up rather than slowing the others down. **Stop** in any window stops them all. **Frame** is off until you tick it, because linked windows often show different data.
+
 ### Fixed
 
 - **Checking for updates on a remote ALBIS no longer offers "Show in Folder", and the download goes to your own computer.** When ALBIS runs on another machine and you open it in a browser, **Download Update** saved the file on that machine's disk and **Show in Folder** opened a file manager on its screen, where nobody could see it. Now the download goes through your browser, to your own computer, and the folder button appears only when ALBIS runs on the computer you are sitting at. If the folder cannot be opened there either (a machine without a desktop, say), ALBIS tells you where the file is.

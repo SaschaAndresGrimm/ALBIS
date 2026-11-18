@@ -1510,6 +1510,8 @@
   "toolbar.viewer_sync.contrast": "Contrast",
   "toolbar.viewer_sync.disable": "Decollar la posiziun dal visualisader",
   "toolbar.viewer_sync.enable": "Colliar la posiziun dal visualisader",
+  "toolbar.viewer_sync.frame": "Maletg",
+  "toolbar.viewer_sync.frame_title": "Sfegliar e reproducir ensemen, cun la medema distanza en maletgs",
   "toolbar.viewer_sync.options": "Opziuns da sincronisaziun dal visualisader",
   "toolbar.viewer_sync.position": "Posiziun",
   "toolbar.viewer_sync.roi": "ROI",

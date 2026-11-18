@@ -1510,6 +1510,8 @@
   "toolbar.viewer_sync.contrast": "Kontrast",
   "toolbar.viewer_sync.disable": "Ansichtsposition entkoppeln",
   "toolbar.viewer_sync.enable": "Ansichtsposition verknüpfen",
+  "toolbar.viewer_sync.frame": "Frame",
+  "toolbar.viewer_sync.frame_title": "Gemeinsam blättern und abspielen, mit gleichem Abstand in Frames",
   "toolbar.viewer_sync.options": "Optionen zur Ansichtssynchronisierung",
   "toolbar.viewer_sync.position": "Position",
   "toolbar.viewer_sync.roi": "ROI",

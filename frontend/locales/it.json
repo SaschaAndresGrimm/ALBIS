@@ -1510,6 +1510,8 @@
   "toolbar.viewer_sync.contrast": "Contrasto",
   "toolbar.viewer_sync.disable": "Scollega posizione visualizzatore",
   "toolbar.viewer_sync.enable": "Collega posizione visualizzatore",
+  "toolbar.viewer_sync.frame": "Frame",
+  "toolbar.viewer_sync.frame_title": "Scorrere e riprodurre insieme, mantenendo la distanza in frame",
   "toolbar.viewer_sync.options": "Opzioni sincronizzazione visualizzatore",
   "toolbar.viewer_sync.position": "Posizione",
   "toolbar.viewer_sync.roi": "ROI",

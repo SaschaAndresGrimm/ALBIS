@@ -178,6 +178,7 @@ function createViewerSyncState() {
     viewport: true,
     contrast: true,
     roi: true,
+    frame: false,
   };
 }
 

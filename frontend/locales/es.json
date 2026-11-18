@@ -1510,6 +1510,8 @@
   "toolbar.viewer_sync.contrast": "Contraste",
   "toolbar.viewer_sync.disable": "Desvincular posición del visor",
   "toolbar.viewer_sync.enable": "Vincular posición del visor",
+  "toolbar.viewer_sync.frame": "Fotograma",
+  "toolbar.viewer_sync.frame_title": "Avanzar y reproducir a la vez, manteniendo la distancia en fotogramas",
   "toolbar.viewer_sync.options": "Opciones de sincronización del visor",
   "toolbar.viewer_sync.position": "Posición",
   "toolbar.viewer_sync.roi": "ROI",

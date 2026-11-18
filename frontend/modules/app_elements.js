@@ -49,6 +49,7 @@ export function queryAppElements(doc = document) {
     viewerSyncPositionToggle: byId("viewer-sync-position"),
     viewerSyncContrastToggle: byId("viewer-sync-contrast"),
     viewerSyncRoiToggle: byId("viewer-sync-roi"),
+    viewerSyncFrameToggle: byId("viewer-sync-frame"),
     frameRange: byId("frame-range"),
     frameIndex: byId("frame-index"),
     frameStep: byId("frame-step"),

@@ -192,8 +192,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - What a click on an ROI plot's Manual axes tag does: back to auto axes, remembering the manual limits, and back again.
 - `frontend/modules/series_sum_controller.js`:
   - Analysis → Combine Frames, run as a background job.
-- `frontend/modules/viewer_sync_controller.js`, `frontend/modules/window_clone_state.js`:
-  - Linking viewport, contrast and ROI between windows, and what a duplicated window takes with it.
+- `frontend/modules/viewer_sync_controller.js`, `frontend/modules/viewer_sync_frame_utils.js`, `frontend/modules/window_clone_state.js`:
+  - Linking viewport, contrast, ROI and frame between windows (the frame offset arithmetic in the `_utils` module), and what a duplicated window takes with it.
 
 ### Exports
 

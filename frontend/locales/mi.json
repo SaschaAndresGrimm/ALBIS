@@ -1510,6 +1510,8 @@
   "toolbar.viewer_sync.contrast": "Pūrata",
   "toolbar.viewer_sync.disable": "Momotu tūnga kaitiro",
   "toolbar.viewer_sync.enable": "Hono tūnga kaitiro",
+  "toolbar.viewer_sync.frame": "Anga",
+  "toolbar.viewer_sync.frame_title": "Neke, pūrei tahi, me te pupuri i te āputa o ngā anga",
   "toolbar.viewer_sync.options": "Kōwhiringa tukutahi kaitiro",
   "toolbar.viewer_sync.position": "Tūnga",
   "toolbar.viewer_sync.roi": "ROI",

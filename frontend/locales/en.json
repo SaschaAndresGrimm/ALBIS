@@ -1510,6 +1510,8 @@
   "toolbar.viewer_sync.contrast": "Contrast",
   "toolbar.viewer_sync.disable": "Unlink viewer position",
   "toolbar.viewer_sync.enable": "Link viewer position",
+  "toolbar.viewer_sync.frame": "Frame",
+  "toolbar.viewer_sync.frame_title": "Step and play together, keeping the gap in frames",
   "toolbar.viewer_sync.options": "Viewer sync options",
   "toolbar.viewer_sync.position": "Position",
   "toolbar.viewer_sync.roi": "ROI",

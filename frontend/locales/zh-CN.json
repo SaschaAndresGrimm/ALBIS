@@ -1510,6 +1510,8 @@
   "toolbar.viewer_sync.contrast": "对比度",
   "toolbar.viewer_sync.disable": "取消链接查看器位置",
   "toolbar.viewer_sync.enable": "链接查看器位置",
+  "toolbar.viewer_sync.frame": "帧",
+  "toolbar.viewer_sync.frame_title": "同步逐帧和播放，保持帧间距",
   "toolbar.viewer_sync.options": "查看器同步选项",
   "toolbar.viewer_sync.position": "位置",
   "toolbar.viewer_sync.roi": "ROI",

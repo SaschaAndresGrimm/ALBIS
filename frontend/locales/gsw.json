@@ -1510,6 +1510,8 @@
   "toolbar.viewer_sync.contrast": "Kontrast",
   "toolbar.viewer_sync.disable": "Aazeigposition entkopple",
   "toolbar.viewer_sync.enable": "Aazeigposition verknüpfe",
+  "toolbar.viewer_sync.frame": "Bild",
+  "toolbar.viewer_sync.frame_title": "Zäme blättere und abspile, mit em glyche Abstand i Bilder",
   "toolbar.viewer_sync.options": "Optione für Aazeigsynchronisation",
   "toolbar.viewer_sync.position": "Position",
   "toolbar.viewer_sync.roi": "ROI",

@@ -1510,6 +1510,8 @@
   "toolbar.viewer_sync.contrast": "Kontrast",
   "toolbar.viewer_sync.disable": "Fjern link til visningsposition",
   "toolbar.viewer_sync.enable": "Link visningsposition",
+  "toolbar.viewer_sync.frame": "Ramme",
+  "toolbar.viewer_sync.frame_title": "Bladr og afspil sammen, med samme afstand i rammer",
   "toolbar.viewer_sync.options": "Indstillinger for visningssynk",
   "toolbar.viewer_sync.position": "Position",
   "toolbar.viewer_sync.roi": "ROI",

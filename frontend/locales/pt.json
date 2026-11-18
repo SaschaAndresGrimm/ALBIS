@@ -1510,6 +1510,8 @@
   "toolbar.viewer_sync.contrast": "Contraste",
   "toolbar.viewer_sync.disable": "Desvincular posição do visualizador",
   "toolbar.viewer_sync.enable": "Vincular posição do visualizador",
+  "toolbar.viewer_sync.frame": "Quadro",
+  "toolbar.viewer_sync.frame_title": "Avançar e reproduzir em conjunto, mantendo a distância em quadros",
   "toolbar.viewer_sync.options": "Opções de sincronização do visualizador",
   "toolbar.viewer_sync.position": "Posição",
   "toolbar.viewer_sync.roi": "ROI",

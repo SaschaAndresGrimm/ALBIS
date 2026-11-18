@@ -6,7 +6,7 @@ import { createTransientFrameLoadState } from "../modules/transient_frame_load_s
 // Mirrors the real wiring in app.js: a frame load takes `loadMs`, and an abort
 // settles it immediately without applying a frame, exactly as loadFrame() does
 // when its AbortController fires.
-function harness({ fps = 1, loadMs = 100, frameCount = 100 } = {}) {
+function harness({ fps = 1, loadMs = 100, frameCount = 100, viewerSync } = {}) {
   const state = {
     file: "frames.h5",
     dataset: "/entry/data/data",
@@ -58,6 +58,7 @@ function harness({ fps = 1, loadMs = 100, frameCount = 100 } = {}) {
       isFrameLoading: transient.isFrameLoading,
     },
     core: {
+      viewerSync,
       fileDataPipeline: {
         cancelActiveLoad() {
           cancels.push(state.frameIndex);
@@ -229,5 +230,110 @@ describe("interactive frame navigation", () => {
     vi.advanceTimersByTime(1000);
 
     expect(rendered.length).toBeGreaterThan(0);
+  });
+});
+
+describe("frame linking with other windows", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  function linked(options = {}) {
+    const sent = [];
+    const viewerSync = {
+      handleFrameChanged: (previousIndex, reason = "change") => sent.push({ previousIndex, reason }),
+    };
+    return { ...harness({ ...options, viewerSync }), sent };
+  }
+
+  it("tells linked windows about a frame stepped to here, with the frame before it", () => {
+    const { controller, sent } = linked({ loadMs: 10 });
+
+    controller.requestFrame(5);
+
+    expect(sent).toEqual([{ previousIndex: 0, reason: "change" }]);
+  });
+
+  it("does not send back a frame it went to because another window asked", () => {
+    // Sending it on would echo, and in a group of three move the third twice.
+    const { controller, sent, rendered } = linked({ loadMs: 10 });
+
+    controller.followFrame(7);
+    vi.advanceTimersByTime(100);
+
+    expect(rendered).toEqual([7]);
+    expect(sent).toEqual([]);
+  });
+
+  it("never cancels a load while following, and lands the newest frame", () => {
+    // Messages arrive faster than a frame loads; cancelling each time, as
+    // scrubbing does, would mean no frame ever lands.
+    const { controller, cancels, rendered, sent } = linked({ loadMs: 300 });
+
+    controller.followFrame(1, { playing: true });
+    for (let index = 2; index <= 10; index += 1) {
+      vi.advanceTimersByTime(40);
+      controller.followFrame(index, { playing: true });
+    }
+    vi.advanceTimersByTime(2000);
+
+    expect(cancels).toEqual([]);
+    // Frame 1 lands at 300 ms, when 8 is the newest asked for; 10 lands last.
+    // Everything in between is skipped.
+    expect(rendered).toEqual([1, 8, 10]);
+    expect(sent).toEqual([]);
+  });
+
+  it("counts as playing while following playback, without a timer of its own", () => {
+    const { state, controller } = linked({ loadMs: 10 });
+
+    controller.followFrame(3, { playing: true });
+
+    expect(state.playing).toBe(true);
+    vi.advanceTimersByTime(100);
+    // Only the frame load ran: no playback tick was armed here.
+    expect(vi.getTimerCount()).toBe(0);
+    expect(state.frameIndex).toBe(3);
+  });
+
+  it("stops quietly when the leading window stops", () => {
+    const { state, controller, sent } = linked({ loadMs: 10 });
+
+    controller.followFrame(3, { playing: true });
+    controller.followFrame(3, { playing: false });
+
+    expect(state.playing).toBe(false);
+    expect(sent).toEqual([]);
+  });
+
+  it("announces play and stop, so Stop in any window stops them all", () => {
+    const { controller, sent } = linked({ loadMs: 10 });
+
+    controller.followFrame(3, { playing: true });
+    controller.stopPlayback();
+    controller.startPlayback();
+
+    expect(sent.map((entry) => entry.reason)).toEqual(["stop", "play"]);
+  });
+
+  it("takes the lead from a window it was following when started here", () => {
+    const { state, controller, rendered } = linked({ fps: 10, loadMs: 10 });
+
+    controller.followFrame(3, { playing: false });
+    controller.startPlayback();
+    vi.advanceTimersByTime(1000);
+
+    expect(state.playing).toBe(true);
+    expect(rendered.length).toBeGreaterThan(3);
+  });
+
+  it("ignores another window's frame while showing a live source's history", () => {
+    const { state, controller, rendered } = linked({ loadMs: 10 });
+    state.autoload = { mode: "simplon", historyEntries: [{}, {}] };
+
+    controller.followFrame(4);
+    vi.advanceTimersByTime(100);
+
+    expect(rendered).toEqual([]);
   });
 });
