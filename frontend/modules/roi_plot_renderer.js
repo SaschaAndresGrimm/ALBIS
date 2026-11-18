@@ -3,11 +3,16 @@
  */
 
 import { canvasFont } from "./canvas_fonts.js";
+import { pickLinearTicks, pickLogTicks, pickMappedTicks } from "./plot_tick_utils.js";
 
 const D_AXIS_TITLE_FONT = canvasFont(10, 500);
 const D_AXIS_TICK_FONT = canvasFont(9, 500);
 const PEAK_LABEL_FONT = canvasFont(9, 600);
 const PLOT_LABEL_FONT = canvasFont(10, 500);
+// Least room between neighbouring ticks: y in px (labels are one line high),
+// x in px beyond the widest label.
+const Y_TICK_MIN_GAP = 22;
+const X_TICK_MIN_GAP = 16;
 
 // Q (nm^-1) = 2*pi / d(nm) = 20*pi / d(Å). Physics/SAXS convention Q = 4*pi*sin(theta)/lambda.
 const Q_FROM_D_NM = 20 * Math.PI;
@@ -34,7 +39,6 @@ export function renderRoiPlot({
   getRoiPlotKey,
   getRoiPlotLimits,
   autoscale,
-  formatRoiTick,
   resolutionAxisUnit,
 }) {
   const dUnit = resolutionAxisUnit === "q" ? "q" : "d";
@@ -58,11 +62,6 @@ export function renderRoiPlot({
   const plotKey = getRoiPlotKey(canvasEl);
   const limits = getRoiPlotLimits(plotKey);
   const xTickMode = plotMeta.xTickMode || "";
-  const formatXAxisTick = (value) => {
-    if (!Number.isFinite(value)) return "-";
-    if (xTickMode === "integer") return `${Math.round(value)}`;
-    return formatRoiTick(value);
-  };
   const xStepRaw = Number(plotMeta.xStep ?? 1);
   const xStep = Number.isFinite(xStepRaw) && xStepRaw !== 0 ? xStepRaw : 1;
   let xStart = Number(plotMeta.xStart ?? 0) || 0;
@@ -171,45 +170,30 @@ export function renderRoiPlot({
   const measureMaxLabel = (labels) =>
     labels.reduce((currentMax, label) => Math.max(currentMax, ctx.measureText(label).width), 0);
 
-  let yTickCount = Math.max(2, Math.min(4, Math.floor(drawableHeight / 50)));
-  while (yTickCount > 1) {
-    const labels = [];
-    for (let i = 0; i <= yTickCount; i += 1) {
-      const t = i / yTickCount;
-      const displayValue = minValue + t * yRange;
-      const actualValue = logScale ? Math.pow(10, displayValue) - 1 : displayValue;
-      labels.push(formatRoiTick(actualValue));
-    }
-    const maxLabel = measureMaxLabel(labels);
-    const spacing = drawableHeight / yTickCount;
-    if (maxLabel + 6 <= spacing) break;
-    yTickCount -= 1;
-  }
-
-  const yTickLabels = [];
-  for (let i = 0; i <= yTickCount; i += 1) {
-    const t = i / yTickCount;
-    const displayValue = minValue + t * yRange;
-    const actualValue = logScale ? Math.pow(10, displayValue) - 1 : displayValue;
-    yTickLabels.push(formatRoiTick(actualValue));
-  }
+  // Round-number ticks (plot_tick_utils.js); the axis still spans the data.
+  const yTicks = logScale
+    ? pickLogTicks({ min: minValue, max: maxValue, lengthPx: drawableHeight, minGapPx: Y_TICK_MIN_GAP })
+    : pickLinearTicks({ min: minValue, max: maxValue, lengthPx: drawableHeight, minGapPx: Y_TICK_MIN_GAP });
+  const yTickLabels = yTicks.labels;
+  const yTickPositions = yTicks.values.map((value) => {
+    const display = logScale ? Math.log10(1 + Math.max(0, value)) : value;
+    return padT + drawableHeight - ((display - minValue) / yRange) * drawableHeight;
+  });
   const maxYLabelWidth = measureMaxLabel(yTickLabels);
   const padL = Math.max(40, Math.ceil(maxYLabelWidth + 24));
   const drawableWidth = Math.max(4, width - padL - padR);
 
-  let xTickCount = Math.max(2, Math.min(4, Math.floor(drawableWidth / 90)));
-  while (xTickCount > 1) {
-    const labels = [];
-    for (let i = 0; i <= xTickCount; i += 1) {
-      const t = i / xTickCount;
-      const xValue = xStart + t * (values.length - 1) * xStep;
-      labels.push(formatXAxisTick(xValue));
-    }
-    const maxLabel = measureMaxLabel(labels);
-    const spacing = drawableWidth / xTickCount;
-    if (maxLabel + 6 <= spacing) break;
-    xTickCount -= 1;
-  }
+  const xEnd = xStart + (values.length - 1) * xStep;
+  const xSpan = xEnd - xStart;
+  const xToPx = (xValue) => padL + (xSpan ? (xValue - xStart) / xSpan : 0) * drawableWidth;
+  const xTicks = pickLinearTicks({
+    min: Math.min(xStart, xEnd),
+    max: Math.max(xStart, xEnd),
+    lengthPx: drawableWidth,
+    minGapPx: X_TICK_MIN_GAP,
+    measure: (label) => ctx.measureText(label).width,
+    integer: xTickMode === "integer",
+  });
 
   ctx.strokeStyle = plotTheme.axis;
   ctx.lineWidth = 1;
@@ -221,9 +205,9 @@ export function renderRoiPlot({
 
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
-  for (let i = 0; i <= xTickCount; i += 1) {
-    const t = i / xTickCount;
-    const x = padL + t * drawableWidth;
+  let lastXLabelRight = -Infinity;
+  xTicks.values.forEach((xValue, i) => {
+    const x = xToPx(xValue);
     ctx.strokeStyle = plotTheme.grid;
     ctx.beginPath();
     ctx.moveTo(x, padT);
@@ -234,15 +218,20 @@ export function renderRoiPlot({
     ctx.moveTo(x, padT + drawableHeight);
     ctx.lineTo(x, padT + drawableHeight + 4);
     ctx.stroke();
-    const xValue = xStart + t * (values.length - 1) * xStep;
-    ctx.fillText(formatXAxisTick(xValue), x, padT + drawableHeight + 6);
-  }
+    // A label at the edge moves inside the canvas instead of being cut off,
+    // and is left out if that would run it into its neighbour.
+    const label = xTicks.labels[i];
+    const half = ctx.measureText(label).width / 2;
+    const labelX = Math.min(Math.max(x, half + 2), width - half - 2);
+    if (labelX - half < lastXLabelRight + 4) return;
+    ctx.fillText(label, labelX, padT + drawableHeight + 6);
+    lastXLabelRight = labelX + half;
+  });
 
   ctx.textAlign = "right";
   ctx.textBaseline = "middle";
-  for (let i = 0; i <= yTickCount; i += 1) {
-    const t = i / yTickCount;
-    const y = padT + drawableHeight - t * drawableHeight;
+  for (let i = 0; i < yTickPositions.length; i += 1) {
+    const y = yTickPositions[i];
     ctx.strokeStyle = plotTheme.grid;
     ctx.beginPath();
     ctx.moveTo(padL, y);
@@ -268,19 +257,28 @@ export function renderRoiPlot({
     ctx.fillStyle = plotTheme.text;
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
-    for (let i = 0; i <= xTickCount; i += 1) {
-      const t = i / xTickCount;
-      const x = padL + t * drawableWidth;
-      const xValue = xStart + t * (values.length - 1) * xStep;
-      const d = dSpacingForX(xValue);
-      const displayValue = resolutionDisplayValue(d, dUnit);
-      if (!Number.isFinite(displayValue)) continue;
+    // d and Q are not linear in x, so the ticks go where the curve crosses
+    // a round value rather than above the x ticks.
+    const samples = [];
+    for (let px = 0; px <= drawableWidth; px += 2) {
+      const xValue = xStart + (px / drawableWidth) * xSpan;
+      samples.push({ px: padL + px, value: resolutionDisplayValue(dSpacingForX(xValue), dUnit) });
+    }
+    const dTicks = pickMappedTicks({
+      samples,
+      measure: (label) => ctx.measureText(label).width,
+      minGapPx: 14,
+      uniform: dUnit === "q",
+      leftPx: 2,
+      rightPx: width - 2,
+    });
+    for (const tick of dTicks) {
       ctx.strokeStyle = plotTheme.axis;
       ctx.beginPath();
-      ctx.moveTo(x, padT);
-      ctx.lineTo(x, padT - 4);
+      ctx.moveTo(tick.px, padT);
+      ctx.lineTo(tick.px, padT - 4);
       ctx.stroke();
-      ctx.fillText(formatResolutionLabel(displayValue, dUnit), x, padT - 6);
+      ctx.fillText(tick.label, tick.px, padT - 6);
     }
     // Axis title centered above the axis, mirroring the bottom xLabel styling.
     const dAxisTitle = dUnit === "q"

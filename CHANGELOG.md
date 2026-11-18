@@ -17,6 +17,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- **The ROI plots label their axes at round numbers.** The ticks used to split the plotted range into equal parts and label whatever value fell there, so a profile peaking at 0.13 read 0, 0.043, 0.087, 0.13 and a box from column 562 to 1699 read 562, 941, 1320, 1699, with the last label cut off at the edge. Ticks now sit on steps of 1, 2 or 5 times a power of ten: 0, 0.02, 0.04 … 0.12, and 600, 800 … 1600. The curve still fills the plot; the ends just carry no label when they are not round. A taller plot gets more ticks. The log scale is labelled at 0, 1, 10, 100 …, with 2 and 5 in between where there is room, and the d or Q axis above a profile shows round resolutions (10, 5, 4, 3, 2.5, 2 Å) where they fall, instead of whatever d sat above each pixel tick. The histogram's axes follow the same rules.
+
 - **The mounted ALBIS disk image now shows the ALBIS icon.** Opening the macOS download used to put a generic grey drive on the desktop and in the Finder sidebar. It now shows the ALBIS icon on a silver drive, so the installer is easy to recognise and to eject.
 
 ## [0.45.1] - 2026-11-16

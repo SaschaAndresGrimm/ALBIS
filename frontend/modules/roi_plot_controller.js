@@ -253,7 +253,6 @@ function drawRoiPlot(canvasEl, ctx, data) {
     getRoiPlotKey,
     getRoiPlotLimits,
     autoscale: !hasManualRoiPlotLimits(plotKey),
-    formatRoiTick,
     resolutionAxisUnit: roiState.resolutionAxisUnit === "q" ? "q" : "d",
   });
 }

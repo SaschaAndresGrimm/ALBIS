@@ -173,6 +173,76 @@ describe("roi_plot_renderer", () => {
     expect(plot.yMin).toBeLessThan(-2);
   });
 
+  /**
+   * The axes were labelled at even fractions of the data range (0.043, 0.087;
+   * columns 562, 941, 1320, 1699), and the last x label ran off the canvas.
+   */
+  it("labels both axes at round numbers and keeps x labels on the canvas", () => {
+    const data = Array.from({ length: 1138 }, (_, i) => (i % 7) * 0.02);
+    const canvasEl = { clientWidth: 480, clientHeight: 240, _roiPlotMeta: { xStart: 562, xStep: 1, xTickMode: "integer" } };
+    const ctx = createMockContext();
+    const limits = { xMin: null, xMax: null, yMin: null, yMax: null };
+    renderRoiPlot({
+      canvasEl,
+      ctx,
+      data,
+      logScale: false,
+      plotTheme: PLOT_THEME,
+      getRoiPlotKey: () => "x",
+      getRoiPlotLimits: () => limits,
+      autoscale: true,
+    });
+    const drawn = ctx.fillText.mock.calls.map(([text, x]) => ({ text: String(text), x }));
+    const labels = drawn.map((call) => call.text);
+    expect(labels).toEqual(expect.arrayContaining(["0", "0.02", "0.04", "0.06", "0.08", "0.10", "0.12"]));
+    expect(labels).toEqual(expect.arrayContaining(["600", "800", "1000", "1600"]));
+    expect(labels).not.toContain("562");
+    for (const { text, x } of drawn.filter((call) => /^\d{3,4}$/.test(call.text))) {
+      expect(x + (text.length * 6) / 2).toBeLessThanOrEqual(480);
+    }
+  });
+
+  it("puts log-axis ticks on zero and powers of ten", () => {
+    const canvasEl = { clientWidth: 300, clientHeight: 240, _roiPlotMeta: { xStart: 0, xStep: 1 } };
+    const ctx = createMockContext();
+    const limits = { xMin: null, xMax: null, yMin: null, yMax: null };
+    renderRoiPlot({
+      canvasEl,
+      ctx,
+      data: [0, 5, 40000, 120],
+      logScale: true,
+      plotTheme: PLOT_THEME,
+      getRoiPlotKey: () => "x",
+      getRoiPlotLimits: () => limits,
+      autoscale: true,
+    });
+    const labels = ctx.fillText.mock.calls.map(([text]) => String(text));
+    expect(labels).toEqual(expect.arrayContaining(["0", "10", "100", "1000", "10000"]));
+  });
+
+  it("puts the resolution axis on round d values", () => {
+    const canvasEl = {
+      clientWidth: 480,
+      clientHeight: 240,
+      _roiPlotMeta: { xStart: 10, xStep: 1, dSpacingForX: (r) => 600 / r },
+    };
+    const ctx = createMockContext();
+    const limits = { xMin: null, xMax: null, yMin: null, yMax: null };
+    renderRoiPlot({
+      canvasEl,
+      ctx,
+      data: Array.from({ length: 491 }, (_, i) => i),
+      logScale: false,
+      plotTheme: PLOT_THEME,
+      getRoiPlotKey: () => "radial",
+      getRoiPlotLimits: () => limits,
+      autoscale: true,
+      resolutionAxisUnit: "d",
+    });
+    const labels = ctx.fillText.mock.calls.map(([text]) => String(text));
+    expect(labels).toEqual(expect.arrayContaining(["10", "5", "4", "3", "2"]));
+  });
+
   it("clamps manual histogram y-min limits to zero", () => {
     const canvasEl = {
       clientWidth: 300,
