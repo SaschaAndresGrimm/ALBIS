@@ -9,7 +9,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
-- **Linked windows can step and play through frames together.** The link menu in the header has a new **Frame** option. With it on, stepping with the arrow keys, the slider or the previous and next buttons in one window moves the other linked windows by the same number of frames, and **Play** in one window plays them all. The windows keep the gap in frames they had when you linked them, so frame 10 next to frame 12 stays two apart, for comparing a frame with the one after it or two series whose event starts at different frames. A window that loads its frames more slowly skips some to keep up rather than slowing the others down. **Stop** in any window stops them all. **Frame** is off until you tick it, because linked windows often show different data.
+- **Linked windows can step and play through frames together.** The link menu in the header has a new **Frame** option. With it on, stepping with the arrow keys, the slider or the previous and next buttons in one window moves the other linked windows by the same number of frames, and **Play** in one window plays them all. The windows keep the gap in frames they had when you linked them, so frame 10 next to frame 12 stays two apart, for comparing a frame with the one after it or two series whose event starts at different frames. A window that loads its frames more slowly skips some to keep up rather than slowing the others down. **Stop** in any window stops them all. **Frame** is on whenever windows are linked; untick it to step each window on its own.
 
 ### Fixed
 

@@ -520,14 +520,26 @@ describe("viewer_sync_controller", () => {
       viewer.controller.handleFrameChanged(previous);
     }
 
-    it("is off by default, so linking does not move frames", async () => {
-      const { a, b } = await pair();
+    it("is on by default once windows are linked, but linking moves no frame", async () => {
+      const { a, b } = await pair({ frameA: 10, frameB: 12 });
       a.controller.setEnabled(true);
       b.controller.setEnabled(true);
 
+      expect(a.state.viewerSync.frame).toBe(true);
+      expect(b.followFrame).not.toHaveBeenCalled();
+
+      step(a, 11);
+      expect(b.followFrame).toHaveBeenLastCalledWith(13, { playing: false });
+    });
+
+    it("stays off when switched off", async () => {
+      const { a, b } = await pair();
+      link(a, b);
+      a.controller.setSyncOption("frame", false);
+      b.controller.setSyncOption("frame", false);
+
       step(a, 11);
 
-      expect(a.state.viewerSync.frame).toBe(false);
       expect(b.followFrame).not.toHaveBeenCalled();
     });
 

@@ -33,7 +33,7 @@ function getViewerSyncState(state) {
       viewport: true,
       contrast: true,
       roi: true,
-      frame: false,
+      frame: true,
     };
   }
   if (!state.viewerSync.group) {
@@ -48,9 +48,9 @@ function getViewerSyncState(state) {
   if (state.viewerSync.roi !== false) {
     state.viewerSync.roi = true;
   }
-  // Off unless chosen: linked windows often hold different data, and a frame
-  // jump is more of a surprise than a matched zoom.
-  state.viewerSync.frame = state.viewerSync.frame === true;
+  if (state.viewerSync.frame !== false) {
+    state.viewerSync.frame = true;
+  }
   return state.viewerSync;
 }
 

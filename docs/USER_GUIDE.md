@@ -738,12 +738,12 @@ The **link** control in the header chooses what the windows share: **Position**
 views on the same feature while you navigate; unlink to look at different
 regions with the same contrast.
 
-**Frame** is off until you tick it. With it on, the linked windows step and play
-together: the arrow keys, the slider, **◀** and **▶** in one window move the
+With **Frame** on, as it is unless you untick it, the linked windows step and
+play together: the arrow keys, the slider, **◀** and **▶** in one window move the
 others by the same number of frames, and **Play** in one window plays them all.
 The gap between the windows when you link them is kept, so frame 10 next to
 frame 12 stays two frames apart. To compare the same frame, put both windows on
-it first, then tick **Frame**. A window that loads its frames more slowly skips
+it first, then switch the link on. A window that loads its frames more slowly skips
 some to keep up rather than holding the others back, and **Stop** in any of the
 windows stops them all. During playback a window with fewer frames starts again
 from its first frame sooner; when stepping, it waits at its last.
