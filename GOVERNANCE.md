@@ -19,11 +19,6 @@ Sascha Andres Grimm and DECTRIS AG, who release it under the MIT licence. It car
 support commitment and no warranty, and it is maintained on one person's
 best effort.
 
-**Where this is going:** the intent is for DECTRIS to support ALBIS, and for
-the repository to move to a DECTRIS organisation. Windows releases are
-signed by DECTRIS USA Ltd, which means the publisher Windows shows reads
-as DECTRIS. 
-
 Product names such as ALBULA, EIGER, PILATUS, MYTHEN, JUNGFRAU and SIMPLON are
 trademarks of DECTRIS and are used here only to say which
 hardware and formats ALBIS works with. The DECTRIS logo
