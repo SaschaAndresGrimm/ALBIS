@@ -714,7 +714,7 @@
   "geometry.title.pixel_size_x": "Pixelgröße in X (µm): horizontal, entlang der Bildspalten.",
   "geometry.title.pixel_size_y": "Pixelgröße in Y (µm): vertikal, entlang der Bildzeilen.",
   "info.roi.level_bands": "Die Pixel, die die Statistik zählt, aufgeteilt nach den in Ansicht → Histogramm gesetzten Werten BG und FG: unter BG, von BG bis FG (beide eingeschlossen), über FG. Mit einer ROI nur deren Pixel.",
-  "info.roi.plot_controls": "Ziehe, um die Plotachsen zu verschieben. Verwende zum Zoomen das Rad an den Achsen. Doppelklicke zum Zurücksetzen.",
+  "info.roi.plot_controls": "Ziehe, um zu verschieben; ziehe an einer Achse, um nur diese Achse zu verschieben. Scrolle zum Zoomen; über einer Achse zoomt nur diese Achse. Ziehe mit der rechten Maustaste (oder mit Ctrl) ein Rechteck auf, um hineinzuzoomen. Doppelklicke zum Zurücksetzen oder gehe mit ↶ zurück.",
   "info.simplon.url": "Detektor-Hostname, IP-Adresse oder vollständige URL. http:// wird ergänzt, ohne Portangabe wird Port 80 verwendet.",
   "histogram.auto_contrast": "Automatischer Kontrast",
   "histogram.colorbar_title": "Ziehen verschiebt das Kontrastfenster, Scrollen macht es breiter oder schmaler, Doppelklick für Auto-Kontrast",

@@ -714,7 +714,7 @@
   "geometry.title.pixel_size_x": "Taille de pixel en X (µm) : horizontale, le long des colonnes de l'image.",
   "geometry.title.pixel_size_y": "Taille de pixel en Y (µm) : verticale, le long des lignes de l'image.",
   "info.roi.level_bands": "Les pixels comptés par les statistiques, répartis selon les niveaux BG et FG réglés dans Affichage → Histogramme : sous BG, de BG à FG (inclus), au-dessus de FG. Avec une ROI, seulement ses pixels.",
-  "info.roi.plot_controls": "Faites glisser pour déplacer les axes du tracé. Utilisez la roue sur les axes pour zoomer. Double-cliquez pour réinitialiser.",
+  "info.roi.plot_controls": "Faites glisser pour déplacer ; faites glisser un axe pour ne déplacer que cet axe. Utilisez la molette pour zoomer ; sur un axe, seul cet axe est zoomé. Tracez un rectangle avec le bouton droit (ou avec Ctrl) pour zoomer dessus. Double-cliquez pour réinitialiser, ou utilisez ↶ pour revenir.",
   "info.simplon.url": "Nom d'hôte du détecteur, adresse IP ou URL complète. http:// est ajouté et le port 80 est utilisé s'il est omis.",
   "histogram.auto_contrast": "Contraste automatique",
   "histogram.colorbar_title": "Glisser pour déplacer la fenêtre de contraste, faire défiler pour l'élargir ou la rétrécir, double-cliquer pour le contraste auto",

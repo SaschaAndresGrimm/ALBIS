@@ -416,19 +416,45 @@ describe("roi_plot_bindings", () => {
       expect(limits.xMax).toBeCloseTo(26);
     });
 
-    it("zooms into a box dragged with Shift", () => {
+    function boxDrag(canvas, down) {
+      canvas.dispatchEvent(down);
+      canvas.dispatchEvent(pointer("pointermove", 136, 90));
+      expect(canvas._roiZoomBox).toEqual({ x0: 40, y0: 49, x1: 136, y1: 90 });
+      canvas.dispatchEvent(pointer("pointerup", 136, 90));
+      expect(canvas._roiZoomBox).toBeNull();
+    }
+
+    // The same gesture that draws an ROI on the image.
+    it("zooms into a box dragged with the right button", () => {
       const { roiLineCanvas, limits } = setup();
-      const down = pointer("pointerdown", 40, 49);
-      Object.defineProperty(down, "shiftKey", { value: true });
-      roiLineCanvas.dispatchEvent(down);
-      roiLineCanvas.dispatchEvent(pointer("pointermove", 136, 90));
-      expect(roiLineCanvas._roiZoomBox).toEqual({ x0: 40, y0: 49, x1: 136, y1: 90 });
-      roiLineCanvas.dispatchEvent(pointer("pointerup", 136, 90));
-      expect(roiLineCanvas._roiZoomBox).toBeNull();
+      const down = new window.MouseEvent("pointerdown", { bubbles: true, cancelable: true, clientX: 40, clientY: 49, button: 2 });
+      Object.defineProperty(down, "pointerId", { value: 1 });
+      boxDrag(roiLineCanvas, down);
       expect(limits.xMin).toBeCloseTo(0);
       expect(limits.xMax).toBeCloseTo(50);
       expect(limits.yMin).toBeCloseTo(0);
       expect(limits.yMax).toBeCloseTo(25);
+      const menu = new window.MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+      roiLineCanvas.dispatchEvent(menu);
+      expect(menu.defaultPrevented).toBe(true);
+    });
+
+    it("zooms into a box dragged with Ctrl, for a one-button trackpad", () => {
+      const { roiLineCanvas, limits } = setup();
+      const down = pointer("pointerdown", 40, 49);
+      Object.defineProperty(down, "ctrlKey", { value: true });
+      boxDrag(roiLineCanvas, down);
+      expect(limits.xMax).toBeCloseTo(50);
+    });
+
+    it("pans, not box-zooms, on a Shift-drag", () => {
+      const { roiLineCanvas } = setup();
+      const down = pointer("pointerdown", 100, 50);
+      Object.defineProperty(down, "shiftKey", { value: true });
+      roiLineCanvas.dispatchEvent(down);
+      expect(roiLineCanvas._roiZoomBox ?? null).toBeNull();
+      expect(roiLineCanvas.classList.contains("is-panning")).toBe(true);
+      roiLineCanvas.dispatchEvent(pointer("pointerup", 100, 50));
     });
 
     it("pans x on a sideways swipe and keeps y where it is", () => {

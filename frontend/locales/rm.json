@@ -714,7 +714,7 @@
   "geometry.title.pixel_size_x": "Grondezza da pixel en X (µm): orizontala, lung las colonnas dal maletg.",
   "geometry.title.pixel_size_y": "Grondezza da pixel en Y (µm): verticala, lung las lingias dal maletg.",
   "info.roi.level_bands": "Ils pixels che la statistica dumbra, partids tenor ils nivels BG ed FG en Vista → Histograma: sut BG, da BG fin FG (omadus inclus), sur FG. Cun ina ROI mo ses pixels.",
-  "info.roi.plot_controls": "Tirar per spustar las axas dal grafic. Utilisar la roda sin las axas per zoomar. Dublar clic per reinitialisar.",
+  "info.roi.plot_controls": "Tirar per spustar; tirar ina axa per spustar mo quella axa. Utilisar la roda per zoomar; sin ina axa, mo quella axa. Tirar cun la tasta dretga (u cun Ctrl) in rectangul per zoomar en. Dublar clic per reinitialisar, u utilisar ↶ per turnar enavos.",
   "info.simplon.url": "Num d'host dal detector, adressa IP u URL cumpletta. http:// vegn agiuntà e il port 80 vegn utilisà sch'el manca.",
   "histogram.auto_contrast": "Contrast automatic",
   "histogram.colorbar_title": "Trair per spustar la fanestra da contrast, rular per la far pli lada u pli stretga, clic dubel per il contrast automatic",

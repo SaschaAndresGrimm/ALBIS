@@ -714,7 +714,7 @@
   "geometry.title.pixel_size_x": "Pixelgröössi in X (µm): horizontal, entlang de Bildspalte.",
   "geometry.title.pixel_size_y": "Pixelgröössi in Y (µm): vertikal, entlang de Bildziile.",
   "info.roi.level_bands": "D Pixel, wo d Statistik zellt, uufteilt nach BG und FG us Aasicht → Histogramm: under BG, vo BG bis FG (beidi mitzellt), über FG. Mit ere ROI nume ihri Pixel.",
-  "info.roi.plot_controls": "Zieh, zum d Plot-Achse z verschiebe. Bruuch s Rad uf dr Achse zum zoome. Doppelklick zum zruggsetze.",
+  "info.roi.plot_controls": "Zieh, zum verschiebe; zieh a ere Achse, zum nume die Achse z verschiebe. Scroll zum zoome; über ere Achse zoomt nume die Achse. Zieh mit dr rächte Maustaste (oder mit Ctrl) es Rächteck uf, zum inezoome. Doppelklick zum zruggsetze, oder gang mit ↶ zrugg.",
   "info.simplon.url": "Detektor-Hostname, IP-Adrässe oder ganzi URL. http:// wird ergänzt, ohni Portaagab wird Port 80 gnuh.",
   "histogram.auto_contrast": "Automatische Kontrascht",
   "histogram.colorbar_title": "Zieh verschiebt s Kontrastfänschter, Scrolle macht s breiter oder schmäler, Doppelklick für Auto-Kontrast",

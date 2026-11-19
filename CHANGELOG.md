@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **Zoom into a box on an ROI plot with the right mouse button, as you draw a region on the image.** Right-drag, or Ctrl-drag on a trackpad with one button, draws the box; it was Shift-drag, which on the image sets the contrast, so the same key meant two things. A Shift-drag on a plot now pans like a plain drag. The plots' info button describes all the ways to pan and zoom, including dragging an axis and **↶ Previous view**.
+
 ### Fixed
 
 - **An ROI plot can be dragged up and down from the start.** As a plot first opens, its value axis is fitted to the data with a small margin. Dragging the plot or its value axis was held inside the data's range, so it could only snap the axis onto the data and then not move: the curve rescaled slightly, which looked like a reset, instead of moving. The value axis now follows the drag past the data, stopping only when a tenth of the plot would no longer show any of it, so the curve cannot be lost. The x axis still stops at the ends of the profile, beyond which there is nothing to show.

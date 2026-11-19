@@ -714,7 +714,7 @@
   "geometry.title.pixel_size_x": "Rahi pika i te X (µm): whakapae, i ngā tīwae o te atahanga.",
   "geometry.title.pixel_size_y": "Rahi pika i te Y (µm): poutū, i ngā rārangi o te atahanga.",
   "info.roi.level_bands": "Ngā pika e tatauria ana e ngā tatauranga, kua wehea e ngā taumata BG me FG i Tirohanga → Hītōkaramu: i raro i BG, mai i BG ki FG (ko ērua hoki), i runga i FG. Ki te tuhia he ROI, ko ōna pika anake.",
-  "info.roi.plot_controls": "Toia ki te paraharaha toki wahi. Whakamahia te wira ki runga toki hei topa. Pāwhiri-rua ki te tautuhi anō.",
+  "info.roi.plot_controls": "Toia ki te nekeneke; toia tētahi tuaka kia neke ko taua tuaka anake. Panuku hei topa; ki runga tuaka, ko taua tuaka anake e topa. Toia-matau (Ctrl-toia rānei) he pouaka hei topa ki roto. Pāwhiri-rua ki te tautuhi anō, whakamahia rānei te ↶ ki te hoki.",
   "info.simplon.url": "Ingoa kaihautū, wāhitau IP, URL katoa rānei o te pūtirotiro. Ka tāpiritia te http://, ā, ka whakamahia te tauranga 80 ki te kore e tohua.",
   "histogram.auto_contrast": "Pūrata Aunoa",
   "histogram.colorbar_title": "Tōia hei neke i te matapihi pūrata, panuku hei whakawhānui, whakawhāiti rānei, pāwhiri rua mō te pūrata aunoa",

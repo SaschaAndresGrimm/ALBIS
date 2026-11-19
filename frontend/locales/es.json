@@ -714,7 +714,7 @@
   "geometry.title.pixel_size_x": "Tamaño de píxel en X (µm): horizontal, a lo largo de las columnas de la imagen.",
   "geometry.title.pixel_size_y": "Tamaño de píxel en Y (µm): vertical, a lo largo de las filas de la imagen.",
   "info.roi.level_bands": "Los píxeles que cuentan las estadísticas, divididos según los niveles BG y FG de Ver → Histograma: bajo BG, de BG a FG (ambos incluidos), sobre FG. Con una ROI, solo sus píxeles.",
-  "info.roi.plot_controls": "Arrastre para desplazar los ejes del trazado. Utilice la rueda en los ejes para hacer zoom. Haga doble clic para restablecer.",
+  "info.roi.plot_controls": "Arrastre para desplazar; arrastre un eje para mover solo ese eje. Use la rueda para hacer zoom; sobre un eje, solo ese eje. Arrastre con el botón derecho (o con Ctrl) un rectángulo para ampliarlo. Haga doble clic para restablecer o use ↶ para volver.",
   "info.simplon.url": "Nombre de host del detector, dirección IP o URL completa. Se añade http:// y se usa el puerto 80 si se omite.",
   "histogram.auto_contrast": "Contraste automático",
   "histogram.colorbar_title": "Arrastre para mover la ventana de contraste, desplace para ensancharla o estrecharla, doble clic para contraste automático",

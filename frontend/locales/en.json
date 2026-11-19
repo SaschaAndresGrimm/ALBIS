@@ -714,7 +714,7 @@
   "geometry.title.pixel_size_x": "Pixel size along X (µm): horizontal, across the image's columns.",
   "geometry.title.pixel_size_y": "Pixel size along Y (µm): vertical, across the image's rows.",
   "info.roi.level_bands": "The pixels the statistics count, split by the BG and FG levels set in View → Histogram: below BG, from BG to FG (both included), above FG. With an ROI drawn, only its pixels.",
-  "info.roi.plot_controls": "Drag to pan plot axes. Use wheel on axes to zoom. Double-click to reset.",
+  "info.roi.plot_controls": "Drag to pan; drag an axis to move only that axis. Scroll to zoom; over an axis, only that axis zooms. Right-drag (or Ctrl-drag) a box to zoom into it. Double-click to reset, or use ↶ to go back.",
   "info.simplon.url": "Detector hostname, IP address, or full URL. http:// is added and port 80 is used when omitted.",
   "histogram.auto_contrast": "Auto Contrast",
   "histogram.colorbar_title": "Drag to move the contrast window, scroll to widen or narrow it, double-click for Auto Contrast",
