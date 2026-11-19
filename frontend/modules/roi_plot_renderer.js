@@ -18,6 +18,8 @@ const X_TICK_MIN_GAP = 16;
 const SAMPLE_DOT_MIN_GAP_PX = 8;
 const SAMPLE_DOT_RADIUS = 2;
 const HOVER_DOT_RADIUS = 3.5;
+// Room under the x axis title, for the descenders of "pixel" and "Intensity".
+const X_TITLE_BOTTOM_GAP = 3;
 
 // Q (nm^-1) = 2*pi / d(nm) = 20*pi / d(Å). Physics/SAXS convention Q = 4*pi*sin(theta)/lambda.
 const Q_FROM_D_NM = 20 * Math.PI;
@@ -166,7 +168,8 @@ export function renderRoiPlot({
   const yRange = maxValue - minValue;
   const padR = 8;
   const padT = hasDAxis ? 34 : 8;
-  const padB = 30;
+  // Tick labels (6 px below the axis, about 12 px tall), then the axis title.
+  const padB = 34;
   const drawableHeight = Math.max(4, height - padT - padB);
 
   ctx.fillStyle = plotTheme.text;
@@ -457,10 +460,15 @@ export function renderRoiPlot({
   ctx.fillStyle = plotTheme.text;
   ctx.font = PLOT_LABEL_FONT;
   ctx.textAlign = "center";
-  ctx.fillText(xLabel, padL + drawableWidth / 2, height - 4);
+  // Set the baseline here: it was left from whatever was drawn last ("middle"
+  // after the y ticks), which centred the title on a line 4 px above the
+  // bottom edge and cut off its lower half.
+  ctx.textBaseline = "bottom";
+  ctx.fillText(xLabel, padL + drawableWidth / 2, height - X_TITLE_BOTTOM_GAP);
   ctx.save();
   ctx.translate(Math.max(8, padL - maxYLabelWidth - 16), padT + drawableHeight / 2);
   ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = "middle";
   ctx.fillText(yLabel, 0, 0);
   ctx.restore();
 

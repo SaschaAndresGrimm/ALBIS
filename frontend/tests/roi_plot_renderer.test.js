@@ -228,6 +228,33 @@ describe("roi_plot_renderer", () => {
     expect(fills).toContain("#bar-colour");
   });
 
+  // The title took the baseline of whatever was drawn before it ("middle"
+  // after the y ticks) and was centred 4 px above the bottom edge, so the
+  // lower half of "X pixel" was cut off.
+  it("draws the x axis title whole, above the bottom edge", () => {
+    const canvasEl = { clientWidth: 300, clientHeight: 120, _roiPlotMeta: { xStart: 0, xStep: 1, xLabel: "X pixel" } };
+    const ctx = createMockContext();
+    let titleCall = null;
+    ctx.fillText = vi.fn((text, x, y) => {
+      if (text === "X pixel") titleCall = { y, baseline: ctx.textBaseline };
+    });
+    renderRoiPlot({
+      canvasEl,
+      ctx,
+      data: [1, 2, 3, 4],
+      logScale: false,
+      plotTheme: PLOT_THEME,
+      getRoiPlotKey: () => "x",
+      getRoiPlotLimits: () => ({ xMin: null, xMax: null, yMin: null, yMax: null }),
+      autoscale: true,
+    });
+    expect(titleCall.baseline).toBe("bottom");
+    expect(titleCall.y).toBeLessThan(120);
+    // Clear of the tick labels, which start 6 px below the axis.
+    const ticksTop = canvasEl._roiPlot.height - canvasEl._roiPlot.padB + 6;
+    expect(titleCall.y - 12).toBeGreaterThanOrEqual(ticksTop + 12);
+  });
+
   it("spans each histogram bar across its bin", () => {
     const canvasEl = {
       clientWidth: 300,
