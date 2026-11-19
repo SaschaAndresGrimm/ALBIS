@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import pprint
 import re
 import sys
@@ -541,3 +542,43 @@ def test_the_pinned_interpreter_has_a_checksum_for_every_build_platform() -> Non
         "x86_64-pc-windows-msvc",
     ):
         assert re.search(rf'{platform}\) default_sha="[0-9a-f]{{64}}" ;;', script), platform
+
+
+# --- Who made what ------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("meta", "expected"),
+    [
+        ({"Author_email": "Ann Example <ann@example.org>"}, ["Ann Example"]),
+        (
+            {"Author_email": '"Doe, Jane" <jane@example.org>, Bo <bo@example.org>'},
+            ["Doe, Jane", "Bo"],
+        ),
+        ({"Author": "Travis E. Oliphant et al."}, ["Travis E. Oliphant et al."]),
+        # An address alone names nobody, and none is ever copied into the file.
+        ({"Author": "me@example.org"}, []),
+        ({"Maintainer_email": "Team <team@example.org>"}, ["Team"]),
+        ({}, []),
+    ],
+)
+def test_package_authors_are_names_without_addresses(meta: dict, expected: list) -> None:
+    assert sbom.package_authors(FakeDist("x", "1.0", **meta)) == expected
+
+
+def test_the_document_names_who_makes_albis_and_its_components() -> None:
+    def probe(bundle, carriers):
+        return [bundle_mod.Native("OpenSSL", "3.5.9", None)]
+
+    doc = _build(_bundle(*EVERYTHING), probe=probe)
+    authors, homepage = sbom.albis_project()
+    meta = doc["metadata"]
+    assert meta["manufacturer"] == {"name": "ALBIS project", "url": [homepage]}
+    assert meta["component"]["supplier"] == meta["manufacturer"]
+    assert meta["authors"] == [{"name": a} for a in authors]
+    by_name = {c["name"]: c for c in doc["components"]}
+    assert by_name["CPython"]["supplier"] == {"name": "Python Software Foundation"}
+    assert by_name["OpenSSL"]["supplier"] == {"name": "OpenSSL Foundation"}
+    assert by_name["html2canvas"]["supplier"] == {"name": "Niklas von Hertzen"}
+    # Package URLs carry "@version"; an address would be name@domain.tld.
+    assert not re.search(r"[\w.+-]+@[A-Za-z][\w-]*(\.[\w-]+)*\.[A-Za-z]{2,}\b", json.dumps(doc))

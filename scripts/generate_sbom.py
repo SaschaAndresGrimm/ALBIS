@@ -32,6 +32,7 @@ import json
 import platform
 import re
 import sys
+import tomllib
 import uuid
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
@@ -55,6 +56,26 @@ from sbom_bundle import (
 ROOT = Path(__file__).resolve().parents[1]
 REQUIREMENTS = ROOT / "backend" / "requirements.txt"
 VERSION_FILE = ROOT / "VERSION"
+PYPROJECT = ROOT / "pyproject.toml"
+
+# Who makes the components that have no package metadata to say so. Names
+# only: a bill of materials says whose code it is, not how to reach them.
+SUPPLIERS = {
+    "CPython": "Python Software Foundation",
+    "PyInstaller": "PyInstaller Development Team",
+    "OpenSSL": "OpenSSL Foundation",
+    "SQLite": "SQLite Consortium",
+    "expat": "The libexpat project",
+    "zlib": "Jean-loup Gailly and Mark Adler",
+    "HDF5": "The HDF Group",
+    "libzmq": "The ZeroMQ authors",
+    "libzstd": "Meta Platforms",
+    "Zstd": "Meta Platforms",
+    "html2canvas": "Niklas von Hertzen",
+    "Inter": "The Inter Project Authors",
+    "Michroma": "The Michroma Project Authors",
+    "pyFAI calibrant d-spacings": "European Synchrotron Radiation Facility",
+}
 # PyInstaller's work directory for ALBIS.spec, where its TOC files land.
 WORKDIR = ROOT / "build" / "ALBIS"
 
@@ -184,6 +205,27 @@ def _ref(kind: str, name: str) -> str:
     return f"{kind}:{name}"
 
 
+_EMAIL = re.compile(r"\s*<[^>]*>")
+
+
+def package_authors(dist: Distribution) -> list[str]:
+    """Author names from the metadata, with any e-mail addresses dropped.
+
+    `Author-email` reads `Name <address>, "Other, Name" <address>`; `Author`
+    is free text. Either may be missing, and a bare address names nobody.
+    """
+    meta = dist.metadata
+    text = meta.get("Author") or ""
+    if not text or "@" in text:
+        text = meta.get("Author-email") or meta.get("Maintainer-email") or ""
+    names = []
+    for part in re.split(r",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", _EMAIL.sub("", text)):
+        name = part.strip().strip('"').strip()
+        if name and "@" not in name and name not in names:
+            names.append(name)
+    return names
+
+
 def python_component(dist: Distribution) -> dict:
     name = canonicalize_name(dist.metadata["Name"])
     component = {
@@ -193,10 +235,31 @@ def python_component(dist: Distribution) -> dict:
         "version": dist.version,
         "purl": f"pkg:pypi/{name}@{dist.version}",
     }
+    authors = package_authors(dist)
+    if authors:
+        component["authors"] = [{"name": author} for author in authors]
     licenses = _licenses(dist)
     if licenses:
         component["licenses"] = licenses
     return component
+
+
+_SUPPLIERS_BY_NAME = {name.casefold(): supplier for name, supplier in SUPPLIERS.items()}
+
+
+def _with_supplier(component: dict) -> dict:
+    supplier = _SUPPLIERS_BY_NAME.get(component["name"].casefold())
+    if supplier:
+        component["supplier"] = {"name": supplier}
+    return component
+
+
+def albis_project() -> tuple[list[str], str]:
+    """ALBIS's authors and home page, as pyproject.toml already publishes them."""
+    project = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))["project"]
+    return [a["name"] for a in project.get("authors", []) if a.get("name")], project["urls"][
+        "Homepage"
+    ]
 
 
 def interpreter_component(from_system: list[Native] = ()) -> dict:
@@ -372,6 +435,8 @@ def build_sbom(
                 ),
             }
         )
+    albis_authors, homepage = albis_project()
+    project = {"name": "ALBIS project", "url": [homepage]}
     return {
         "bomFormat": "CycloneDX",
         "specVersion": "1.6",
@@ -382,19 +447,29 @@ def build_sbom(
             "tools": {
                 "components": [{"type": "application", "name": "albis scripts/generate_sbom.py"}]
             },
+            # Who made this bill of materials and the product it describes:
+            # the ALBIS project, by the names pyproject.toml already gives.
+            "manufacturer": project,
+            "authors": [{"name": author} for author in albis_authors],
             "component": {
                 "type": "application",
                 "bom-ref": root_ref,
                 "name": "ALBIS",
                 "version": version,
+                "supplier": project,
+                "authors": [{"name": author} for author in albis_authors],
                 "licenses": [{"license": {"id": "MIT"}}],
+                "externalReferences": [{"type": "website", "url": homepage}],
                 "properties": [{"name": "albis:target", "value": target}],
             },
         },
-        "components": [interpreter_component(from_system), pyinstaller_component(lookup)]
+        "components": [
+            _with_supplier(interpreter_component(from_system)),
+            _with_supplier(pyinstaller_component(lookup)),
+        ]
         + [python_component(included[name]) for name in sorted(included)]
-        + [native_component(native) for native in natives]
-        + vendored,
+        + [_with_supplier(native_component(native)) for native in natives]
+        + [_with_supplier(c) for c in vendored],
         "dependencies": dependencies,
     }
 
