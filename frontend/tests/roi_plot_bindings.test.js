@@ -24,7 +24,7 @@ function createPlotContainer(id, canvas) {
   return container;
 }
 
-function createBindings() {
+function createBindings(overrides = {}) {
   const roiLineCanvas = createCanvas("roi-line-canvas");
   const roiXCanvas = createCanvas("roi-x-canvas");
   const roiYCanvas = createCanvas("roi-y-canvas");
@@ -53,6 +53,7 @@ function createBindings() {
     hasManualRoiPlotLimits: vi.fn(() => false),
     hasAnyManualRoiPlotLimits: vi.fn(() => false),
     normalizeWheelDelta: vi.fn(() => 0),
+    ...overrides,
   };
 
   bindRoiPlotInteractions({
@@ -284,5 +285,98 @@ describe("roi_plot_bindings", () => {
     expect(autoToggle.checked).toBe(true);
     expect(chip.classList.contains("is-hidden")).toBe(true);
     expect(redrawRoiPlots).toHaveBeenCalled();
+  });
+
+  describe("dragging on an axis", () => {
+    // 240 x 120 canvas: data area x 40..232, y 8..90 (192 x 82 px).
+    const shownPlot = () => ({
+      xMin: 0,
+      xMax: 100,
+      yMin: 0,
+      yMax: 50,
+      totalXMin: 0,
+      totalXMax: 1000,
+      totalYMin: 0,
+      totalYMax: 500,
+      padL: 40,
+      padR: 8,
+      padT: 8,
+      padB: 30,
+      width: 240,
+      height: 120,
+    });
+
+    function pointer(type, clientX, clientY) {
+      const event = new window.MouseEvent(type, { bubbles: true, cancelable: true, clientX, clientY, button: 0 });
+      Object.defineProperty(event, "pointerId", { value: 1 });
+      return event;
+    }
+
+    function setup() {
+      const limits = { xMin: null, xMax: null, yMin: null, yMax: null };
+      const bindings = createBindings({
+        getRoiPlotLimits: vi.fn(() => limits),
+        setRoiPlotAxisLimits: vi.fn((key, axis, min, max) => setAxisLimits(limits, axis, min, max)),
+        clearRoiPlotLimitsForKey: vi.fn(() => clearAxisLimits(limits)),
+        hasAnyManualRoiPlotLimits: vi.fn(() => hasManualLimits(limits)),
+      });
+      bindings.roiLineCanvas._roiPlot = shownPlot();
+      return { ...bindings, limits };
+    }
+
+    function drag(canvas, from, to) {
+      canvas.dispatchEvent(pointer("pointerdown", ...from));
+      canvas.dispatchEvent(pointer("pointermove", ...to));
+      canvas.dispatchEvent(pointer("pointerup", ...to));
+    }
+
+    it("moves only x when dragged on the x axis", () => {
+      const { roiLineCanvas, limits } = setup();
+      // 96 px right is half the 192 px wide data area; the 40 px down is ignored.
+      drag(roiLineCanvas, [100, 100], [196, 140]);
+      expect(limits.xMin).toBeCloseTo(0);
+      expect(limits.xMax).toBeCloseTo(100);
+      drag(roiLineCanvas, [196, 100], [100, 60]);
+      expect(limits.xMin).toBeCloseTo(50);
+      expect(limits.xMax).toBeCloseTo(150);
+      expect(limits.yMin).toBe(0);
+      expect(limits.yMax).toBe(50);
+    });
+
+    it("moves only y when dragged on the y axis", () => {
+      const { roiLineCanvas, limits } = setup();
+      // 41 px up is half the 82 px tall data area: the view moves down by half.
+      drag(roiLineCanvas, [20, 60], [80, 19]);
+      expect(limits.yMin).toBeCloseTo(0);
+      drag(roiLineCanvas, [20, 19], [80, 60]);
+      expect(limits.yMin).toBeCloseTo(25);
+      expect(limits.yMax).toBeCloseTo(75);
+      expect(limits.xMin).toBe(0);
+      expect(limits.xMax).toBe(100);
+    });
+
+    it("shows which axis a drag would move", () => {
+      const { roiLineCanvas, callbacks } = setup();
+      roiLineCanvas.dispatchEvent(pointer("pointermove", 100, 100));
+      expect(roiLineCanvas.dataset.panZone).toBe("x");
+      expect(callbacks.redrawRoiPlots).toHaveBeenCalledTimes(1);
+      roiLineCanvas.dispatchEvent(pointer("pointermove", 20, 50));
+      expect(roiLineCanvas.dataset.panZone).toBe("y");
+      roiLineCanvas.dispatchEvent(pointer("pointermove", 100, 50));
+      expect(roiLineCanvas.dataset.panZone).toBe("plot");
+      roiLineCanvas.dispatchEvent(new window.MouseEvent("mouseleave"));
+      expect(roiLineCanvas.dataset.panZone).toBeUndefined();
+    });
+
+    it("resets only the axis that is double-clicked", () => {
+      const { roiLineCanvas, limits, callbacks } = setup();
+      setAxisLimits(limits, "x", 10, 20);
+      setAxisLimits(limits, "y", 1, 2);
+      roiLineCanvas.dispatchEvent(new window.MouseEvent("dblclick", { bubbles: true, clientX: 20, clientY: 50 }));
+      expect(limits).toEqual({ xMin: 10, xMax: 20, yMin: null, yMax: null });
+      expect(callbacks.clearRoiPlotLimitsForKey).not.toHaveBeenCalled();
+      roiLineCanvas.dispatchEvent(new window.MouseEvent("dblclick", { bubbles: true, clientX: 100, clientY: 50 }));
+      expect(limits).toEqual({ xMin: null, xMax: null, yMin: null, yMax: null });
+    });
   });
 });

@@ -326,12 +326,21 @@
   display: block;
 }
 
-.roi-plot canvas.is-pan-ready {
+.roi-plot canvas[data-pan-zone="plot"] {
   cursor: grab;
 }
 
-.roi-plot canvas.is-panning {
+.roi-plot canvas.is-panning[data-pan-zone="plot"] {
   cursor: grabbing;
+}
+
+/* On an axis a drag pans that axis only. */
+.roi-plot canvas[data-pan-zone="x"] {
+  cursor: ew-resize;
+}
+
+.roi-plot canvas[data-pan-zone="y"] {
+  cursor: ns-resize;
 }
 
 .roi-tooltip {

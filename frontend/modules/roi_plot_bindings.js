@@ -4,15 +4,7 @@
 
 import { t } from "./i18n.js";
 import { axisChipState, toggleAxisChip } from "./roi_axis_chip_utils.js";
-
-function isInsideRoiPlotViewport(plot, x, y) {
-  if (!plot) return false;
-  const minX = plot.padL;
-  const maxX = plot.width - plot.padR;
-  const minY = plot.padT;
-  const maxY = plot.height - plot.padB;
-  return x >= minX && x <= maxX && y >= minY && y <= maxY;
-}
+import { panAxisRange, roiPlotHitZone, roiPlotPanMode } from "./roi_plot_pan_utils.js";
 
 export function bindRoiPlotInteractions({
   roiState,
@@ -299,33 +291,48 @@ export function bindRoiPlotInteractions({
     scheduleRoiPlotRedraw();
   }
 
+  // The zone under the pointer, as data-pan-zone ("plot", "x" or "y"): the
+  // stylesheet picks the cursor from it and the renderer tints an axis strip.
+  function setRoiPlotPanZone(canvasEl, zone) {
+    const previous = canvasEl.dataset.panZone || null;
+    if (previous === zone) return;
+    if (zone) {
+      canvasEl.dataset.panZone = zone;
+    } else {
+      delete canvasEl.dataset.panZone;
+    }
+    if (previous === "x" || previous === "y" || zone === "x" || zone === "y") {
+      scheduleRoiPlotRedraw();
+    }
+  }
+
+  function roiPlotZoneAt(canvasEl, clientX, clientY) {
+    const plot = canvasEl?._roiPlot;
+    if (!plot) return null;
+    const rect = canvasEl.getBoundingClientRect();
+    return roiPlotHitZone(plot, clientX - rect.left, clientY - rect.top);
+  }
+
   function updateRoiPlotPanReadyState(canvasEl, clientX, clientY) {
     if (!canvasEl) return;
     if (roiPlotPanning && roiPlotPanning.canvasEl === canvasEl) return;
-    const plot = canvasEl._roiPlot;
-    if (!plot) {
-      canvasEl.classList.remove("is-pan-ready");
-      return;
-    }
-    const rect = canvasEl.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-    canvasEl.classList.toggle("is-pan-ready", isInsideRoiPlotViewport(plot, x, y));
+    const mode = roiPlotPanMode(roiPlotZoneAt(canvasEl, clientX, clientY));
+    setRoiPlotPanZone(canvasEl, mode === "both" ? "plot" : mode);
   }
 
   function beginRoiPlotPan(event, canvasEl) {
     if (!canvasEl || event.button !== 0 || roiPlotResizing) return false;
     const plot = canvasEl._roiPlot;
     if (!plot) return false;
-    const rect = canvasEl.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    if (!isInsideRoiPlotViewport(plot, x, y)) return false;
+    const mode = roiPlotPanMode(roiPlotZoneAt(canvasEl, event.clientX, event.clientY));
+    if (!mode) return false;
 
     const plotKey = getRoiPlotKey(canvasEl);
     const currentLimits = getRoiPlotLimits(plotKey);
     roiPlotPanning = {
       canvasEl,
+      mode,
+      log: Boolean(plot.log),
       pointerId: event.pointerId,
       startClientX: event.clientX,
       startClientY: event.clientY,
@@ -340,7 +347,7 @@ export function bindRoiPlotInteractions({
       hasMoved: false,
     };
 
-    canvasEl.classList.remove("is-pan-ready");
+    setRoiPlotPanZone(canvasEl, mode === "both" ? "plot" : mode);
     canvasEl.classList.add("is-panning");
     if (typeof canvasEl.setPointerCapture === "function") {
       canvasEl.setPointerCapture(event.pointerId);
@@ -350,7 +357,8 @@ export function bindRoiPlotInteractions({
   }
 
   function moveRoiPlotPan(event, canvasEl) {
-    if (!roiPlotPanning || roiPlotPanning.canvasEl !== canvasEl || roiPlotPanning.pointerId !== event.pointerId) {
+    const pan = roiPlotPanning;
+    if (!pan || pan.canvasEl !== canvasEl || pan.pointerId !== event.pointerId) {
       return;
     }
     const plot = canvasEl?._roiPlot;
@@ -359,18 +367,18 @@ export function bindRoiPlotInteractions({
     const plotKey = getRoiPlotKey(canvasEl);
     const plotWidth = Math.max(1, plot.width - plot.padL - plot.padR);
     const plotHeight = Math.max(1, plot.height - plot.padT - plot.padB);
-    const xRange = roiPlotPanning.xMax - roiPlotPanning.xMin;
-    const yRange = roiPlotPanning.yMax - roiPlotPanning.yMin;
-    if (!(xRange > 0) && !(yRange > 0)) return;
+    const movesX = pan.mode !== "y";
+    const movesY = pan.mode !== "x";
+    const dx = movesX ? event.clientX - pan.startClientX : 0;
+    const dy = movesY ? event.clientY - pan.startClientY : 0;
 
-    const dx = event.clientX - roiPlotPanning.startClientX;
-    const dy = event.clientY - roiPlotPanning.startClientY;
-
-      if (!roiPlotPanning.hasMoved && (Math.abs(dx) > 2 || Math.abs(dy) > 2)) {
-        roiPlotPanning.hasMoved = true;
-        if (roiState.plotLimits.autoscale) {
-          roiState.plotLimits.autoscale = false;
-        }
+    if (!pan.hasMoved && (Math.abs(dx) > 2 || Math.abs(dy) > 2)) {
+      pan.hasMoved = true;
+      if (roiState.plotLimits.autoscale) {
+        roiState.plotLimits.autoscale = false;
+      }
+      // Pin the axis left alone at what is shown, so turning autoscale off
+      // does not move it.
       const limits = getRoiPlotLimits(plotKey);
       if (!Number.isFinite(limits.xMin) || !Number.isFinite(limits.xMax)) {
         setRoiPlotAxisLimits(plotKey, "x", plot.xMin, plot.xMax);
@@ -380,60 +388,24 @@ export function bindRoiPlotInteractions({
       }
     }
 
-    if (!roiPlotPanning.hasMoved) return;
+    if (!pan.hasMoved) return;
 
-    let nextXMin = roiPlotPanning.xMin - (dx / plotWidth) * xRange;
-    let nextXMax = roiPlotPanning.xMax - (dx / plotWidth) * xRange;
-    const domainXMin = roiPlotPanning.domainXMin;
-    const domainXMax = roiPlotPanning.domainXMax;
-    if (Number.isFinite(domainXMin) && Number.isFinite(domainXMax)) {
-      const domainRange = domainXMax - domainXMin;
-      if (xRange >= domainRange) {
-        nextXMin = domainXMin;
-        nextXMax = domainXMax;
-      } else {
-        if (nextXMin < domainXMin) {
-          const shift = domainXMin - nextXMin;
-          nextXMin += shift;
-          nextXMax += shift;
-        }
-        if (nextXMax > domainXMax) {
-          const shift = nextXMax - domainXMax;
-          nextXMin -= shift;
-          nextXMax -= shift;
-        }
-      }
+    // The data follows the pointer: right moves x to smaller values, down
+    // moves y to larger ones.
+    if (movesX) {
+      const next = panAxisRange(
+        { min: pan.xMin, max: pan.xMax, domainMin: pan.domainXMin, domainMax: pan.domainXMax },
+        dx / plotWidth
+      );
+      if (next) setRoiPlotAxisLimits(plotKey, "x", next.min, next.max);
     }
-
-    let nextYMin = roiPlotPanning.yMin + (dy / plotHeight) * yRange;
-    let nextYMax = roiPlotPanning.yMax + (dy / plotHeight) * yRange;
-    if (nextYMin > nextYMax) {
-      [nextYMin, nextYMax] = [nextYMax, nextYMin];
+    if (movesY) {
+      const next = panAxisRange(
+        { min: pan.yMin, max: pan.yMax, domainMin: pan.domainYMin, domainMax: pan.domainYMax, log: pan.log },
+        -dy / plotHeight
+      );
+      if (next) setRoiPlotAxisLimits(plotKey, "y", next.min, next.max);
     }
-
-    const domainYMin = roiPlotPanning.domainYMin;
-    const domainYMax = roiPlotPanning.domainYMax;
-    if (Number.isFinite(domainYMin) && Number.isFinite(domainYMax)) {
-      const domainRange = domainYMax - domainYMin;
-      if (yRange >= domainRange) {
-        nextYMin = domainYMin;
-        nextYMax = domainYMax;
-      } else {
-        if (nextYMin < domainYMin) {
-          const shift = domainYMin - nextYMin;
-          nextYMin += shift;
-          nextYMax += shift;
-        }
-        if (nextYMax > domainYMax) {
-          const shift = nextYMax - domainYMax;
-          nextYMin -= shift;
-          nextYMax -= shift;
-        }
-      }
-    }
-
-    setRoiPlotAxisLimits(plotKey, "x", nextXMin, nextXMax);
-    setRoiPlotAxisLimits(plotKey, "y", nextYMin, nextYMax);
     syncRoiAxisLimitControls(plotKey);
     scheduleRoiPlotRedraw();
     event.preventDefault();
@@ -447,7 +419,7 @@ export function bindRoiPlotInteractions({
     if (event) {
       updateRoiPlotPanReadyState(canvasEl, event.clientX, event.clientY);
     } else {
-      canvasEl.classList.remove("is-pan-ready");
+      setRoiPlotPanZone(canvasEl, null);
     }
     if (Number.isFinite(pointerId) && typeof canvasEl.releasePointerCapture === "function") {
       if (canvasEl.hasPointerCapture(pointerId)) {
@@ -467,7 +439,7 @@ export function bindRoiPlotInteractions({
     canvasEl.addEventListener("mouseleave", () => {
       hideRoiTooltip(canvasEl);
       if (!(roiPlotPanning && roiPlotPanning.canvasEl === canvasEl)) {
-        canvasEl.classList.remove("is-pan-ready");
+        setRoiPlotPanZone(canvasEl, null);
       }
     });
 
@@ -494,9 +466,15 @@ export function bindRoiPlotInteractions({
     canvasEl.addEventListener("dblclick", (event) => {
       event.preventDefault();
       const plotKey = getRoiPlotKey(canvasEl);
+      const mode = roiPlotPanMode(roiPlotZoneAt(canvasEl, event.clientX, event.clientY));
       const dblEntry = roiAxisLimitControls.find((e) => e.key === plotKey);
       if (dblEntry) dblEntry.stash = null;
-      clearRoiPlotLimitsForKey(plotKey);
+      if (mode === "x" || mode === "y") {
+        // On an axis, reset that axis only.
+        setRoiPlotAxisLimits(plotKey, mode, null, null);
+      } else {
+        clearRoiPlotLimitsForKey(plotKey);
+      }
       if (!hasAnyManualRoiPlotLimits()) {
         roiState.plotLimits.autoscale = true;
       }
@@ -513,10 +491,11 @@ export function bindRoiPlotInteractions({
         const rect = canvasEl.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
-        const inYAxis = x <= plot.padL;
-        const inXAxis = y >= plot.height - plot.padB;
-        const inPlotArea = isInsideRoiPlotViewport(plot, x, y);
-        if (!inYAxis && !inXAxis && !inPlotArea) return;
+        const zone = roiPlotHitZone(plot, x, y);
+        const inYAxis = zone === "y-axis";
+        const inXAxis = zone === "x-axis";
+        const inPlotArea = zone === "plot";
+        if (!zone) return;
 
         const delta = normalizeWheelDelta(event);
         if (!delta) return;

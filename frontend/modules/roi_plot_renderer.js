@@ -195,6 +195,19 @@ export function renderRoiPlot({
     integer: xTickMode === "integer",
   });
 
+  // The axis strip under the pointer, which a drag pans on its own
+  // (roi_plot_bindings.js sets data-pan-zone).
+  const axisZone = canvasEl.dataset?.panZone;
+  if (axisZone === "x" || axisZone === "y") {
+    ctx.fillStyle = plotTheme.axisHover;
+    if (axisZone === "x") {
+      ctx.fillRect(padL, padT + drawableHeight, drawableWidth, height - padT - drawableHeight);
+    } else {
+      ctx.fillRect(0, padT, padL, drawableHeight);
+    }
+    ctx.fillStyle = plotTheme.text;
+  }
+
   ctx.strokeStyle = plotTheme.axis;
   ctx.lineWidth = 1;
   ctx.beginPath();

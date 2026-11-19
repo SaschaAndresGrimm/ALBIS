@@ -49,6 +49,7 @@
   --plot-bg: rgba(12, 18, 27, 0.96);
   --plot-frame: rgba(78, 100, 137, 0.45);
   --plot-axis: rgba(132, 156, 196, 0.82);
+  --plot-axis-hover: rgba(132, 156, 196, 0.12);
   --plot-grid: rgba(88, 112, 152, 0.24);
   --plot-text: #dce8ff;
   --plot-bar: rgba(236, 243, 255, 0.88);
@@ -210,6 +211,7 @@
   --plot-bg: #ffffff;
   --plot-frame: rgba(28, 42, 66, 0.24);
   --plot-axis: rgba(40, 54, 78, 0.8);
+  --plot-axis-hover: rgba(40, 54, 78, 0.07);
   --plot-grid: rgba(28, 42, 66, 0.1);
   --plot-text: #2a3444;
   --plot-bar: rgba(44, 64, 96, 0.72);
