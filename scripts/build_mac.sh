@@ -67,6 +67,10 @@ fi
 # Non-interactive build: never prompt to remove existing output directories.
 "$PYTHON_BIN" -m PyInstaller --noconfirm --clean ALBIS.spec
 
+# The bill of materials for this bundle, from the interpreter that built it:
+# the runtime closure of the pins on this platform, not the repository.
+"$PYTHON_BIN" scripts/generate_sbom.py --target "$TARGET" --output "dist/ALBIS-${TARGET}-${TAG}.cdx.json"
+
 MAC_SRC="dist/ALBIS"
 if [ -d "dist/ALBIS.app" ]; then
   MAC_SRC="dist/ALBIS.app"

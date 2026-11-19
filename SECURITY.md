@@ -57,3 +57,23 @@ Please highlight:
 
 For what ALBIS sends over the network by default — and what it deliberately does not — see
 [Network Behaviour and Privacy](docs/NETWORK_AND_PRIVACY.md).
+
+## What is inside a download, and how it is watched
+
+Every release carries a CycloneDX bill of materials per platform,
+`ALBIS-<platform>-<version>.cdx.json`, listing what that download contains: the Python
+packages, the Python interpreter, the C libraries inside both (OpenSSL, zlib, HDF5, libzmq
+and others) with their versions, and the third-party files in the web interface. It is
+covered by the signed `SHA256SUMS.txt`. The Docker image carries its own as a registry
+attestation.
+
+These are checked for known vulnerabilities with [grype](https://github.com/anchore/grype):
+
+- **Before a release.** A known vulnerability rated Critical in what is about to ship stops
+  the release, unless it was reviewed and found not to apply to ALBIS. Those decisions are
+  recorded, with the reason, in [`.grype.yaml`](.grype.yaml).
+- **Every week, after a release.** The bills of materials of the latest release are scanned
+  again, so a vulnerability published after the release is noticed too.
+
+The pinned Python dependencies are audited with `pip-audit`, and the web interface's with
+`npm audit`, on every pull request.

@@ -24,6 +24,17 @@ This produces versioned artifacts in `dist/`, e.g.:
 - `ALBIS-macos-<arch>-v<version>-<commit>.zip`
 - `ALBIS-macos-<arch>-v<version>-<commit>.dmg`
 
+`build_mac.sh` builds with whichever `python3` is first on `PATH`, or `PYTHON_BIN`.
+Release builds use the same python-build-standalone interpreter as Linux, because
+PyInstaller copies the interpreter into the app with its OpenSSL, SQLite and expat,
+and `actions/setup-python`'s macOS builds carry OpenSSL from the 3.0 line. To build
+the way the release does:
+
+```bash
+./scripts/install_python_standalone.sh /tmp/albis-python
+PYTHON_BIN=/tmp/albis-python/bin/python3 ./scripts/build_mac.sh
+```
+
 `build_mac.sh` also attempts to create a macOS `.app` bundle with icon support (from `frontend/resources/icon.png`).
 DMG images get their layout — background image, icon positions, an `Applications`
 shortcut for drag-and-drop installation — from `scripts/build_styled_dmg.sh`, which
@@ -139,6 +150,12 @@ To also remove `~/ALBIS-data` and `~/.config/albis`:
 .\scripts\package_windows_innosetup.ps1
 ```
 
+`build_windows.ps1` makes its build venv from `PYTHON_BIN`, or `python` on `PATH`.
+Release builds set `PYTHON_BIN` to the same python-build-standalone interpreter as
+Linux and macOS, installed from Git Bash with
+`scripts/install_python_standalone.sh`, because the interpreter ships inside the
+app with its OpenSSL, SQLite and expat.
+
 Example output:
 
 - `ALBIS-windows-<arch>-v<version>-<commit>.zip`
@@ -204,6 +221,38 @@ Public GitHub Releases publish architecture-specific install + portable assets:
 - macOS: `ALBIS-macos-arm64-*` and `ALBIS-macos-x64-*` (`.dmg` + `.zip`)
 - Windows: `ALBIS-Setup-windows-x64-*` + `ALBIS-windows-x64-*.zip`
 - Linux: `ALBIS-linux-x64-*.tar.gz`, `ALBIS-*-x86_64.AppImage`, and `ALBIS-*-x86_64-appimage-bundle.tar.gz`, and the same three for arm64 (`ALBIS-linux-arm64-*`, `*-aarch64*`)
+- every target: `ALBIS-<target>-*.cdx.json`, the CycloneDX bill of materials for that bundle
+
+The bill of materials is written by `scripts/generate_sbom.py`, which each build
+script runs right after PyInstaller with the same interpreter. It reads the TOC
+files PyInstaller leaves in `build/ALBIS/` and lists every installed package
+with a file in the bundle (so on macOS only the pyobjc frameworks ALBIS
+imports, and no build tools), the native libraries those carry that report a
+version (HDF5, OpenBLAS, libzmq, libzstd, Pillow's codecs; OpenSSL, zlib, expat
+and SQLite in the interpreter), the interpreter, the PyInstaller bootloader and
+the files vendored into `frontend/`. A library the interpreter takes from the
+operating system (on macOS, zlib from `/usr/lib`) is not shipped and is only
+named on the CPython entry, so a scanner does not hold Apple's copy against
+ALBIS. The build fails if an installed package
+does not match its pin. The filter plugins inside hdf5plugin, and the
+compression libraries in them, report no version at run time; they are listed
+from hdf5plugin's own documentation of each release, kept in
+`HDF5PLUGIN_EMBEDDED` in `scripts/sbom_bundle.py`. Bumping the hdf5plugin pin
+means adding its list there (a test fails until it is), copied from
+`doc/information.rst` at that release's tag.
+
+Native libraries carry a CPE (`cpe:2.3:a:<vendor>:<product>:<version>`) where NVD
+lists one, from `CPE_PRODUCTS` in `scripts/sbom_bundle.py`: a scanner has no package
+ecosystem to match a C library by, only its CPE. `scripts/scan_sbom.sh` runs grype
+(pinned, checksum-verified) over the SBOMs. The release scans them before it signs
+anything and stops on an unreviewed Critical finding; the weekly Security workflow
+scans the latest release's and fails on High. Reviewed findings that do not apply go
+in `.grype.yaml`, each with its reason. To scan locally:
+`scripts/scan_sbom.sh dist/*.cdx.json`.
+
+The Docker image carries its own bill of materials and provenance as registry
+attestations, made by BuildKit from the finished image:
+`docker buildx imagetools inspect ghcr.io/<owner>/albis:<tag> --format '{{ json .SBOM }}'`.
 
 Public release inputs are pinned:
 
@@ -211,7 +260,7 @@ Public release inputs are pinned:
 - PyInstaller via the build scripts
 - Docker base image by digest
 - Linux build images (`manylinux_2_28`, x86_64 and aarch64 of the same date) and the distribution images `smoke_linux` runs on, by digest
-- the Linux build's Python (python-build-standalone) by release + checksum in `scripts/install_python_standalone.sh`
+- the Python bundled on Linux, macOS and Windows (python-build-standalone) by release + checksum per platform in `scripts/install_python_standalone.sh`
 - AppImage tooling by explicit version + checksum in CI
 
 ### Output
