@@ -30,8 +30,8 @@
     "guide:screenshots": "npx -y node@24 ./scripts/guide_screenshots.mjs"
   },
   "devDependencies": {
-    "eslint": "^10.14.0",
-    "jsdom": "^31.0.0",
+    "eslint": "^10.15.0",
+    "jsdom": "^31.0.1",
     "vitest": "^5.1.0"
   },
   "engines": {
