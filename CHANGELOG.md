@@ -9,9 +9,37 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- **An ROI plot can be dragged up and down from the start.** As a plot first opens, its value axis is fitted to the data with a small margin. Dragging the plot or its value axis was held inside the data's range, so it could only snap the axis onto the data and then not move: the curve rescaled slightly, which looked like a reset, instead of moving. The value axis now follows the drag past the data, stopping only when a tenth of the plot would no longer show any of it, so the curve cannot be lost. The x axis still stops at the ends of the profile, beyond which there is nothing to show.
+
+## [0.46.0] - 2026-11-19
+
+### Added
+
+- **Linked windows can step and play through frames together.** The link menu in the header has a new **Frame** option. With it on, stepping with the arrow keys, the slider or the previous and next buttons in one window moves the other linked windows by the same number of frames, and **Play** in one window plays them all. The windows keep the gap in frames they had when you linked them, so frame 10 next to frame 12 stays two apart, for comparing a frame with the one after it or two series whose event starts at different frames. A window that loads its frames more slowly skips some to keep up rather than slowing the others down. **Stop** in any window stops them all. **Frame** is on whenever windows are linked; untick it to step each window on its own.
+
+- **ROI plots can be panned along one axis by dragging on it.** Dragging inside a plot moves both axes at once, so sliding along a profile also nudged the intensity range up or down. Now a drag on the numbers below a plot moves only x, and a drag on the numbers to its left moves only y; the cursor shows a two-way arrow and the axis is shaded while it is under the pointer. Double-clicking an axis resets just that axis, and double-clicking inside the plot still resets both. On a log axis, panning now moves the curve with the pointer at any height; it used to move it faster or slower depending on where on the axis you were.
+
+- **A zoomed-in ROI profile marks each sample with a dot.** Once you zoom in so far that the samples are at least 8 pixels apart, every pixel of the profile gets a small dot, so you can see which pixels you are looking at and that the line between two dots only joins them. While only the x axis is zoomed, the value axis keeps the same small margin above and below the curve as with automatic axes, so the highest and lowest points are no longer drawn on the frame.
+
+- **ROI plots: zoom into a box, swipe along x, go back to the previous view, and see which point the tooltip reads.** Four additions to moving around a plot:
+  - **Shift-drag** a box over a plot to zoom into it in one move, instead of many wheel notches. A flat box zooms only along x, a thin tall one only along y.
+  - On a **trackpad**, a sideways two-finger swipe pans along x, as a horizontal scrollbar would, and **pinching** zooms at the speed your fingers move. Pinching used to zoom very slowly, and a sideways swipe did nothing. Shift with a mouse wheel also pans along x.
+  - The new **↶ Previous view** button in a plot's header goes back one view after a zoom, a pan or a double-click reset, so you can look at the whole profile and return to the part you had zoomed into. It appears once there is a view to go back to.
+  - Hovering over a plot marks the sample the tooltip is reading with a line and a dot (or an outline on a histogram bar). On a dense profile the number alone did not say which point it belonged to.
+
+### Fixed
+
+- **The x axis titles of the ROI plots are no longer cut off at the bottom.** "X pixel", "Y pixel" and "Intensity" lost the lower half of their letters, because the title was centred on a line just above the plot's bottom edge. It now sits fully inside the plot, below the tick labels.
+
+- **Zooming an ROI plot with the wheel stays smooth down to a few pixels and keeps the point under the pointer in place.** The plots used to round the visible range to whole samples, and each wheel notch started from that rounded range. On a long range nobody noticed, but on a range of a few pixels every notch zoomed in by about two pixels whatever the wheel did, zooming out could get stuck, and the view slid sideways. The plots now show exactly the range you zoomed to, with the curve running to the edge of the plot, so every notch zooms by the same proportion at any scale. Zooming in stops at two samples across (and, on the value axis, at a millionth of the values shown, where only rounding noise is left), and zooming out on the x axis stops at the whole profile. The histogram's x axis now runs from the outer edge of the first bin to the outer edge of the last, so the bars line up with the axis labels; it used to run from centre to centre, half a bin off at each end.
+
 - **Checking for updates on a remote ALBIS no longer offers "Show in Folder", and the download goes to your own computer.** When ALBIS runs on another machine and you open it in a browser, **Download Update** saved the file on that machine's disk and **Show in Folder** opened a file manager on its screen, where nobody could see it. Now the download goes through your browser, to your own computer, and the folder button appears only when ALBIS runs on the computer you are sitting at. If the folder cannot be opened there either (a machine without a desktop, say), ALBIS tells you where the file is.
 
 ### Changed
+
+- **The ROI histogram's bars follow the light and dark theme.** They were always drawn in the same pale blue, which barely showed against the white plot of the light theme. They now use the same bar colour as the main histogram.
+
+- **The ROI plots label their axes at round numbers.** The ticks used to split the plotted range into equal parts and label whatever value fell there, so a profile peaking at 0.13 read 0, 0.043, 0.087, 0.13 and a box from column 562 to 1699 read 562, 941, 1320, 1699, with the last label cut off at the edge. Ticks now sit on steps of 1, 2 or 5 times a power of ten: 0, 0.02, 0.04 … 0.12, and 600, 800 … 1600. The curve still fills the plot; the ends just carry no label when they are not round. A taller plot gets more ticks. The log scale is labelled at 0, 1, 10, 100 …, with 2 and 5 in between where there is room, and the d or Q axis above a profile shows round resolutions (10, 5, 4, 3, 2.5, 2 Å) where they fall, instead of whatever d sat above each pixel tick. The histogram's axes follow the same rules.
 
 - **The mounted ALBIS disk image now shows the ALBIS icon.** Opening the macOS download used to put a generic grey drive on the desktop and in the Finder sidebar. It now shows the ALBIS icon on a silver drive, so the installer is easy to recognise and to eject.
 
@@ -2007,7 +2035,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.45.1...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.46.0...HEAD
+[0.46.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.45.1...v0.46.0
 [0.45.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.45.0...v0.45.1
 [0.45.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.44.0...v0.45.0
 [0.44.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.43.0...v0.44.0

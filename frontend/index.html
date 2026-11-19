@@ -171,18 +171,10 @@
                 <span aria-hidden="true">▾</span>
               </button>
               <div class="toolbar-sync-popover" id="viewer-sync-popover" aria-hidden="true">
-                <label class="checkbox toolbar-sync-option">
-                  <input id="viewer-sync-position" type="checkbox" checked />
-                  <span data-i18n="toolbar.viewer_sync.position">Position</span>
-                </label>
-                <label class="checkbox toolbar-sync-option">
-                  <input id="viewer-sync-contrast" type="checkbox" checked />
-                  <span data-i18n="toolbar.viewer_sync.contrast">Contrast</span>
-                </label>
-                <label class="checkbox toolbar-sync-option">
-                  <input id="viewer-sync-roi" type="checkbox" checked />
-                  <span data-i18n="toolbar.viewer_sync.roi">ROI</span>
-                </label>
+                <label class="checkbox toolbar-sync-option"><input id="viewer-sync-position" type="checkbox" checked /><span data-i18n="toolbar.viewer_sync.position">Position</span></label>
+                <label class="checkbox toolbar-sync-option"><input id="viewer-sync-contrast" type="checkbox" checked /><span data-i18n="toolbar.viewer_sync.contrast">Contrast</span></label>
+                <label class="checkbox toolbar-sync-option"><input id="viewer-sync-roi" type="checkbox" checked /><span data-i18n="toolbar.viewer_sync.roi">ROI</span></label>
+                <label class="checkbox toolbar-sync-option" data-i18n-title="toolbar.viewer_sync.frame_title" title="Step and play together, keeping the gap in frames"><input id="viewer-sync-frame" type="checkbox" checked /><span data-i18n="toolbar.viewer_sync.frame">Frame</span></label>
               </div>
             </div>
             <button class="tool-btn tool-btn-compact pixel-values-btn is-active" id="pixel-label-toggle" type="button" aria-pressed="true" data-i18n-title="toolbar.pixel_values" data-i18n-aria-label="toolbar.pixel_values" title="Pixel values: the number in each pixel when zoomed in" aria-label="Pixel values: the number in each pixel when zoomed in">123</button>
@@ -1149,7 +1141,7 @@
                   <div class="roi-plot-header">
                     <div class="roi-plot-title" data-i18n="roi.plot.line_profile">Line Profile</div>
                     <div class="roi-plot-actions">
-                      <button type="button" class="roi-axis-limit-chip is-hidden" data-roi-axis-chip data-i18n="roi.axis.manual_chip" data-i18n-title="roi.axis.chip_hint.manual" title="Back to automatic axes; click again to get these axes back">Manual axes</button>
+                      <button type="button" class="roi-plot-icon-btn is-hidden" data-roi-view-back title="Previous view" aria-label="Previous view" data-i18n-title="roi.axis.previous_view" data-i18n-aria-label="roi.axis.previous_view">↶</button><button type="button" class="roi-axis-limit-chip is-hidden" data-roi-axis-chip data-i18n="roi.axis.manual_chip" data-i18n-title="roi.axis.chip_hint.manual" title="Back to automatic axes; click again to get these axes back">Manual axes</button>
                       <button
                         class="roi-plot-icon-btn roi-axis-limits-toggle"
                         type="button"
@@ -1198,7 +1190,7 @@
                   <div class="roi-plot-header">
                     <div class="roi-plot-title" data-i18n="analysis.roi.plot.profile_x">Profile along X</div>
                     <div class="roi-plot-actions">
-                      <button type="button" class="roi-axis-limit-chip is-hidden" data-roi-axis-chip data-i18n="roi.axis.manual_chip" data-i18n-title="roi.axis.chip_hint.manual" title="Back to automatic axes; click again to get these axes back">Manual axes</button>
+                      <button type="button" class="roi-plot-icon-btn is-hidden" data-roi-view-back title="Previous view" aria-label="Previous view" data-i18n-title="roi.axis.previous_view" data-i18n-aria-label="roi.axis.previous_view">↶</button><button type="button" class="roi-axis-limit-chip is-hidden" data-roi-axis-chip data-i18n="roi.axis.manual_chip" data-i18n-title="roi.axis.chip_hint.manual" title="Back to automatic axes; click again to get these axes back">Manual axes</button>
                       <button
                         class="roi-plot-icon-btn roi-axis-limits-toggle"
                         type="button"
@@ -1240,7 +1232,7 @@
                   <div class="roi-plot-header">
                     <div class="roi-plot-title" data-i18n="analysis.roi.plot.profile_y">Profile along Y</div>
                     <div class="roi-plot-actions">
-                      <button type="button" class="roi-axis-limit-chip is-hidden" data-roi-axis-chip data-i18n="roi.axis.manual_chip" data-i18n-title="roi.axis.chip_hint.manual" title="Back to automatic axes; click again to get these axes back">Manual axes</button>
+                      <button type="button" class="roi-plot-icon-btn is-hidden" data-roi-view-back title="Previous view" aria-label="Previous view" data-i18n-title="roi.axis.previous_view" data-i18n-aria-label="roi.axis.previous_view">↶</button><button type="button" class="roi-axis-limit-chip is-hidden" data-roi-axis-chip data-i18n="roi.axis.manual_chip" data-i18n-title="roi.axis.chip_hint.manual" title="Back to automatic axes; click again to get these axes back">Manual axes</button>
                       <button
                         class="roi-plot-icon-btn roi-axis-limits-toggle"
                         type="button"
@@ -1282,7 +1274,7 @@
                   <div class="roi-plot-header">
                     <div class="roi-plot-title" data-i18n="analysis.roi.plot.histogram">ROI Histogram</div>
                     <div class="roi-plot-actions">
-                      <button type="button" class="roi-axis-limit-chip is-hidden" data-roi-axis-chip data-i18n="roi.axis.manual_chip" data-i18n-title="roi.axis.chip_hint.manual" title="Back to automatic axes; click again to get these axes back">Manual axes</button>
+                      <button type="button" class="roi-plot-icon-btn is-hidden" data-roi-view-back title="Previous view" aria-label="Previous view" data-i18n-title="roi.axis.previous_view" data-i18n-aria-label="roi.axis.previous_view">↶</button><button type="button" class="roi-axis-limit-chip is-hidden" data-roi-axis-chip data-i18n="roi.axis.manual_chip" data-i18n-title="roi.axis.chip_hint.manual" title="Back to automatic axes; click again to get these axes back">Manual axes</button>
                       <span class="roi-histogram-bin-chip is-hidden" id="roi-hist-bin-chip" aria-live="polite"></span>
                       <button
                         class="roi-plot-icon-btn roi-axis-limits-toggle"

@@ -172,7 +172,7 @@ const appElements = queryAppElements();
 const {
   datasetSelect, thresholdSelect, toolbarThresholdSelect,
   toolbarMoreStep, toolbarMoreFps, viewerSyncWrap, viewerSyncToggle, viewerSyncOptionsToggle,
-  viewerSyncPopover, viewerSyncPositionToggle, viewerSyncContrastToggle, viewerSyncRoiToggle, frameRange,
+  viewerSyncPopover, viewerSyncPositionToggle, viewerSyncContrastToggle, viewerSyncRoiToggle, viewerSyncFrameToggle, frameRange,
   frameIndex, frameStep, fpsSelect, autoScaleToggle, minInput, maxInput, statusEl, loadingEl, metaRenderer,
   toolbarPath, fullscreenToggle, invertToggle, colormapSelect, toolsPanel, canvasWrap, canvas, pixelOverlay,
   roiOverlay, histCanvas, histColorbar, overviewCanvas, pixelLabelToggle, splashCanvas, resolutionOverlay,
@@ -2611,7 +2611,7 @@ viewerSyncController = createViewerSyncController({
     syncPopover: viewerSyncPopover,
     syncViewportToggle: viewerSyncPositionToggle,
     syncContrastToggle: viewerSyncContrastToggle,
-    syncRoiToggle: viewerSyncRoiToggle,
+    syncRoiToggle: viewerSyncRoiToggle, syncFrameToggle: viewerSyncFrameToggle,
     canvasWrap,
   },
   callbacks: {

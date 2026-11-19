@@ -19,12 +19,15 @@ function createPlotContainer(id, canvas) {
   container.id = id;
   const resizeHandle = document.createElement("div");
   resizeHandle.className = "roi-resize-handle";
-  container.append(canvas, resizeHandle);
+  const backBtn = document.createElement("button");
+  backBtn.dataset.roiViewBack = "";
+  backBtn.className = "is-hidden";
+  container.append(backBtn, canvas, resizeHandle);
   document.body.append(container);
   return container;
 }
 
-function createBindings() {
+function createBindings(overrides = {}) {
   const roiLineCanvas = createCanvas("roi-line-canvas");
   const roiXCanvas = createCanvas("roi-x-canvas");
   const roiYCanvas = createCanvas("roi-y-canvas");
@@ -53,6 +56,7 @@ function createBindings() {
     hasManualRoiPlotLimits: vi.fn(() => false),
     hasAnyManualRoiPlotLimits: vi.fn(() => false),
     normalizeWheelDelta: vi.fn(() => 0),
+    ...overrides,
   };
 
   bindRoiPlotInteractions({
@@ -284,5 +288,197 @@ describe("roi_plot_bindings", () => {
     expect(autoToggle.checked).toBe(true);
     expect(chip.classList.contains("is-hidden")).toBe(true);
     expect(redrawRoiPlots).toHaveBeenCalled();
+  });
+
+  describe("dragging on an axis", () => {
+    // 240 x 120 canvas: data area x 40..232, y 8..90 (192 x 82 px).
+    const shownPlot = () => ({
+      xMin: 0,
+      xMax: 100,
+      yMin: 0,
+      yMax: 50,
+      totalXMin: 0,
+      totalXMax: 1000,
+      totalYMin: 0,
+      totalYMax: 500,
+      padL: 40,
+      padR: 8,
+      padT: 8,
+      padB: 30,
+      width: 240,
+      height: 120,
+    });
+
+    function pointer(type, clientX, clientY) {
+      const event = new window.MouseEvent(type, { bubbles: true, cancelable: true, clientX, clientY, button: 0 });
+      Object.defineProperty(event, "pointerId", { value: 1 });
+      return event;
+    }
+
+    function setup() {
+      const limits = { xMin: null, xMax: null, yMin: null, yMax: null };
+      const bindings = createBindings({
+        getRoiPlotLimits: vi.fn(() => limits),
+        setRoiPlotAxisLimits: vi.fn((key, axis, min, max) => setAxisLimits(limits, axis, min, max)),
+        clearRoiPlotLimitsForKey: vi.fn(() => clearAxisLimits(limits)),
+        hasManualRoiPlotLimits: vi.fn(() => hasManualLimits(limits)),
+        hasAnyManualRoiPlotLimits: vi.fn(() => hasManualLimits(limits)),
+      });
+      bindings.roiLineCanvas._roiPlot = shownPlot();
+      return { ...bindings, limits };
+    }
+
+    function drag(canvas, from, to) {
+      canvas.dispatchEvent(pointer("pointerdown", ...from));
+      canvas.dispatchEvent(pointer("pointermove", ...to));
+      canvas.dispatchEvent(pointer("pointerup", ...to));
+    }
+
+    it("moves only x when dragged on the x axis", () => {
+      const { roiLineCanvas, limits } = setup();
+      // 96 px right is half the 192 px wide data area; the 40 px down is ignored.
+      drag(roiLineCanvas, [100, 100], [196, 140]);
+      expect(limits.xMin).toBeCloseTo(0);
+      expect(limits.xMax).toBeCloseTo(100);
+      drag(roiLineCanvas, [196, 100], [100, 60]);
+      expect(limits.xMin).toBeCloseTo(50);
+      expect(limits.xMax).toBeCloseTo(150);
+      expect(limits.yMin).toBe(0);
+      expect(limits.yMax).toBe(50);
+    });
+
+    it("moves only y when dragged on the y axis", () => {
+      const { roiLineCanvas, limits } = setup();
+      // 41 px up is half the 82 px tall data area: the curve moves up, so the
+      // view moves down by half, past the bottom of the data.
+      drag(roiLineCanvas, [20, 60], [80, 19]);
+      expect(limits.yMin).toBeCloseTo(-25);
+      expect(limits.yMax).toBeCloseTo(25);
+      drag(roiLineCanvas, [20, 19], [80, 60]);
+      drag(roiLineCanvas, [20, 19], [80, 60]);
+      expect(limits.yMin).toBeCloseTo(25);
+      expect(limits.yMax).toBeCloseTo(75);
+      expect(limits.xMin).toBe(0);
+      expect(limits.xMax).toBe(100);
+    });
+
+    // An autoscaled y range is a little wider than the data. y was kept
+    // inside the data, so a drag could only snap it onto the data: the
+    // curve rescaled slightly ("clicking resets the scale") and never moved.
+    it("moves y from the autoscaled view instead of snapping it to the data", () => {
+      const { roiLineCanvas, limits } = setup();
+      Object.assign(roiLineCanvas._roiPlot, { yMin: -1.5, yMax: 51.5, totalYMin: 0, totalYMax: 50 });
+      // 41 px down is half the 82 px tall data area, on the axis and in the plot.
+      drag(roiLineCanvas, [20, 19], [20, 60]);
+      expect(limits.yMin).toBeCloseTo(25);
+      expect(limits.yMax).toBeCloseTo(78);
+      roiLineCanvas._roiPlot.yMin = limits.yMin;
+      roiLineCanvas._roiPlot.yMax = limits.yMax;
+      drag(roiLineCanvas, [100, 60], [100, 19]);
+      expect(limits.yMin).toBeCloseTo(-1.5);
+      expect(limits.yMax).toBeCloseTo(51.5);
+    });
+
+    it("shows which axis a drag would move", () => {
+      const { roiLineCanvas, callbacks } = setup();
+      roiLineCanvas.dispatchEvent(pointer("pointermove", 100, 100));
+      expect(roiLineCanvas.dataset.panZone).toBe("x");
+      expect(callbacks.redrawRoiPlots).toHaveBeenCalledTimes(1);
+      roiLineCanvas.dispatchEvent(pointer("pointermove", 20, 50));
+      expect(roiLineCanvas.dataset.panZone).toBe("y");
+      roiLineCanvas.dispatchEvent(pointer("pointermove", 100, 50));
+      expect(roiLineCanvas.dataset.panZone).toBe("plot");
+      roiLineCanvas.dispatchEvent(new window.MouseEvent("mouseleave"));
+      expect(roiLineCanvas.dataset.panZone).toBeUndefined();
+    });
+
+    // Each notch used to start from the drawn range, which the renderer had
+    // rounded to whole samples, so on a short range zooming lost samples per
+    // notch, zooming out stuck, and the point under the pointer drifted.
+    it("zooms a short x range in and back out to where it was, about the pointer", () => {
+      const limits = { xMin: 20, xMax: 26, yMin: null, yMax: null };
+      const { roiLineCanvas } = createBindings({
+        getRoiPlotLimits: vi.fn(() => limits),
+        setRoiPlotAxisLimits: vi.fn((key, axis, min, max) => setAxisLimits(limits, axis, min, max)),
+        normalizeWheelDelta: vi.fn((event) => event.deltaY),
+      });
+      // The drawn range is stale on purpose: the wheel must not read it.
+      roiLineCanvas._roiPlot = { ...shownPlot(), xMin: 21, xMax: 25, xStep: 1 };
+      // Pointer a quarter of the way along the 192 px data area: x = 21.5.
+      const wheel = (deltaY) =>
+        roiLineCanvas.dispatchEvent(new window.WheelEvent("wheel", { clientX: 88, clientY: 100, deltaY, cancelable: true }));
+      const at = () => limits.xMin + 0.25 * (limits.xMax - limits.xMin);
+      for (let i = 0; i < 3; i += 1) wheel(-100);
+      expect(limits.xMax - limits.xMin).toBeCloseTo(6 * Math.exp(-0.6));
+      expect(at()).toBeCloseTo(21.5);
+      for (let i = 0; i < 3; i += 1) wheel(100);
+      expect(limits.xMin).toBeCloseTo(20);
+      expect(limits.xMax).toBeCloseTo(26);
+    });
+
+    it("zooms into a box dragged with Shift", () => {
+      const { roiLineCanvas, limits } = setup();
+      const down = pointer("pointerdown", 40, 49);
+      Object.defineProperty(down, "shiftKey", { value: true });
+      roiLineCanvas.dispatchEvent(down);
+      roiLineCanvas.dispatchEvent(pointer("pointermove", 136, 90));
+      expect(roiLineCanvas._roiZoomBox).toEqual({ x0: 40, y0: 49, x1: 136, y1: 90 });
+      roiLineCanvas.dispatchEvent(pointer("pointerup", 136, 90));
+      expect(roiLineCanvas._roiZoomBox).toBeNull();
+      expect(limits.xMin).toBeCloseTo(0);
+      expect(limits.xMax).toBeCloseTo(50);
+      expect(limits.yMin).toBeCloseTo(0);
+      expect(limits.yMax).toBeCloseTo(25);
+    });
+
+    it("pans x on a sideways swipe and keeps y where it is", () => {
+      const { roiLineCanvas, limits } = setup();
+      roiLineCanvas.dispatchEvent(
+        new window.WheelEvent("wheel", { clientX: 100, clientY: 50, deltaX: 96, deltaY: 2, cancelable: true })
+      );
+      // 96 px is half the data area: half of the 0..100 view to the right.
+      expect(limits.xMin).toBeCloseTo(50);
+      expect(limits.xMax).toBeCloseTo(150);
+      expect(limits.yMin).toBe(0);
+      expect(limits.yMax).toBe(50);
+    });
+
+    it("marks the sample under the pointer and forgets it on leaving", () => {
+      const { roiLineCanvas, callbacks } = setup();
+      Object.assign(roiLineCanvas._roiPlot, { data: new Array(101).fill(1), xStart: 0, xStep: 1 });
+      // x 0..100 over 192 px from px 40: px 136 is x 50.
+      roiLineCanvas.dispatchEvent(new window.MouseEvent("mousemove", { clientX: 136, clientY: 50 }));
+      expect(roiLineCanvas._roiHoverX).toBe(50);
+      roiLineCanvas.dispatchEvent(new window.MouseEvent("mouseleave"));
+      expect(roiLineCanvas._roiHoverX).toBeNull();
+      expect(callbacks.redrawRoiPlots).toHaveBeenCalled();
+    });
+
+    it("goes back to the previous view after a reset or a zoom", () => {
+      const { roiLineCanvas, limits } = setup();
+      const back = roiLineCanvas.parentElement.querySelector("[data-roi-view-back]");
+      expect(back.classList.contains("is-hidden")).toBe(true);
+      drag(roiLineCanvas, [196, 100], [100, 60]);
+      const zoomed = { ...limits };
+      roiLineCanvas.dispatchEvent(new window.MouseEvent("dblclick", { bubbles: true, clientX: 100, clientY: 50 }));
+      expect(limits.xMin).toBeNull();
+      expect(back.classList.contains("is-hidden")).toBe(false);
+      back.click();
+      expect(limits).toEqual(zoomed);
+      back.click();
+      expect(limits).toEqual({ xMin: null, xMax: null, yMin: null, yMax: null });
+      expect(back.classList.contains("is-hidden")).toBe(true);
+    });
+
+    it("resets only the axis that is double-clicked", () => {
+      const { roiLineCanvas, limits, callbacks } = setup();
+      setAxisLimits(limits, "x", 10, 20);
+      setAxisLimits(limits, "y", 1, 2);
+      roiLineCanvas.dispatchEvent(new window.MouseEvent("dblclick", { bubbles: true, clientX: 20, clientY: 50 }));
+      expect(limits).toEqual({ xMin: 10, xMax: 20, yMin: null, yMax: null });
+      expect(callbacks.clearRoiPlotLimitsForKey).not.toHaveBeenCalled();
+      roiLineCanvas.dispatchEvent(new window.MouseEvent("dblclick", { bubbles: true, clientX: 100, clientY: 50 }));
+      expect(limits).toEqual({ xMin: null, xMax: null, yMin: null, yMax: null });
+    });
   });
 });

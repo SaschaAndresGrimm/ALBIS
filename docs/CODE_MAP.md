@@ -49,6 +49,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - The ROI plots (axis limits, log scale, histogram bins, hover tooltip, drawing), and the readouts' millimetre formatting, calibration check and profile peak finder.
 - `frontend/modules/roi_stats_engine.js` + `frontend/modules/roi_plot_renderer.js` + `frontend/modules/roi_csv_export.js`:
   - Pure ROI compute helpers, ROI plot rendering, and CSV payload generation.
+- `frontend/modules/plot_tick_utils.js`:
+  - Axis ticks at round numbers for the ROI plots: linear, log, and the non-linear d/Q axis above a profile.
 - `frontend/modules/level_bands_utils.js` + `frontend/modules/level_bands_controller.js`:
   - The statistics' Below BG / BG to FG / Above FG rows: the counted pixels prepared once per frame or ROI (running totals for integer data, the values for float), counted against each BG/FG, and deferred on large frames until the levels or the frame settle.
 - `frontend/modules/file_type_utils.js`:
@@ -188,12 +190,18 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - The detector geometry ALBIS calculates with (the data's values and the user's override), Data → Detector Geometry, and geometry-file scoping per file or series.
 - `frontend/modules/roi_geometry_utils.js`, `frontend/modules/roi_controls_bindings.js`, `frontend/modules/roi_plot_bindings.js`:
   - ROI geometry in physical units (non-square pixels), the ROI controls' listeners, and the ROI plot's pan, zoom and resize.
+- `frontend/modules/roi_plot_pan_utils.js`:
+  - Where a pointer is on an ROI plot (data area, x-axis or y-axis strip) and how a drag, the wheel, a trackpad gesture or a Shift-drag box changes an axis range: clamped to the data, with a smallest zoom, on the log scale as drawn.
+- `frontend/modules/roi_plot_view_history.js`:
+  - The views each ROI plot has been through, for its Previous view button.
+- `frontend/modules/roi_plot_view_utils.js`:
+  - The x range an ROI plot draws (exactly the range asked for, not rounded to whole samples), the samples it needs, and the sample under the pointer for the tooltip.
 - `frontend/modules/roi_axis_chip_utils.js`:
   - What a click on an ROI plot's Manual axes tag does: back to auto axes, remembering the manual limits, and back again.
 - `frontend/modules/series_sum_controller.js`:
   - Analysis → Combine Frames, run as a background job.
-- `frontend/modules/viewer_sync_controller.js`, `frontend/modules/window_clone_state.js`:
-  - Linking viewport, contrast and ROI between windows, and what a duplicated window takes with it.
+- `frontend/modules/viewer_sync_controller.js`, `frontend/modules/viewer_sync_frame_utils.js`, `frontend/modules/window_clone_state.js`:
+  - Linking viewport, contrast, ROI and frame between windows (the frame offset arithmetic in the `_utils` module), and what a duplicated window takes with it.
 
 ### Exports
 

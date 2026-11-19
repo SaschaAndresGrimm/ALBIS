@@ -1,8 +1,9 @@
 /**
- * Cross-window viewer synchronization for viewport, contrast, and ROI state.
+ * Cross-window viewer synchronization for viewport, contrast, ROI and frame.
  */
 
 import { t } from "./i18n.js";
+import { followFrameTarget, frameOffsetFor, normalizeFramePayload } from "./viewer_sync_frame_utils.js";
 
 const DEFAULT_CHANNEL_NAME = "albis.viewerSync";
 const DEFAULT_GROUP = "default";
@@ -12,7 +13,8 @@ const MESSAGE_CONTRAST = "albis.viewerSync.contrast";
 const MESSAGE_REQUEST_CONTRAST = "albis.viewerSync.requestContrast";
 const MESSAGE_ROI = "albis.viewerSync.roi";
 const MESSAGE_REQUEST_ROI = "albis.viewerSync.requestRoi";
-const SYNC_OPTIONS = new Set(["viewport", "contrast", "roi"]);
+const MESSAGE_FRAME = "albis.viewerSync.frame";
+const SYNC_OPTIONS = new Set(["viewport", "contrast", "roi", "frame"]);
 const ROI_MODES = new Set(["line", "box", "circle", "annulus"]);
 
 function createSourceId(windowObj) {
@@ -31,6 +33,7 @@ function getViewerSyncState(state) {
       viewport: true,
       contrast: true,
       roi: true,
+      frame: true,
     };
   }
   if (!state.viewerSync.group) {
@@ -44,6 +47,9 @@ function getViewerSyncState(state) {
   }
   if (state.viewerSync.roi !== false) {
     state.viewerSync.roi = true;
+  }
+  if (state.viewerSync.frame !== false) {
+    state.viewerSync.frame = true;
   }
   return state.viewerSync;
 }
@@ -131,6 +137,7 @@ export function createViewerSyncController({
     syncViewportToggle,
     syncContrastToggle,
     syncRoiToggle,
+    syncFrameToggle,
     canvasWrap,
   } = elements;
 
@@ -160,7 +167,13 @@ export function createViewerSyncController({
     viewport: { timer: null, lastTs: 0, reason: "" },
     contrast: { timer: null, lastTs: 0, reason: "" },
     roi: { timer: null, lastTs: 0, reason: "" },
+    frame: { timer: null, lastTs: 0, reason: "" },
   };
+  // Frame linking: this window's offset to each sender, learned from the
+  // sender's first message, and where this window was before the first change
+  // still waiting to be sent (the throttle may merge several changes).
+  const frameOffsets = new Map();
+  let framePreviousIndex = null;
   let lastContrastSignature = "";
   let lastRoiSignature = "";
   let applyingRemote = false;
@@ -350,6 +363,27 @@ export function createViewerSyncController({
     return sent;
   }
 
+  function frameLinked() {
+    const current = syncState();
+    return Boolean(current.enabled && current.frame === true);
+  }
+
+  function publishFrame(reason = "change") {
+    if (!frameLinked()) return false;
+    const index = Math.max(0, Math.floor(Number(state.frameIndex) || 0));
+    const previousIndex = framePreviousIndex ?? index;
+    framePreviousIndex = null;
+    const sent = postMessage({
+      type: MESSAGE_FRAME,
+      reason,
+      frame: { index, previousIndex, playing: Boolean(state.playing), wrap: reason === "stop" },
+    });
+    if (sent) {
+      markPublished("frame");
+    }
+    return sent;
+  }
+
   function clearPublishTimer(kind) {
     const queue = publishQueues[kind];
     if (!queue?.timer) return;
@@ -410,6 +444,18 @@ export function createViewerSyncController({
     const current = syncState();
     if (!current.enabled || current.roi !== true || applyingRemote) return;
     scheduleThrottledPublish("roi", reason, publishRoi);
+  }
+
+  /**
+   * The frame or the playback state changed here, by the user or by this
+   * window's own playback. `previousIndex` is the frame before the change.
+   */
+  function handleFrameChanged(previousIndex, reason = "change") {
+    if (!frameLinked()) return;
+    if (framePreviousIndex === null && Number.isInteger(previousIndex)) {
+      framePreviousIndex = previousIndex;
+    }
+    scheduleThrottledPublish("frame", reason, publishFrame);
   }
 
   /**
@@ -492,6 +538,26 @@ export function createViewerSyncController({
     return true;
   }
 
+  function applyRemoteFrame(rawFrame, senderId) {
+    if (!frameLinked()) return false;
+    const frame = normalizeFramePayload(rawFrame);
+    const playback = core?.framePlayback;
+    if (!frame || !playback?.followFrame) return false;
+    if (!frameOffsets.has(senderId)) {
+      frameOffsets.set(senderId, frameOffsetFor(state.frameIndex, frame));
+    }
+    const target = followFrameTarget({
+      index: frame.index,
+      offset: frameOffsets.get(senderId),
+      frameCount: state.frameCount,
+      wrap: frame.wrap,
+    });
+    cancelQueuedPublish("frame");
+    framePreviousIndex = null;
+    playback.followFrame(target, { playing: frame.playing });
+    return true;
+  }
+
   function requestRemoteViewport() {
     const current = syncState();
     if (!current.enabled || current.viewport === false) return false;
@@ -549,6 +615,10 @@ export function createViewerSyncController({
     }
     if (data.type === MESSAGE_ROI) {
       applyRemoteRoi(data.roi);
+      return;
+    }
+    if (data.type === MESSAGE_FRAME) {
+      applyRemoteFrame(data.frame, data.sourceId);
     }
   }
 
@@ -608,6 +678,7 @@ export function createViewerSyncController({
     refreshOptionCheckbox(syncViewportToggle, current.viewport !== false, !available);
     refreshOptionCheckbox(syncContrastToggle, current.contrast === true, !available);
     refreshOptionCheckbox(syncRoiToggle, current.roi === true, !available);
+    refreshOptionCheckbox(syncFrameToggle, current.frame === true, !available);
   }
 
   function setEnabled(enabled) {
@@ -619,6 +690,7 @@ export function createViewerSyncController({
     }
     current.enabled = next;
     cancelAllQueuedPublishes();
+    resetFrameLink();
     if (next) {
       if (!openChannel()) {
         current.enabled = false;
@@ -633,6 +705,13 @@ export function createViewerSyncController({
     return current.enabled;
   }
 
+  // Offsets are learned again after linking: the gap between the windows at
+  // that moment is the one kept.
+  function resetFrameLink() {
+    frameOffsets.clear();
+    framePreviousIndex = null;
+  }
+
   function toggleEnabled() {
     return setEnabled(!syncState().enabled);
   }
@@ -643,6 +722,7 @@ export function createViewerSyncController({
     const next = Boolean(enabled);
     current[option] = next;
     cancelQueuedPublish(option);
+    if (option === "frame") resetFrameLink();
     refreshUi();
     if (!current.enabled || !next) return next;
     if (option === "viewport") {
@@ -664,6 +744,8 @@ export function createViewerSyncController({
       setSyncOption("contrast", target.checked);
     } else if (target === syncRoiToggle) {
       setSyncOption("roi", target.checked);
+    } else if (target === syncFrameToggle) {
+      setSyncOption("frame", target.checked);
     }
   }
 
@@ -677,6 +759,7 @@ export function createViewerSyncController({
     syncViewportToggle?.removeEventListener("change", handleOptionCheckboxChange);
     syncContrastToggle?.removeEventListener("change", handleOptionCheckboxChange);
     syncRoiToggle?.removeEventListener("change", handleOptionCheckboxChange);
+    syncFrameToggle?.removeEventListener("change", handleOptionCheckboxChange);
     documentObj?.removeEventListener("click", closeOptionsOnOutsideClick);
     documentObj?.removeEventListener("keydown", closeOptionsOnEscape);
   }
@@ -687,6 +770,7 @@ export function createViewerSyncController({
   syncViewportToggle?.addEventListener("change", handleOptionCheckboxChange);
   syncContrastToggle?.addEventListener("change", handleOptionCheckboxChange);
   syncRoiToggle?.addEventListener("change", handleOptionCheckboxChange);
+  syncFrameToggle?.addEventListener("change", handleOptionCheckboxChange);
   documentObj?.addEventListener("click", closeOptionsOnOutsideClick);
   documentObj?.addEventListener("keydown", closeOptionsOnEscape);
   if (syncState().enabled) {
@@ -704,12 +788,14 @@ export function createViewerSyncController({
     handleViewportChanged,
     handleContrastChanged,
     handleRoiChanged,
+    handleFrameChanged,
     publishViewport,
     publishContrast,
     publishRoi,
     applyRemoteViewport,
     applyRemoteContrast,
     applyRemoteRoi,
+    applyRemoteFrame,
     requestRemoteViewport,
     requestRemoteContrast,
     requestRemoteRoi,

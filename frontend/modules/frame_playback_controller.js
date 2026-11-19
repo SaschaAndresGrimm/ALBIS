@@ -10,6 +10,17 @@ import { syncRangeFill } from "./range_fill.js";
 // loading, so a speed the machine cannot keep up with only becomes a ceiling.
 export const MAX_PLAYBACK_FPS = 30;
 
+const LIVE_MODES = new Set(["simplon", "remote", "jungfraujoch"]);
+
+// A live source steps through its own history, not a series; another window's
+// frame means nothing there.
+function isLiveHistory(state) {
+  const autoload = state.autoload;
+  return Boolean(
+    autoload && LIVE_MODES.has(autoload.mode) && Array.isArray(autoload.historyEntries) && autoload.historyEntries.length > 0,
+  );
+}
+
 export function createFramePlaybackController({
   state,
   elements,
@@ -81,19 +92,36 @@ export function createFramePlaybackController({
     }
   }
 
-  function stopPlayback() {
+  // The frame this window is going to because a linked window asked. Its
+  // arrival is not sent back out: that would echo, and in a group of three the
+  // third window would be moved twice.
+  let followTarget = null;
+
+  function clearPlayTimer() {
     if (state.playTimer) {
       window.clearTimeout(state.playTimer);
       state.playTimer = null;
     }
-    state.playing = false;
-    updatePlayButtons();
   }
 
-  function requestFrame(index) {
+  // `announce: false` when another window stopped playback: it already knows.
+  function stopPlayback({ announce = true } = {}) {
+    const wasPlaying = state.playing;
+    clearPlayTimer();
+    state.playing = false;
+    updatePlayButtons();
+    if (wasPlaying && announce) {
+      core.viewerSync?.handleFrameChanged?.(state.frameIndex, "stop");
+    }
+  }
+
+  function goToFrame(index, { follow = false } = {}) {
     const hasSeries = Array.isArray(state.seriesFiles) && state.seriesFiles.length > 0;
     if (!state.frameCount || (!state.dataset && !hasSeries) || !state.file) return;
     const clamped = Math.max(0, Math.min(state.frameCount - 1, index));
+    if (follow) {
+      followTarget = clamped;
+    }
     if (state.playing && isViewportInteractionActive()) {
       queuePendingFrameRequest(clamped);
       return;
@@ -104,16 +132,50 @@ export function createFramePlaybackController({
       // dropping the stale request is right. Playback is the opposite: every frame
       // is wanted, and aborting the one in flight would mean no frame ever lands
       // once a load outlasts the tick interval. Every interactive caller stops
-      // playback first, so `playing` separates the two cleanly.
-      if (!state.playing) {
+      // playback first, so `playing` separates the two cleanly. Following a
+      // linked window is like playback: the messages can come faster than a
+      // frame loads, and cancelling each time would mean no frame ever lands.
+      // The newest one waits instead, and the ones in between are skipped.
+      if (!state.playing && !follow) {
         core.fileDataPipeline?.cancelActiveLoad();
       }
       return;
     }
+    const previousIndex = state.frameIndex;
     state.frameIndex = clamped;
     updateFrameControls();
     core.chromeToolbar?.updateToolbar();
+    if (followTarget === clamped) {
+      followTarget = null;
+    } else if (clamped !== previousIndex) {
+      core.viewerSync?.handleFrameChanged?.(previousIndex);
+    }
     core.fileDataPipeline.loadFrame();
+  }
+
+  function requestFrame(index) {
+    followTarget = null;
+    goToFrame(index);
+  }
+
+  /**
+   * Go to a frame because a linked window moved. While that window plays, this
+   * one counts as playing too, with no timer of its own: the play button shows
+   * it, Stop here stops both, and a frame still loading is never cancelled.
+   */
+  function followFrame(index, { playing = false } = {}) {
+    if (isLiveHistory(state)) return;
+    if (playing) {
+      clearPlayTimer();
+      if (!state.playing && state.frameCount > 1) {
+        state.playing = true;
+        updatePlayButtons();
+      }
+    } else if (state.playing) {
+      stopPlayback({ announce: false });
+    }
+    if (index === state.frameIndex && !isFrameLoading()) return;
+    goToFrame(index, { follow: true });
   }
 
   // Playback paces itself instead of running on a fixed interval. A tick that
@@ -142,13 +204,14 @@ export function createFramePlaybackController({
     updatePlayButtons();
     setLoading(false);
     scheduleNextPlaybackTick();
+    core.viewerSync?.handleFrameChanged?.(state.frameIndex, "play");
   }
 
   function processPendingFrameRequest(appliedFrame) {
     const next = consumePendingFrameRequest();
     if (next === null) return;
     if (next !== state.frameIndex || !appliedFrame) {
-      requestFrame(next);
+      goToFrame(next);
     }
   }
 
@@ -159,5 +222,6 @@ export function createFramePlaybackController({
     stopPlayback,
     processPendingFrameRequest,
     requestFrame,
+    followFrame,
   };
 }

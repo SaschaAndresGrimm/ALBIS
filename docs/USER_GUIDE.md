@@ -427,7 +427,18 @@ Three plots accompany the region:
 Plot axes autoscale by default; switch to **Manual axes** to pin them while
 stepping through frames, so the shape you are watching does not rescale
 underneath you. Drag on a plot to pan, wheel over an axis to zoom, double-click
-to reset.
+to reset. Dragging on an axis (on its numbers, left of or below the plot) pans
+along that axis only, so the other one stays where it is; the cursor turns into
+a two-way arrow and the axis is shaded while it is under the pointer.
+Double-clicking an axis resets just that axis. Zoomed in far enough, a profile marks each
+sample with a dot.
+
+**Shift-drag** a box over a plot to zoom into it; a flat box zooms along x
+only, a thin tall one along y only. On a trackpad, pinch to zoom and swipe
+sideways with two fingers to pan along x (Shift with a mouse wheel does the
+same). **↶ Previous view** in the plot's header goes back one view after a
+zoom, a pan or a reset. While you hover over a plot, a line and a dot mark
+the sample the tooltip is reading.
 
 The **Manual axes** tag on a plot is a button: click it to return that plot to
 automatic axes (it then reads **Auto axes**), and click again to get back the
@@ -731,12 +742,22 @@ frames): those frames arrive over a stream this window alone is subscribed to,
 and there is no file for a second window to open. The menu entry greys out and
 says so.
 
-![The link menu open under the header: Position, Contrast and ROI](images/user-guide/link-popover.webp)
+![The link menu open under the header: Position, Contrast, ROI and Frame](images/user-guide/link-popover.webp)
 
 The **link** control in the header chooses what the windows share: **Position**
-(pan and zoom), **Contrast**, and **ROI**. Link position to keep both views on
-the same feature while you navigate; unlink to look at different regions with
-the same contrast.
+(pan and zoom), **Contrast**, **ROI** and **Frame**. Link position to keep both
+views on the same feature while you navigate; unlink to look at different
+regions with the same contrast.
+
+With **Frame** on, as it is unless you untick it, the linked windows step and
+play together: the arrow keys, the slider, **◀** and **▶** in one window move the
+others by the same number of frames, and **Play** in one window plays them all.
+The gap between the windows when you link them is kept, so frame 10 next to
+frame 12 stays two frames apart. To compare the same frame, put both windows on
+it first, then switch the link on. A window that loads its frames more slowly skips
+some to keep up rather than holding the others back, and **Stop** in any of the
+windows stops them all. During playback a window with fewer frames starts again
+from its first frame sooner; when stepping, it waits at its last.
 
 ---
 

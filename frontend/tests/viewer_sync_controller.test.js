@@ -483,4 +483,119 @@ describe("viewer_sync_controller", () => {
       end: { x: 240, y: 190 },
     });
   });
+
+  describe("frame", () => {
+    async function pair({ frameA = 10, frameB = 12, frameCount = 100 } = {}) {
+      const { createViewerSyncController } = await import("../modules/viewer_sync_controller.js");
+      const { createChannel } = createChannelFactory();
+      const make = (sourceId, frameIndex) => {
+        const state = createState({ frameIndex, frameCount, playing: false });
+        const followFrame = vi.fn((index) => {
+          state.frameIndex = index;
+        });
+        const controller = createViewerSyncController({
+          state,
+          elements: { syncToggle: null, canvasWrap: createCanvasWrap() },
+          callbacks: { getViewRect: vi.fn() },
+          core: { framePlayback: { followFrame } },
+          options: { createChannel, sourceId, publishIntervalMs: 0 },
+        });
+        return { state, followFrame, controller };
+      };
+      const a = make("viewer-a", frameA);
+      const b = make("viewer-b", frameB);
+      return { a, b };
+    }
+
+    function link(...viewers) {
+      viewers.forEach(({ controller }) => {
+        controller.setEnabled(true);
+        controller.setSyncOption("frame", true);
+      });
+    }
+
+    function step(viewer, index) {
+      const previous = viewer.state.frameIndex;
+      viewer.state.frameIndex = index;
+      viewer.controller.handleFrameChanged(previous);
+    }
+
+    it("is on by default once windows are linked, but linking moves no frame", async () => {
+      const { a, b } = await pair({ frameA: 10, frameB: 12 });
+      a.controller.setEnabled(true);
+      b.controller.setEnabled(true);
+
+      expect(a.state.viewerSync.frame).toBe(true);
+      expect(b.followFrame).not.toHaveBeenCalled();
+
+      step(a, 11);
+      expect(b.followFrame).toHaveBeenLastCalledWith(13, { playing: false });
+    });
+
+    it("stays off when switched off", async () => {
+      const { a, b } = await pair();
+      link(a, b);
+      a.controller.setSyncOption("frame", false);
+      b.controller.setSyncOption("frame", false);
+
+      step(a, 11);
+
+      expect(b.followFrame).not.toHaveBeenCalled();
+    });
+
+    it("keeps the gap between the windows as one steps", async () => {
+      const { a, b } = await pair({ frameA: 10, frameB: 12 });
+      link(a, b);
+
+      step(a, 11);
+      expect(b.followFrame).toHaveBeenLastCalledWith(13, { playing: false });
+
+      step(a, 30);
+      expect(b.followFrame).toHaveBeenLastCalledWith(32, { playing: false });
+
+      // And the other way round.
+      step(b, 40);
+      expect(a.followFrame).toHaveBeenLastCalledWith(38, { playing: false });
+    });
+
+    it("wraps round while the sender plays", async () => {
+      const { a, b } = await pair({ frameA: 10, frameB: 12 });
+      link(a, b);
+      a.state.playing = true;
+
+      step(a, 99);
+
+      expect(b.followFrame).toHaveBeenLastCalledWith(1, { playing: true });
+    });
+
+    it("wraps the frame that stops playback, which came from a playback that wrapped", async () => {
+      // The regression: the windows stopped on either side of the wrap, B at
+      // 1 and A due at 98; the stop message was clamped, and put A on frame 0.
+      const { a, b } = await pair({ frameA: 10, frameB: 13, frameCount: 100 });
+      link(a, b);
+      step(b, 14);
+      expect(a.followFrame).toHaveBeenLastCalledWith(11, { playing: false });
+
+      b.state.frameIndex = 3;
+      b.controller.handleFrameChanged(14, "stop");
+
+      expect(a.followFrame).toHaveBeenLastCalledWith(0, { playing: false });
+      b.state.frameIndex = 1;
+      b.controller.handleFrameChanged(3, "stop");
+      expect(a.followFrame).toHaveBeenLastCalledWith(98, { playing: false });
+    });
+
+    it("learns the gap again after linking anew", async () => {
+      const { a, b } = await pair({ frameA: 10, frameB: 12 });
+      link(a, b);
+      step(a, 11);
+
+      b.controller.setSyncOption("frame", false);
+      b.state.frameIndex = 50;
+      b.controller.setSyncOption("frame", true);
+      step(a, 12);
+
+      expect(b.followFrame).toHaveBeenLastCalledWith(51, { playing: false });
+    });
+  });
 });

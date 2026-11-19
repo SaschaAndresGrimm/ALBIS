@@ -3,11 +3,23 @@
  */
 
 import { canvasFont } from "./canvas_fonts.js";
+import { pickLinearTicks, pickLogTicks, pickMappedTicks } from "./plot_tick_utils.js";
+import { roiPlotXView } from "./roi_plot_view_utils.js";
 
 const D_AXIS_TITLE_FONT = canvasFont(10, 500);
 const D_AXIS_TICK_FONT = canvasFont(9, 500);
 const PEAK_LABEL_FONT = canvasFont(9, 600);
 const PLOT_LABEL_FONT = canvasFont(10, 500);
+// Least room between neighbouring ticks: y in px (labels are one line high),
+// x in px beyond the widest label.
+const Y_TICK_MIN_GAP = 22;
+const X_TICK_MIN_GAP = 16;
+// Samples at least this far apart get a dot each.
+const SAMPLE_DOT_MIN_GAP_PX = 8;
+const SAMPLE_DOT_RADIUS = 2;
+const HOVER_DOT_RADIUS = 3.5;
+// Room under the x axis title, for the descenders of "pixel" and "Intensity".
+const X_TITLE_BOTTOM_GAP = 3;
 
 // Q (nm^-1) = 2*pi / d(nm) = 20*pi / d(Å). Physics/SAXS convention Q = 4*pi*sin(theta)/lambda.
 const Q_FROM_D_NM = 20 * Math.PI;
@@ -34,7 +46,6 @@ export function renderRoiPlot({
   getRoiPlotKey,
   getRoiPlotLimits,
   autoscale,
-  formatRoiTick,
   resolutionAxisUnit,
 }) {
   const dUnit = resolutionAxisUnit === "q" ? "q" : "d";
@@ -58,11 +69,6 @@ export function renderRoiPlot({
   const plotKey = getRoiPlotKey(canvasEl);
   const limits = getRoiPlotLimits(plotKey);
   const xTickMode = plotMeta.xTickMode || "";
-  const formatXAxisTick = (value) => {
-    if (!Number.isFinite(value)) return "-";
-    if (xTickMode === "integer") return `${Math.round(value)}`;
-    return formatRoiTick(value);
-  };
   const xStepRaw = Number(plotMeta.xStep ?? 1);
   const xStep = Number.isFinite(xStepRaw) && xStepRaw !== 0 ? xStepRaw : 1;
   let xStart = Number(plotMeta.xStart ?? 0) || 0;
@@ -83,27 +89,24 @@ export function renderRoiPlot({
       }
     }
   }
-  let visibleData = data;
-  if (!autoscale && data.length > 0) {
-    const lo = Number.isFinite(limits.xMin) ? Math.max(totalMinX, limits.xMin) : totalMinX;
-    const hi = Number.isFinite(limits.xMax) ? Math.min(totalMaxX, limits.xMax) : totalMaxX;
-    // A pinned x-range that misses the data entirely belongs to another ROI:
-    // box profiles are plotted against the image's columns, so moving the box
-    // leaves the pin behind. Show this profile's own range rather than a blank
-    // plot; a pin that overlaps the data still zooms as before.
-    if (hi < lo) {
-      visibleData = data;
-    } else {
-      const firstIdx = Math.max(0, Math.ceil((lo - xStart) / xStep));
-      const lastIdx = Math.min(data.length - 1, Math.floor((hi - xStart) / xStep));
-      if (lastIdx >= firstIdx) {
-        visibleData = data.slice(firstIdx, lastIdx + 1);
-        xStart += firstIdx * xStep;
-      } else {
-        visibleData = [];
-      }
-    }
-  }
+  const seriesType = plotMeta.seriesType || "line";
+  const isHistogramSeries = seriesType === "histogram";
+  // The x range asked for, exactly (roi_plot_view_utils.js says why), with
+  // one sample past each end so the curve runs to the frame.
+  const view = roiPlotXView({
+    length: data.length,
+    xStart,
+    xStep,
+    histogram: isHistogramSeries,
+    limits,
+    autoscale,
+  });
+  const visibleData = view.lastIdx >= view.firstIdx ? data.slice(view.firstIdx, view.lastIdx + 1) : [];
+  xStart += view.firstIdx * xStep;
+  const viewMin = view.min;
+  const viewMax = view.max;
+  const inViewFrom = view.yFirstIdx - view.firstIdx;
+  const inViewTo = view.yLastIdx - view.firstIdx;
 
   if (!visibleData || visibleData.length === 0) {
     canvasEl._roiPlot = null;
@@ -116,9 +119,7 @@ export function renderRoiPlot({
     if (!Number.isFinite(value)) return Number.NaN;
     return logScale ? Math.log10(1 + Math.max(0, value)) : value;
   });
-  const finiteValues = values.filter((value) => Number.isFinite(value));
-  const seriesType = plotMeta.seriesType || "line";
-  const isHistogramSeries = seriesType === "histogram";
+  const finiteValues = values.slice(inViewFrom, inViewTo + 1).filter((value) => Number.isFinite(value));
 
   const allValuesRaw = data.filter((value) => Number.isFinite(value));
   const totalMinY = isHistogramSeries || !allValuesRaw.length ? 0 : Math.min(...allValuesRaw);
@@ -133,7 +134,11 @@ export function renderRoiPlot({
     maxValue = logScale ? Math.log10(1 + Math.max(0, limits.yMax)) : limits.yMax;
   }
   if (!Number.isFinite(minValue)) minValue = 0;
-  if (autoscale && Number.isFinite(minValue) && Number.isFinite(maxValue)) {
+  // Headroom whenever y follows the data, also with x pinned (zoomed in on
+  // x alone): without it the highest and lowest samples, and their dots,
+  // were cut in half by the frame.
+  const yFollowsData = autoscale || (!Number.isFinite(limits.yMin) && !Number.isFinite(limits.yMax));
+  if (yFollowsData && Number.isFinite(minValue) && Number.isFinite(maxValue)) {
     // 3% of headroom so the extremes are not drawn on the frame.
     const baseRange = maxValue - minValue;
     if (baseRange > 0) {
@@ -163,7 +168,8 @@ export function renderRoiPlot({
   const yRange = maxValue - minValue;
   const padR = 8;
   const padT = hasDAxis ? 34 : 8;
-  const padB = 30;
+  // Tick labels (6 px below the axis, about 12 px tall), then the axis title.
+  const padB = 34;
   const drawableHeight = Math.max(4, height - padT - padB);
 
   ctx.fillStyle = plotTheme.text;
@@ -171,44 +177,42 @@ export function renderRoiPlot({
   const measureMaxLabel = (labels) =>
     labels.reduce((currentMax, label) => Math.max(currentMax, ctx.measureText(label).width), 0);
 
-  let yTickCount = Math.max(2, Math.min(4, Math.floor(drawableHeight / 50)));
-  while (yTickCount > 1) {
-    const labels = [];
-    for (let i = 0; i <= yTickCount; i += 1) {
-      const t = i / yTickCount;
-      const displayValue = minValue + t * yRange;
-      const actualValue = logScale ? Math.pow(10, displayValue) - 1 : displayValue;
-      labels.push(formatRoiTick(actualValue));
-    }
-    const maxLabel = measureMaxLabel(labels);
-    const spacing = drawableHeight / yTickCount;
-    if (maxLabel + 6 <= spacing) break;
-    yTickCount -= 1;
-  }
-
-  const yTickLabels = [];
-  for (let i = 0; i <= yTickCount; i += 1) {
-    const t = i / yTickCount;
-    const displayValue = minValue + t * yRange;
-    const actualValue = logScale ? Math.pow(10, displayValue) - 1 : displayValue;
-    yTickLabels.push(formatRoiTick(actualValue));
-  }
+  // Round-number ticks (plot_tick_utils.js); the axis still spans the data.
+  const yTicks = logScale
+    ? pickLogTicks({ min: minValue, max: maxValue, lengthPx: drawableHeight, minGapPx: Y_TICK_MIN_GAP })
+    : pickLinearTicks({ min: minValue, max: maxValue, lengthPx: drawableHeight, minGapPx: Y_TICK_MIN_GAP });
+  const yTickLabels = yTicks.labels;
+  const yTickPositions = yTicks.values.map((value) => {
+    const display = logScale ? Math.log10(1 + Math.max(0, value)) : value;
+    return padT + drawableHeight - ((display - minValue) / yRange) * drawableHeight;
+  });
   const maxYLabelWidth = measureMaxLabel(yTickLabels);
   const padL = Math.max(40, Math.ceil(maxYLabelWidth + 24));
   const drawableWidth = Math.max(4, width - padL - padR);
 
-  let xTickCount = Math.max(2, Math.min(4, Math.floor(drawableWidth / 90)));
-  while (xTickCount > 1) {
-    const labels = [];
-    for (let i = 0; i <= xTickCount; i += 1) {
-      const t = i / xTickCount;
-      const xValue = xStart + t * (values.length - 1) * xStep;
-      labels.push(formatXAxisTick(xValue));
+  const xSpan = viewMax - viewMin;
+  const xToPx = (xValue) => padL + (xSpan ? (xValue - viewMin) / xSpan : 0) * drawableWidth;
+  const sampleX = (index) => xStart + index * xStep;
+  const xTicks = pickLinearTicks({
+    min: viewMin,
+    max: viewMax,
+    lengthPx: drawableWidth,
+    minGapPx: X_TICK_MIN_GAP,
+    measure: (label) => ctx.measureText(label).width,
+    integer: xTickMode === "integer",
+  });
+
+  // The axis strip under the pointer, which a drag pans on its own
+  // (roi_plot_bindings.js sets data-pan-zone).
+  const axisZone = canvasEl.dataset?.panZone;
+  if (axisZone === "x" || axisZone === "y") {
+    ctx.fillStyle = plotTheme.axisHover;
+    if (axisZone === "x") {
+      ctx.fillRect(padL, padT + drawableHeight, drawableWidth, height - padT - drawableHeight);
+    } else {
+      ctx.fillRect(0, padT, padL, drawableHeight);
     }
-    const maxLabel = measureMaxLabel(labels);
-    const spacing = drawableWidth / xTickCount;
-    if (maxLabel + 6 <= spacing) break;
-    xTickCount -= 1;
+    ctx.fillStyle = plotTheme.text;
   }
 
   ctx.strokeStyle = plotTheme.axis;
@@ -221,9 +225,9 @@ export function renderRoiPlot({
 
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
-  for (let i = 0; i <= xTickCount; i += 1) {
-    const t = i / xTickCount;
-    const x = padL + t * drawableWidth;
+  let lastXLabelRight = -Infinity;
+  xTicks.values.forEach((xValue, i) => {
+    const x = xToPx(xValue);
     ctx.strokeStyle = plotTheme.grid;
     ctx.beginPath();
     ctx.moveTo(x, padT);
@@ -234,15 +238,20 @@ export function renderRoiPlot({
     ctx.moveTo(x, padT + drawableHeight);
     ctx.lineTo(x, padT + drawableHeight + 4);
     ctx.stroke();
-    const xValue = xStart + t * (values.length - 1) * xStep;
-    ctx.fillText(formatXAxisTick(xValue), x, padT + drawableHeight + 6);
-  }
+    // A label at the edge moves inside the canvas instead of being cut off,
+    // and is left out if that would run it into its neighbour.
+    const label = xTicks.labels[i];
+    const half = ctx.measureText(label).width / 2;
+    const labelX = Math.min(Math.max(x, half + 2), width - half - 2);
+    if (labelX - half < lastXLabelRight + 4) return;
+    ctx.fillText(label, labelX, padT + drawableHeight + 6);
+    lastXLabelRight = labelX + half;
+  });
 
   ctx.textAlign = "right";
   ctx.textBaseline = "middle";
-  for (let i = 0; i <= yTickCount; i += 1) {
-    const t = i / yTickCount;
-    const y = padT + drawableHeight - t * drawableHeight;
+  for (let i = 0; i < yTickPositions.length; i += 1) {
+    const y = yTickPositions[i];
     ctx.strokeStyle = plotTheme.grid;
     ctx.beginPath();
     ctx.moveTo(padL, y);
@@ -268,19 +277,28 @@ export function renderRoiPlot({
     ctx.fillStyle = plotTheme.text;
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
-    for (let i = 0; i <= xTickCount; i += 1) {
-      const t = i / xTickCount;
-      const x = padL + t * drawableWidth;
-      const xValue = xStart + t * (values.length - 1) * xStep;
-      const d = dSpacingForX(xValue);
-      const displayValue = resolutionDisplayValue(d, dUnit);
-      if (!Number.isFinite(displayValue)) continue;
+    // d and Q are not linear in x, so the ticks go where the curve crosses
+    // a round value rather than above the x ticks.
+    const samples = [];
+    for (let px = 0; px <= drawableWidth; px += 2) {
+      const xValue = viewMin + (px / drawableWidth) * xSpan;
+      samples.push({ px: padL + px, value: resolutionDisplayValue(dSpacingForX(xValue), dUnit) });
+    }
+    const dTicks = pickMappedTicks({
+      samples,
+      measure: (label) => ctx.measureText(label).width,
+      minGapPx: 14,
+      uniform: dUnit === "q",
+      leftPx: 2,
+      rightPx: width - 2,
+    });
+    for (const tick of dTicks) {
       ctx.strokeStyle = plotTheme.axis;
       ctx.beginPath();
-      ctx.moveTo(x, padT);
-      ctx.lineTo(x, padT - 4);
+      ctx.moveTo(tick.px, padT);
+      ctx.lineTo(tick.px, padT - 4);
       ctx.stroke();
-      ctx.fillText(formatResolutionLabel(displayValue, dUnit), x, padT - 6);
+      ctx.fillText(tick.label, tick.px, padT - 6);
     }
     // Axis title centered above the axis, mirroring the bottom xLabel styling.
     const dAxisTitle = dUnit === "q"
@@ -293,17 +311,26 @@ export function renderRoiPlot({
     ctx.fillText(dAxisTitle, padL + drawableWidth / 2, 2);
   }
 
-  if (seriesType === "histogram") {
-    const barWidth = drawableWidth / Math.max(1, values.length);
-    ctx.fillStyle = "rgba(198, 220, 255, 0.88)";
+  // The samples just outside the view are drawn too, so the curve meets the
+  // frame; the clip keeps them off the axes.
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(padL, padT, drawableWidth, drawableHeight);
+  ctx.clip();
+
+  if (isHistogramSeries) {
+    // A bar spans its bin: the x values are bin centres.
+    const halfBin = Math.abs(xStep) / 2;
+    ctx.fillStyle = plotTheme.bar;
     values.forEach((value, index) => {
       if (!Number.isFinite(value)) return;
       const yNorm = yRange ? (value - minValue) / yRange : 0;
       const y = padT + drawableHeight - Math.max(0, Math.min(1, yNorm)) * drawableHeight;
-      const x = padL + index * barWidth;
-      const w = Math.max(1, barWidth - 1);
+      const left = xToPx(sampleX(index) - halfBin);
+      const right = xToPx(sampleX(index) + halfBin);
+      const w = Math.max(1, Math.abs(right - left) - 1);
       const h = Math.max(1, padT + drawableHeight - y);
-      ctx.fillRect(x + 0.5, y, w, h);
+      ctx.fillRect(Math.min(left, right) + 0.5, y, w, h);
     });
   } else {
     ctx.strokeStyle = plotTheme.line;
@@ -317,9 +344,11 @@ export function renderRoiPlot({
         hasSegment = false;
         return;
       }
-      const x = padL + (index / Math.max(1, values.length - 1)) * drawableWidth;
+      const x = xToPx(sampleX(index));
+      // Not clamped to the frame: a sample above or below the view would
+      // otherwise bend the line along the edge. The clip cuts it off there.
       const yNorm = yRange ? (value - minValue) / yRange : 0;
-      const y = padT + drawableHeight - Math.max(0, Math.min(1, yNorm)) * drawableHeight;
+      const y = padT + drawableHeight - yNorm * drawableHeight;
       if (!hasSegment) {
         ctx.moveTo(x, y);
         hasSegment = true;
@@ -329,17 +358,75 @@ export function renderRoiPlot({
     });
     ctx.stroke();
     ctx.shadowBlur = 0;
+
+    // Zoomed in far, mark each sample: on a detector profile it shows which
+    // pixels are there, and that the line between them is no data.
+    if (xSpan && Math.abs((xStep / xSpan) * drawableWidth) >= SAMPLE_DOT_MIN_GAP_PX) {
+      ctx.fillStyle = plotTheme.line;
+      values.forEach((value, index) => {
+        if (!Number.isFinite(value)) return;
+        const yNorm = yRange ? (value - minValue) / yRange : 0;
+        ctx.beginPath();
+        ctx.arc(xToPx(sampleX(index)), padT + drawableHeight - yNorm * drawableHeight, SAMPLE_DOT_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
   }
+
+  // The sample the tooltip is reading (roi_plot_bindings.js sets
+  // _roiHoverX): on a dense profile the number alone does not say which
+  // point it belongs to.
+  const hoverX = canvasEl._roiHoverX;
+  const hoverIdx = Number.isFinite(hoverX) ? Math.round((hoverX - xStart) / xStep) : -1;
+  if (hoverIdx >= 0 && hoverIdx < values.length && Number.isFinite(values[hoverIdx])) {
+    const hx = xToPx(sampleX(hoverIdx));
+    const hy = padT + drawableHeight - (yRange ? (values[hoverIdx] - minValue) / yRange : 0) * drawableHeight;
+    ctx.strokeStyle = plotTheme.axis;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(Math.round(hx) + 0.5, padT);
+    ctx.lineTo(Math.round(hx) + 0.5, padT + drawableHeight);
+    ctx.stroke();
+    if (isHistogramSeries) {
+      const halfBin = Math.abs(xStep) / 2;
+      const left = xToPx(sampleX(hoverIdx) - halfBin);
+      const right = xToPx(sampleX(hoverIdx) + halfBin);
+      const top = Math.min(hy, padT + drawableHeight - 1);
+      // The bars are drawn in about the line colour; the accent shows on them.
+      ctx.strokeStyle = plotTheme.peak || plotTheme.line;
+      ctx.strokeRect(Math.min(left, right) + 0.5, top, Math.max(1, Math.abs(right - left) - 1), padT + drawableHeight - top);
+    } else {
+      ctx.fillStyle = plotTheme.line;
+      ctx.strokeStyle = plotTheme.markerOutline;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(hx, hy, HOVER_DOT_RADIUS, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.lineWidth = 1;
+    }
+  }
+
+  // The box being dragged with Shift to zoom into.
+  const box = canvasEl._roiZoomBox;
+  if (box) {
+    const bx = Math.min(box.x0, box.x1);
+    const by = Math.min(box.y0, box.y1);
+    ctx.fillStyle = plotTheme.axisHover;
+    ctx.fillRect(bx, by, Math.abs(box.x1 - box.x0), Math.abs(box.y1 - box.y0));
+    ctx.strokeStyle = plotTheme.axis;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(Math.round(bx) + 0.5, Math.round(by) + 0.5, Math.round(Math.abs(box.x1 - box.x0)), Math.round(Math.abs(box.y1 - box.y0)));
+  }
+  ctx.restore();
 
   if (profilePeaks && profilePeaks.length) {
     const peakColor = plotTheme.peak || plotTheme.line;
-    const lastValueIndex = Math.max(1, values.length - 1);
     let lastLabelRight = -Infinity;
     profilePeaks.forEach((peak) => {
       if (!peak || !Number.isFinite(peak.x) || !Number.isFinite(peak.value)) return;
-      const idx = (peak.x - xStart) / xStep;
-      if (idx < 0 || idx > values.length - 1) return;
-      const x = padL + (idx / lastValueIndex) * drawableWidth;
+      if (peak.x < Math.min(viewMin, viewMax) || peak.x > Math.max(viewMin, viewMax)) return;
+      const x = xToPx(peak.x);
       const disp = logScale ? Math.log10(1 + Math.max(0, peak.value)) : peak.value;
       const yNorm = yRange ? (disp - minValue) / yRange : 0;
       const y = padT + drawableHeight - Math.max(0, Math.min(1, yNorm)) * drawableHeight;
@@ -366,17 +453,22 @@ export function renderRoiPlot({
 
   const xLabel = plotMeta.xLabel || "Index";
   const yLabel = plotMeta.yLabel || "Value";
-  const xMinActual = xStart;
-  const xMaxActual = xStart + (values.length - 1) * xStep;
+  const xMinActual = viewMin;
+  const xMaxActual = viewMax;
   const yMinActual = logScale ? Math.max(0, Math.pow(10, minValue) - 1) : minValue;
   const yMaxActual = logScale ? Math.max(0, Math.pow(10, maxValue) - 1) : maxValue;
   ctx.fillStyle = plotTheme.text;
   ctx.font = PLOT_LABEL_FONT;
   ctx.textAlign = "center";
-  ctx.fillText(xLabel, padL + drawableWidth / 2, height - 4);
+  // Set the baseline here: it was left from whatever was drawn last ("middle"
+  // after the y ticks), which centred the title on a line 4 px above the
+  // bottom edge and cut off its lower half.
+  ctx.textBaseline = "bottom";
+  ctx.fillText(xLabel, padL + drawableWidth / 2, height - X_TITLE_BOTTOM_GAP);
   ctx.save();
   ctx.translate(Math.max(8, padL - maxYLabelWidth - 16), padT + drawableHeight / 2);
   ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = "middle";
   ctx.fillText(yLabel, 0, 0);
   ctx.restore();
 
@@ -394,8 +486,8 @@ export function renderRoiPlot({
     xStart,
     xStep,
     xTickMode,
-    totalXMin: totalMinX,
-    totalXMax: totalMaxX,
+    totalXMin: view.domainMin,
+    totalXMax: view.domainMax,
     totalYMin: totalMinY,
     totalYMax: totalMaxY,
     xMin: xMinActual,
