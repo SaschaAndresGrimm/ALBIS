@@ -90,21 +90,48 @@ export function zoomAxisRange(
   return { min: fromDisplay(nextLo, log), max: fromDisplay(nextHi, log) };
 }
 
+// How much of the view the data must keep when an axis may leave it.
+const MIN_DATA_IN_VIEW = 0.1;
+
+// Keep at least part of the data in view, without pulling the view onto it:
+// the range may run past the data, but not so far that the curve is lost.
+function keepDataInView(lo, hi, domainMin, domainMax, log) {
+  if (!Number.isFinite(domainMin) || !Number.isFinite(domainMax)) return [lo, hi];
+  const dLo = toDisplay(Math.min(domainMin, domainMax), log);
+  const dHi = toDisplay(Math.max(domainMin, domainMax), log);
+  const keep = Math.min(MIN_DATA_IN_VIEW * (hi - lo), (dHi - dLo) / 2);
+  if (lo > dHi - keep) return [dHi - keep, hi - (lo - (dHi - keep))];
+  if (hi < dLo + keep) return [lo + (dLo + keep - hi), dLo + keep];
+  return [lo, hi];
+}
+
 /**
  * Shift an axis range by `fraction` of its span towards smaller values (a
- * negative fraction shifts towards larger ones), keeping it inside the data
- * domain when one is given. On a log axis the shift is taken on the drawn
- * scale, so the curve moves with the pointer at any height.
+ * negative fraction shifts towards larger ones). On a log axis the shift is
+ * taken on the drawn scale, so the curve moves with the pointer at any
+ * height.
+ *
+ * With a domain, `bound` says how the range stays near the data:
+ * "inside" (x) keeps it within the data, as the plot draws nothing past the
+ * ends of a profile; "overlap" (y) lets it run past the data as long as a
+ * tenth of the view still shows some. y used to be kept inside too, but an
+ * autoscaled y range is a little wider than the data, so a drag could only
+ * snap it onto the data and then not move it at all: the curve rescaled
+ * slightly instead of moving.
  *
  * Returns { min, max } in data units, or null when the range has no span.
  */
-export function panAxisRange({ min, max, domainMin = null, domainMax = null, log = false }, fraction) {
+export function panAxisRange(
+  { min, max, domainMin = null, domainMax = null, log = false, bound = "inside" },
+  fraction
+) {
   if (!Number.isFinite(min) || !Number.isFinite(max) || !Number.isFinite(fraction)) return null;
   let lo = toDisplay(Math.min(min, max), log);
   let hi = toDisplay(Math.max(min, max), log);
   const span = hi - lo;
   if (!(span > 0)) return null;
-  [lo, hi] = clampToDomain(lo - fraction * span, hi - fraction * span, domainMin, domainMax, log);
+  const keep = bound === "overlap" ? keepDataInView : clampToDomain;
+  [lo, hi] = keep(lo - fraction * span, hi - fraction * span, domainMin, domainMax, log);
   return { min: fromDisplay(lo, log), max: fromDisplay(hi, log) };
 }
 

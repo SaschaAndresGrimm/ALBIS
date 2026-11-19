@@ -349,14 +349,34 @@ describe("roi_plot_bindings", () => {
 
     it("moves only y when dragged on the y axis", () => {
       const { roiLineCanvas, limits } = setup();
-      // 41 px up is half the 82 px tall data area: the view moves down by half.
+      // 41 px up is half the 82 px tall data area: the curve moves up, so the
+      // view moves down by half, past the bottom of the data.
       drag(roiLineCanvas, [20, 60], [80, 19]);
-      expect(limits.yMin).toBeCloseTo(0);
+      expect(limits.yMin).toBeCloseTo(-25);
+      expect(limits.yMax).toBeCloseTo(25);
+      drag(roiLineCanvas, [20, 19], [80, 60]);
       drag(roiLineCanvas, [20, 19], [80, 60]);
       expect(limits.yMin).toBeCloseTo(25);
       expect(limits.yMax).toBeCloseTo(75);
       expect(limits.xMin).toBe(0);
       expect(limits.xMax).toBe(100);
+    });
+
+    // An autoscaled y range is a little wider than the data. y was kept
+    // inside the data, so a drag could only snap it onto the data: the
+    // curve rescaled slightly ("clicking resets the scale") and never moved.
+    it("moves y from the autoscaled view instead of snapping it to the data", () => {
+      const { roiLineCanvas, limits } = setup();
+      Object.assign(roiLineCanvas._roiPlot, { yMin: -1.5, yMax: 51.5, totalYMin: 0, totalYMax: 50 });
+      // 41 px down is half the 82 px tall data area, on the axis and in the plot.
+      drag(roiLineCanvas, [20, 19], [20, 60]);
+      expect(limits.yMin).toBeCloseTo(25);
+      expect(limits.yMax).toBeCloseTo(78);
+      roiLineCanvas._roiPlot.yMin = limits.yMin;
+      roiLineCanvas._roiPlot.yMax = limits.yMax;
+      drag(roiLineCanvas, [100, 60], [100, 19]);
+      expect(limits.yMin).toBeCloseTo(-1.5);
+      expect(limits.yMax).toBeCloseTo(51.5);
     });
 
     it("shows which axis a drag would move", () => {

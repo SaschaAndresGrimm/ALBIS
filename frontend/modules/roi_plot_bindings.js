@@ -421,7 +421,14 @@ export function bindRoiPlotInteractions({
     }
     if (movesY) {
       const next = panAxisRange(
-        { min: pan.yMin, max: pan.yMax, domainMin: pan.domainYMin, domainMax: pan.domainYMax, log: pan.log },
+        {
+          min: pan.yMin,
+          max: pan.yMax,
+          domainMin: pan.domainYMin,
+          domainMax: pan.domainYMax,
+          log: pan.log,
+          bound: "overlap",
+        },
         -dy / plotHeight
       );
       if (next) setRoiPlotAxisLimits(plotKey, "y", next.min, next.max);

@@ -55,6 +55,20 @@ describe("panAxisRange", () => {
     expect(up.max).toBeCloseTo(999);
   });
 
+  it("lets y run past the data but keeps a tenth of the view on it", () => {
+    const y = { min: -1.5, max: 51.5, domainMin: 0, domainMax: 50, bound: "overlap" };
+    // An autoscaled range wider than the data moves instead of snapping onto it.
+    const up = panAxisRange(y, -0.25);
+    expect(up.min).toBeCloseTo(11.75);
+    expect(up.max).toBeCloseTo(64.75);
+    // Pushed far up, the view stops with its bottom tenth still on the data.
+    const far = panAxisRange(y, -5);
+    expect(far.min).toBeCloseTo(50 - 5.3);
+    expect(far.max).toBeCloseTo(50 - 5.3 + 53);
+    const down = panAxisRange(y, 5);
+    expect(down.max).toBeCloseTo(5.3);
+  });
+
   it("refuses a range without a span", () => {
     expect(panAxisRange({ min: 5, max: 5 }, 0.5)).toBeNull();
     expect(panAxisRange({ min: Number.NaN, max: 5 }, 0.5)).toBeNull();
