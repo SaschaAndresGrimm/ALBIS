@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import ast
 import os
+import re
 import sys
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
@@ -101,6 +102,47 @@ class Native:
     carrier: str | None
 
 
+# CPE vendor:product for the libraries NVD lists, so a scanner matching on CPE
+# (grype does, for anything without a package ecosystem) finds their CVEs.
+# Each was looked up in NVD's CPE dictionary; where it has two spellings, this
+# is the one the library's CVEs are recorded under. A wrong entry would match
+# nothing, silently, so a library NVD does not list is left without one
+# rather than guessed (c-blosc 1.x, ZFP, CharLS, OpenJPH, SPERR, bitshuffle).
+CPE_PRODUCTS = {
+    "CPython": "python:python",
+    "OpenSSL": "openssl:openssl",
+    "zlib": "zlib:zlib",
+    "expat": "libexpat_project:libexpat",
+    "SQLite": "sqlite:sqlite",
+    "HDF5": "hdfgroup:hdf5",
+    "libzmq": "zeromq:libzmq",
+    "libzstd": "facebook:zstandard",
+    "Zstd": "facebook:zstandard",
+    "LZ4": "lz4_project:lz4",
+    "bzip2": "bzip:bzip2",
+    "Snappy": "google:snappy",
+    "c-blosc2": "blosc:c-blosc2",
+    "libjpeg-turbo": "libjpeg-turbo:libjpeg-turbo",
+    "openjpeg": "uclouvain:openjpeg",
+    "libtiff": "libtiff:libtiff",
+    "libwebp": "webmproject:libwebp",
+    "freetype": "freetype:freetype",
+    "lcms2": "littlecms:little_cms",
+    "libxml2": "xmlsoft:libxml2",
+    "libxslt": "xmlsoft:libxslt",
+}
+
+_RELEASE = re.compile(r"^\d+(\.\d+)+$")
+
+
+def cpe_for(name: str, version: str) -> str | None:
+    """A CPE 2.3 name, or None when NVD lists no product or the version is a commit."""
+    product = CPE_PRODUCTS.get(name)
+    if product is None or not _RELEASE.match(version):
+        return None
+    return f"cpe:2.3:a:{product}:{version}:*:*:*:*:*:*:*"
+
+
 def _hdf5() -> list[tuple[str, str]]:
     import h5py
 
@@ -130,8 +172,10 @@ def _libzstd() -> list[tuple[str, str]]:
     return [("libzstd", ".".join(str(part) for part in zstandard.ZSTD_VERSION))]
 
 
+# Pillow's "jpg" feature reports the libjpeg API level (6.2, 8.0), not the
+# release, so libjpeg-turbo is asked for under its own name.
 _PILLOW_CODECS = {
-    "jpg": "libjpeg-turbo",
+    "libjpeg_turbo": "libjpeg-turbo",
     "jpg_2000": "openjpeg",
     "libtiff": "libtiff",
     "webp": "libwebp",

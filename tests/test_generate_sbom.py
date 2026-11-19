@@ -430,3 +430,40 @@ def test_html2canvas_version_matches_the_file_header() -> None:
 def test_the_real_pins_parse() -> None:
     names = {p.name for p in sbom.read_pins()}
     assert {"fastapi", "h5py", "numpy"} <= names
+
+
+# --- CPEs and the scan --------------------------------------------------------
+
+
+_CPE = re.compile(r"^cpe:2\.3:a:[a-z0-9_.+-]+:[a-z0-9_.+-]+:[0-9][0-9.]*(:\*){7}$")
+
+
+def test_native_libraries_and_the_interpreter_carry_well_formed_cpes() -> None:
+    def probe(bundle, carriers):
+        return [
+            bundle_mod.Native("OpenSSL", "3.5.9", None),
+            bundle_mod.Native("HDF5 LZ4 filter", "5573db8", "uvicorn"),
+            bundle_mod.Native("ZFP", "1.0.1", "uvicorn"),
+        ]
+
+    doc = _build(_bundle(*EVERYTHING), probe=probe)
+    by_name = {c["name"]: c for c in doc["components"]}
+    assert by_name["OpenSSL"]["cpe"] == "cpe:2.3:a:openssl:openssl:3.5.9:*:*:*:*:*:*:*"
+    assert _CPE.match(by_name["CPython"]["cpe"])
+    # A commit is not a version NVD knows, and ZFP is not in NVD at all.
+    assert "cpe" not in by_name["HDF5 LZ4 filter"]
+    assert "cpe" not in by_name["ZFP"]
+
+
+def test_every_cpe_product_is_vendor_and_product() -> None:
+    for name, product in bundle_mod.CPE_PRODUCTS.items():
+        assert _CPE.match(bundle_mod.cpe_for(name, "1.2.3")), (name, product)
+
+
+def test_the_scan_script_runs_on_the_bash_macos_ships() -> None:
+    script = (ROOT / "scripts" / "scan_sbom.sh").read_text(encoding="utf-8")
+    # bash 3.2: no associative arrays, and errexit does not reach into $(...).
+    assert "declare -A" not in script
+    assert '="$(install_grype)' not in script
+    for platform in ("linux_amd64", "linux_arm64", "darwin_amd64", "darwin_arm64"):
+        assert re.search(rf"{platform}\) echo [0-9a-f]{{64}} ;;", script), platform

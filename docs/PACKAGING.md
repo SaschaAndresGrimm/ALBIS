@@ -221,6 +221,15 @@ from hdf5plugin's own documentation of each release, kept in
 means adding its list there (a test fails until it is), copied from
 `doc/information.rst` at that release's tag.
 
+Native libraries carry a CPE (`cpe:2.3:a:<vendor>:<product>:<version>`) where NVD
+lists one, from `CPE_PRODUCTS` in `scripts/sbom_bundle.py`: a scanner has no package
+ecosystem to match a C library by, only its CPE. `scripts/scan_sbom.sh` runs grype
+(pinned, checksum-verified) over the SBOMs. The release scans them before it signs
+anything and stops on an unreviewed Critical finding; the weekly Security workflow
+scans the latest release's and fails on High. Reviewed findings that do not apply go
+in `.grype.yaml`, each with its reason. To scan locally:
+`scripts/scan_sbom.sh dist/*.cdx.json`.
+
 The Docker image carries its own bill of materials and provenance as registry
 attestations, made by BuildKit from the finished image:
 `docker buildx imagetools inspect ghcr.io/<owner>/albis:<tag> --format '{{ json .SBOM }}'`.

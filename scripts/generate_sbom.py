@@ -43,7 +43,14 @@ from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from sbom_bundle import Bundle, Native, is_bundled, probe_natives, read_bundle  # noqa: E402
+from sbom_bundle import (
+    Bundle,
+    Native,
+    cpe_for,
+    is_bundled,
+    probe_natives,
+    read_bundle,
+)  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIREMENTS = ROOT / "backend" / "requirements.txt"
@@ -202,6 +209,7 @@ def interpreter_component() -> dict:
         "description": f"Python interpreter bundled by PyInstaller ({sys.implementation.name}, {platform.machine()})",
         "licenses": [{"license": {"id": "PSF-2.0"}}],
         "purl": f"pkg:generic/cpython@{version}",
+        "cpe": cpe_for("CPython", version),
     }
 
 
@@ -244,6 +252,7 @@ def native_component(native: Native) -> dict:
         "name": native.name,
         "version": native.version,
         "purl": f"pkg:generic/{slug}@{native.version}",
+        **({"cpe": cpe} if (cpe := cpe_for(native.name, native.version)) else {}),
         "properties": [{"name": "albis:bundled-in", "value": native.carrier or "CPython"}],
     }
 

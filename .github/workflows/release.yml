@@ -819,6 +819,14 @@ jobs:
       # Each build job wrote the bill of materials for its own bundle
       # (scripts/generate_sbom.py), so they arrive with the other assets and
       # the checksums below cover them, and so does their signature.
+      #
+      # A known Critical vulnerability in what is about to ship stops the
+      # release here, dry runs included, before anything is signed or
+      # attested. Fix it, or record in .grype.yaml why it does not apply to
+      # ALBIS. Lower severities are listed in the job summary; the weekly
+      # Security workflow alerts on High for the published release.
+      - name: Scan the bills of materials for known vulnerabilities
+        run: ./scripts/scan_sbom.sh --fail-on critical release-dist/*.cdx.json
 
       - name: Checksum the release bundle
         run: |

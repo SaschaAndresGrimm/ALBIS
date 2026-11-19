@@ -103,6 +103,14 @@ A release name goes on afterwards; the workflow sets none:
 
 ## Known failures
 
+- **"Scan the bills of materials for known vulnerabilities" failed** - grype
+  found a Critical CVE in what would ship; nothing was signed or published.
+  The job summary has the table per platform. Fix it if a fix exists (bump the
+  pin, or for the interpreter's own libraries the Python patch version), or,
+  only after the maintainer reviewed it and agrees it does not apply to ALBIS,
+  add it to `.grype.yaml` with the reason, date and who decided. Never add an
+  ignore entry on your own to get a release through.
+
 - **"Publish GitHub Release: skipped"** - a build failed and nothing was
   published; "Latest" is unchanged. Find the failed step:
   `gh run view "$id" --json jobs --jq '.jobs[]|select(.conclusion=="failure")|.name'`

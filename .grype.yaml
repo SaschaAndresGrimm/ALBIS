@@ -1,0 +1,15 @@
+# grype settings for scripts/scan_sbom.sh.
+#
+# A finding goes in `ignore` only after it was reviewed and found not to apply
+# to ALBIS: the vulnerable code is not reachable, or the fix is already in. Each
+# entry says why in a comment, with the date and who decided, so the list stays
+# a record of decisions rather than a mute button. Remove an entry once the
+# component moves past the affected version.
+#
+#   - vulnerability: CVE-YYYY-NNNNN
+#     package:
+#       name: zlib
+#     # Reason, date, who.
+check-for-app-update: false
+
+ignore: []
