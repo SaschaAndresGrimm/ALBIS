@@ -197,6 +197,7 @@ def test_a_bundled_package_no_pin_reaches_is_listed_and_reported() -> None:
     doc = _build(_bundle(*EVERYTHING, "_distutils_hack/__init__.py"), log=messages.append)
     assert "pypi:setuptools" in _names(doc)
     assert any("setuptools" in m for m in messages)
+    assert "pypi:setuptools" in _deps(doc, "albis")
 
 
 def test_on_macos_only_the_bundled_pyobjc_frameworks_are_listed() -> None:
@@ -221,6 +222,32 @@ def test_native_libraries_hang_off_the_package_that_carries_them() -> None:
     assert "native:cpython/openssl" in _deps(doc, "runtime:cpython")
     component = next(c for c in doc["components"] if c["bom-ref"] == "native:uvloop/libuv")
     assert component["purl"] == "pkg:generic/libuv@1.50.0"
+
+
+def test_package_urls_and_refs_have_no_spaces() -> None:
+    def probe(bundle, carriers):
+        return [bundle_mod.Native("HDF5 LZ4 filter", "5573db8", "uvicorn")]
+
+    doc = _build(_bundle(*EVERYTHING), probe=probe)
+    native = next(c for c in doc["components"] if c["name"] == "HDF5 LZ4 filter")
+    assert native["purl"] == "pkg:generic/hdf5-lz4-filter@5573db8"
+    for component in doc["components"]:
+        assert " " not in component["bom-ref"], component["bom-ref"]
+        assert " " not in component.get("purl", ""), component["purl"]
+
+
+def test_every_component_is_reachable_from_albis() -> None:
+    doc = _build(
+        _bundle(*EVERYTHING, "_distutils_hack/__init__.py", "AppKit/__init__.py"), env=MACOS
+    )
+    graph = {d["ref"]: d["dependsOn"] for d in doc["dependencies"]}
+    reached, stack = set(), ["albis"]
+    while stack:
+        node = stack.pop()
+        if node not in reached:
+            reached.add(node)
+            stack.extend(graph.get(node, ()))
+    assert _names(doc) <= reached, sorted(_names(doc) - reached)
 
 
 def test_the_document_is_cyclonedx_and_names_its_target() -> None:

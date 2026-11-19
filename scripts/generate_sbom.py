@@ -168,6 +168,11 @@ def _licenses(dist: Distribution) -> list[dict]:
     return []
 
 
+def _slug(name: str) -> str:
+    """`HDF5 LZ4 filter` -> `hdf5-lz4-filter`: a package URL has no spaces."""
+    return re.sub(r"[^a-z0-9.+-]+", "-", name.lower()).strip("-")
+
+
 def _ref(kind: str, name: str) -> str:
     return f"{kind}:{name}"
 
@@ -218,7 +223,7 @@ def vendored_components() -> list[dict]:
     for item in VENDORED:
         component = {
             "type": "library",
-            "bom-ref": _ref("vendored", canonicalize_name(item["name"])),
+            "bom-ref": _ref("vendored", _slug(item["name"])),
             "name": item["name"],
             "version": item["version"],
             "licenses": [{"license": {"id": item["license"]}}],
@@ -232,7 +237,7 @@ def vendored_components() -> list[dict]:
 
 def native_component(native: Native) -> dict:
     owner = canonicalize_name(native.carrier) if native.carrier else "cpython"
-    slug = canonicalize_name(native.name)
+    slug = _slug(native.name)
     return {
         "type": "library",
         "bom-ref": _ref("native", f"{owner}/{slug}"),
@@ -320,6 +325,9 @@ def build_sbom(
             "ref": root_ref,
             "dependsOn": sorted(
                 [_ref("pypi", name) for name in contract(pinned, edges, keep)]
+                # What PyInstaller's hooks add hangs off ALBIS directly; no
+                # pin leads to it.
+                + [_ref("pypi", name) for name in added]
                 + [_ref("runtime", "cpython"), _ref("bootloader", "pyinstaller")]
                 + [c["bom-ref"] for c in vendored]
             ),
