@@ -14,6 +14,9 @@ const PLOT_LABEL_FONT = canvasFont(10, 500);
 // x in px beyond the widest label.
 const Y_TICK_MIN_GAP = 22;
 const X_TICK_MIN_GAP = 16;
+// Samples at least this far apart get a dot each.
+const SAMPLE_DOT_MIN_GAP_PX = 8;
+const SAMPLE_DOT_RADIUS = 2;
 
 // Q (nm^-1) = 2*pi / d(nm) = 20*pi / d(Å). Physics/SAXS convention Q = 4*pi*sin(theta)/lambda.
 const Q_FROM_D_NM = 20 * Math.PI;
@@ -128,7 +131,11 @@ export function renderRoiPlot({
     maxValue = logScale ? Math.log10(1 + Math.max(0, limits.yMax)) : limits.yMax;
   }
   if (!Number.isFinite(minValue)) minValue = 0;
-  if (autoscale && Number.isFinite(minValue) && Number.isFinite(maxValue)) {
+  // Headroom whenever y follows the data, also with x pinned (zoomed in on
+  // x alone): without it the highest and lowest samples, and their dots,
+  // were cut in half by the frame.
+  const yFollowsData = autoscale || (!Number.isFinite(limits.yMin) && !Number.isFinite(limits.yMax));
+  if (yFollowsData && Number.isFinite(minValue) && Number.isFinite(maxValue)) {
     // 3% of headroom so the extremes are not drawn on the frame.
     const baseRange = maxValue - minValue;
     if (baseRange > 0) {
@@ -347,6 +354,19 @@ export function renderRoiPlot({
     });
     ctx.stroke();
     ctx.shadowBlur = 0;
+
+    // Zoomed in far, mark each sample: on a detector profile it shows which
+    // pixels are there, and that the line between them is no data.
+    if (xSpan && Math.abs((xStep / xSpan) * drawableWidth) >= SAMPLE_DOT_MIN_GAP_PX) {
+      ctx.fillStyle = plotTheme.line;
+      values.forEach((value, index) => {
+        if (!Number.isFinite(value)) return;
+        const yNorm = yRange ? (value - minValue) / yRange : 0;
+        ctx.beginPath();
+        ctx.arc(xToPx(sampleX(index)), padT + drawableHeight - yNorm * drawableHeight, SAMPLE_DOT_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
   }
   ctx.restore();
 

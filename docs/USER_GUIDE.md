@@ -430,7 +430,8 @@ underneath you. Drag on a plot to pan, wheel over an axis to zoom, double-click
 to reset. Dragging on an axis (on its numbers, left of or below the plot) pans
 along that axis only, so the other one stays where it is; the cursor turns into
 a two-way arrow and the axis is shaded while it is under the pointer.
-Double-clicking an axis resets just that axis.
+Double-clicking an axis resets just that axis. Zoomed in far enough, a profile marks each
+sample with a dot.
 
 The **Manual axes** tag on a plot is a button: click it to return that plot to
 automatic axes (it then reads **Auto axes**), and click again to get back the

@@ -139,6 +139,45 @@ describe("roi_plot_renderer", () => {
     expect(plot.yMin).toBe(30);
   });
 
+  it("gives y the autoscale headroom while only x is pinned", () => {
+    const canvasEl = { clientWidth: 300, clientHeight: 120, _roiPlotMeta: { xStart: 0, xStep: 1 } };
+    renderRoiPlot({
+      canvasEl,
+      ctx: createMockContext(),
+      data: [10, 20, 30, 40, 50],
+      logScale: false,
+      plotTheme: PLOT_THEME,
+      getRoiPlotKey: () => "line",
+      getRoiPlotLimits: () => ({ xMin: 1.5, xMax: 3.5, yMin: null, yMax: null }),
+      autoscale: false,
+    });
+    // Samples 30 and 40 in view, 3% of their range either side.
+    expect(canvasEl._roiPlot.yMin).toBeCloseTo(29.7);
+    expect(canvasEl._roiPlot.yMax).toBeCloseTo(40.3);
+  });
+
+  it("marks each sample once they are far enough apart, and not before", () => {
+    const draw = (limits) => {
+      const canvasEl = { clientWidth: 300, clientHeight: 120, _roiPlotMeta: { xStart: 0, xStep: 1 } };
+      const ctx = createMockContext();
+      renderRoiPlot({
+        canvasEl,
+        ctx,
+        data: Array.from({ length: 200 }, (_, i) => i % 7),
+        logScale: false,
+        plotTheme: PLOT_THEME,
+        getRoiPlotKey: () => "line",
+        getRoiPlotLimits: () => limits,
+        autoscale: false,
+      });
+      return ctx.arc.mock.calls.length;
+    };
+    expect(draw({ xMin: null, xMax: null })).toBe(0);
+    // 10 samples across about 250 px, 25 px apart: 51..60 in view, plus 50
+    // and 61 just past the ends (clipped at the frame).
+    expect(draw({ xMin: 50.5, xMax: 60.5 })).toBe(12);
+  });
+
   it("spans each histogram bar across its bin", () => {
     const canvasEl = {
       clientWidth: 300,
