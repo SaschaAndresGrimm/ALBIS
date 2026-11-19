@@ -10,6 +10,23 @@ Do **not** open a public GitHub issue for security-sensitive reports.
 If private reporting is temporarily unavailable, contact the maintainers directly and include
 enough detail to reproduce and assess impact.
 
+## What happens after you report
+
+ALBIS is maintained on one person's best effort (see [Governance](GOVERNANCE.md)), so these
+are aims rather than guarantees, but they are what a report can expect:
+
+- **Within 7 days:** an acknowledgement that the report arrived.
+- **Within 30 days:** an assessment: whether it is a vulnerability in ALBIS, how severe, and
+  what the fix will be.
+- **The fix** ships in a new release, as soon as it is ready. An issue being exploited, or one
+  that exposes data, goes ahead of everything else.
+- **Disclosure** is coordinated with you: the details are published once a fixed release is
+  out, and no later than 90 days after the report unless we agree otherwise.
+- **Every confirmed vulnerability gets a published
+  [GitHub Security Advisory](https://github.com/SaschaAndresGrimm/ALBIS/security/advisories)**
+  with a CVE identifier, naming the affected and the fixed versions, and the release notes
+  point to it. You are credited unless you would rather not be.
+
 ## Supported Versions
 
 Security fixes are accepted and triaged for the **latest published release**, whatever its
