@@ -48,3 +48,31 @@ jobs:
 
       - name: Audit npm dependencies
         run: npm audit --omit=dev --audit-level=high
+
+  # The pins are audited above; this audits what users actually installed. The
+  # bills of materials of the latest release list the bundled interpreter and
+  # the C libraries inside the wheels, which pip-audit cannot see. A CVE
+  # published after the release lands here, on the weekly run, as a failed job.
+  # Not on pull requests: a finding in the published release is not caused by,
+  # and cannot be fixed in, the change under review.
+  release_sbom_scan:
+    name: Scan Latest Release SBOMs
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download the latest release's bills of materials
+        run: |
+          set -euo pipefail
+          mkdir -p sboms
+          # Per-platform *.cdx.json from 0.47 on; the single repository-wide
+          # SBOM before that.
+          gh release download --dir sboms --pattern '*.cdx.json' --pattern 'albis-sbom.cyclonedx.json'
+          ls -1 sboms
+          compgen -G 'sboms/*.json' >/dev/null || { echo "The latest release has no SBOM"; exit 1; }
+
+      - name: Scan for known vulnerabilities (fail on High)
+        run: ./scripts/scan_sbom.sh --fail-on high sboms/*.json

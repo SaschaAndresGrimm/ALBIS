@@ -57,6 +57,14 @@ if (Test-Path $generatedIcon) {
 # Non-interactive build: never prompt to remove existing output directories.
 & $pythonExe -m PyInstaller --noconfirm --clean ALBIS.spec
 
+# The bill of materials for this bundle, from the interpreter that built it:
+# the runtime closure of the pins on this platform, not the repository.
+$sbom = Join-Path $root ("dist\\ALBIS-" + $versionInfo.target + "-" + $tag + ".cdx.json")
+& $pythonExe .\scripts\generate_sbom.py --target $versionInfo.target --output $sbom
+if ($LASTEXITCODE -ne 0) {
+  throw "SBOM generation failed"
+}
+
 $zip = Join-Path $root ("dist\\ALBIS-" + $versionInfo.target + "-" + $tag + ".zip")
 if (Test-Path $zip) {
   Remove-Item $zip

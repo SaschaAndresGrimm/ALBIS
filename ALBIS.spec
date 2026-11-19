@@ -185,6 +185,14 @@ a = Analysis(
         "silx",
         "IPython",
         "jupyter",
+        # fabio requires lxml but imports it only in xsdimage, which falls back
+        # to the standard library's xml.etree; tifffile's uses are optional
+        # pretty-printing and OME-XML validation, both with a fallback or
+        # unused. Bundled, it shipped libxml2 and libxslt, and lxml's Windows
+        # wheel carries libxml2 2.11.9, with three Critical CVEs the release's
+        # SBOM scan stopped on. tests/test_bundle_excludes.py holds the
+        # fallback to that.
+        "lxml",
     ],
     noarchive=False,
 )
