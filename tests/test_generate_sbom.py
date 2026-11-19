@@ -296,11 +296,14 @@ def _write_toc(workdir: Path, name: str, entries: list[tuple[str, str, str]]) ->
 
 
 def test_the_toc_files_give_sources_and_module_names(tmp_path: Path) -> None:
+    # Absolute on this OS: PyInstaller writes the build machine's own paths, and
+    # "/venv/..." has no drive on Windows, so it would not count as absolute.
+    h5py_source = str(tmp_path / "site-packages" / "h5py" / "__init__.py")
     _write_toc(
         tmp_path,
         "Analysis-00.toc",
         [
-            ("h5py", "/venv/site-packages/h5py/__init__.py", "PYMODULE"),
+            ("h5py", h5py_source, "PYMODULE"),
             ("lxml/etree.cpython-313-darwin.so", "/venv/site-packages/lxml/etree.so", "EXTENSION"),
             (
                 "python3.13/lib-dynload/_ssl.cpython-313-darwin.so",
@@ -314,7 +317,7 @@ def test_the_toc_files_give_sources_and_module_names(tmp_path: Path) -> None:
     bundle = bundle_mod.read_bundle(tmp_path)
     assert {"h5py", "lxml.etree", "_ssl", "_sqlite3"} <= bundle.modules
     assert "frontend/index.html" not in bundle.modules
-    assert bundle_mod._norm("/venv/site-packages/h5py/__init__.py") in bundle.sources
+    assert bundle_mod._norm(h5py_source) in bundle.sources
 
 
 def test_a_missing_work_directory_fails_the_build(tmp_path: Path) -> None:
