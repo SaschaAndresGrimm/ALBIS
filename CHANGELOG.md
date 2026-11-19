@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.46.0] - 2026-11-19
+
 ### Added
 
 - **Linked windows can step and play through frames together.** The link menu in the header has a new **Frame** option. With it on, stepping with the arrow keys, the slider or the previous and next buttons in one window moves the other linked windows by the same number of frames, and **Play** in one window plays them all. The windows keep the gap in frames they had when you linked them, so frame 10 next to frame 12 stays two apart, for comparing a frame with the one after it or two series whose event starts at different frames. A window that loads its frames more slowly skips some to keep up rather than slowing the others down. **Stop** in any window stops them all. **Frame** is on whenever windows are linked; untick it to step each window on its own.
@@ -2029,7 +2031,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.45.1...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.46.0...HEAD
+[0.46.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.45.1...v0.46.0
 [0.45.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.45.0...v0.45.1
 [0.45.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.44.0...v0.45.0
 [0.44.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.43.0...v0.44.0
