@@ -714,7 +714,7 @@
   "geometry.title.pixel_size_x": "Pixelstorlek i X (µm): horisontellt, längs bildens kolumner.",
   "geometry.title.pixel_size_y": "Pixelstorlek i Y (µm): vertikalt, längs bildens rader.",
   "info.roi.level_bands": "Pixlarna som statistiken räknar, uppdelade efter nivåerna BG och FG i Vy → Histogram: under BG, från BG till FG (båda inräknade), över FG. Med en ROI bara dess pixlar.",
-  "info.roi.plot_controls": "Dra för att panorera plottaxlarna. Använd hjulet på axlarna för att zooma. Dubbelklicka för att återställa.",
+  "info.roi.plot_controls": "Dra för att panorera; dra i en axel för att bara flytta den axeln. Scrolla för att zooma; över en axel zoomas bara den axeln. Högerdra (eller Ctrl-dra) en ruta för att zooma in på den. Dubbelklicka för att återställa, eller använd ↶ för att gå tillbaka.",
   "info.simplon.url": "Detektorns värdnamn, IP-adress eller fullständig URL. http:// läggs till och port 80 används om den utelämnas.",
   "histogram.auto_contrast": "Automatisk kontrast",
   "histogram.colorbar_title": "Dra för att flytta kontrastfönstret, scrolla för att göra det bredare eller smalare, dubbelklicka för autokontrast",

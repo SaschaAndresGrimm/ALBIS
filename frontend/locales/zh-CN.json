@@ -714,7 +714,7 @@
   "geometry.title.pixel_size_x": "X 方向像素尺寸 (µm)：水平方向，沿图像的列。",
   "geometry.title.pixel_size_y": "Y 方向像素尺寸 (µm)：垂直方向，沿图像的行。",
   "info.roi.level_bands": "统计所计数的像素，按“视图 → 直方图”中设置的 BG 和 FG 划分：低于 BG、BG 至 FG（含两端）、高于 FG。绘制 ROI 时仅统计其中的像素。",
-  "info.roi.plot_controls": "拖动以平移图轴；在坐标轴上滚轮缩放；双击重置。",
+  "info.roi.plot_controls": "拖动以平移；拖动坐标轴只移动该轴。滚轮缩放；在坐标轴上只缩放该轴。按住右键（或 Ctrl）拖出矩形以放大该区域。双击重置，或用 ↶ 返回上一视图。",
   "info.simplon.url": "探测器主机名、IP 地址或完整 URL。省略时会自动添加 http:// 并使用 80 端口。",
   "histogram.auto_contrast": "自动对比度",
   "histogram.colorbar_title": "拖动可移动对比度窗口，滚动可加宽或收窄，双击进行自动对比度",

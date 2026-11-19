@@ -498,9 +498,13 @@ export function bindRoiPlotInteractions({
     };
   }
 
-  // Shift-drag in the plot draws a box and zooms into it on release.
+  // Right-drag (or Ctrl-drag, for a one-button trackpad) in the plot draws a
+  // box and zooms into it on release: the same gesture that draws an ROI on
+  // the image. It was Shift-drag, which on the image sets the contrast.
   function beginRoiPlotBoxZoom(event, canvasEl) {
-    if (!event.shiftKey || event.button !== 0 || roiPlotResizing || !canvasEl._roiPlot) return false;
+    const isRightClick = event.button === 2;
+    const isCtrlClick = event.button === 0 && event.ctrlKey;
+    if (!(isRightClick || isCtrlClick) || roiPlotResizing || !canvasEl._roiPlot) return false;
     if (roiPlotZoneAt(canvasEl, event.clientX, event.clientY) !== "plot") return false;
     const { x, y } = boxPointFor(canvasEl, event);
     roiPlotBoxZoom = { canvasEl, pointerId: event.pointerId };
@@ -569,6 +573,11 @@ export function bindRoiPlotInteractions({
       if (!(roiPlotPanning && roiPlotPanning.canvasEl === canvasEl)) {
         setRoiPlotPanZone(canvasEl, null);
       }
+    });
+
+    // The right button draws a zoom box here, as it draws an ROI on the image.
+    canvasEl.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
     });
 
     canvasEl.addEventListener("pointerdown", (event) => {

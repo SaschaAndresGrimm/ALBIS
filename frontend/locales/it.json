@@ -714,7 +714,7 @@
   "geometry.title.pixel_size_x": "Dimensione del pixel in X (µm): orizzontale, lungo le colonne dell'immagine.",
   "geometry.title.pixel_size_y": "Dimensione del pixel in Y (µm): verticale, lungo le righe dell'immagine.",
   "info.roi.level_bands": "I pixel contati dalle statistiche, divisi secondo i livelli BG e FG impostati in Visualizza → Istogramma: sotto BG, da BG a FG (inclusi), sopra FG. Con una ROI, solo i suoi pixel.",
-  "info.roi.plot_controls": "Trascina per eseguire la panoramica degli assi del grafico. Utilizzare la rotella sugli assi per eseguire lo zoom. Fare doppio clic per reimpostare.",
+  "info.roi.plot_controls": "Trascina per spostare; trascina un asse per spostare solo quell'asse. Usa la rotella per lo zoom; sopra un asse, solo quell'asse. Trascina con il tasto destro (o con Ctrl) un rettangolo per ingrandirlo. Fai doppio clic per reimpostare o usa ↶ per tornare indietro.",
   "info.simplon.url": "Nome host del rivelatore, indirizzo IP o URL completo. http:// viene aggiunto e la porta 80 è usata se omessa.",
   "histogram.auto_contrast": "Contrasto automatico",
   "histogram.colorbar_title": "Trascina per spostare la finestra di contrasto, scorri per allargarla o restringerla, doppio clic per il contrasto automatico",
