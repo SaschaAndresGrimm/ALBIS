@@ -193,6 +193,23 @@ a = Analysis(
         # SBOM scan stopped on. tests/test_bundle_excludes.py holds the
         # fallback to that.
         "lxml",
+        # SQLite, with its own CVEs, only because filelock's read/write lock
+        # imports sqlite3; filelock treats it as optional, and fabio uses the
+        # plain FileLock. Nothing in ALBIS stores anything in SQLite.
+        "sqlite3",
+        "_sqlite3",
+        # Installed with uvicorn[standard] but imported only for features the
+        # bundled server does not use: auto-reload (watchfiles), --env-file
+        # (dotenv) and YAML logging configs (yaml; ALBIS passes a dict).
+        "watchfiles",
+        "dotenv",
+        "yaml",
+        # Build tooling PyInstaller's hooks pick up from the build environment;
+        # nothing ALBIS runs imports them.
+        "setuptools",
+        "pkg_resources",
+        "_distutils_hack",
+        "packaging",
     ],
     noarchive=False,
 )
