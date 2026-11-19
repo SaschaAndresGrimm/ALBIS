@@ -328,6 +328,32 @@ def test_every_native_probe_still_reads_a_version() -> None:
     assert ran >= 6
 
 
+def test_the_hdf5plugin_list_covers_the_pinned_version() -> None:
+    pin = next(p for p in sbom.read_pins() if p.name == "hdf5plugin")
+    pinned = next(iter(pin.specifier)).version
+    assert pinned in bundle_mod.HDF5PLUGIN_EMBEDDED, (
+        f"hdf5plugin {pinned} is pinned; add its embedded libraries to HDF5PLUGIN_EMBEDDED "
+        "from doc/information.rst at that release's tag"
+    )
+
+
+def test_hdf5plugin_lists_its_filters_and_the_libraries_in_them() -> None:
+    found = dict(bundle_mod._hdf5plugin())
+    assert found["c-blosc2"] == "3.3.2"
+    assert found["LZ4"] == "1.10.0"
+    assert found["bitshuffle"] == "0.5.2"
+    # Shared libraries are listed once, though several filters embed them.
+    assert list(dict(bundle_mod._hdf5plugin())) == sorted(found)
+
+
+def test_an_unlisted_hdf5plugin_version_is_reported_not_guessed(monkeypatch) -> None:
+    import hdf5plugin
+
+    monkeypatch.setattr(hdf5plugin, "version", "0.0.1")
+    with pytest.raises(LookupError, match="0.0.1"):
+        bundle_mod._hdf5plugin()
+
+
 def test_a_probe_only_runs_for_a_bundled_module() -> None:
     bundle = bundle_mod.Bundle(modules={"h5py.defs"})
     names = {n.name for n in bundle_mod.probe_natives(bundle, {"h5py"})}

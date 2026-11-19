@@ -13,7 +13,7 @@ the build scripts; `tests/test_generate_sbom.py` holds a sample to it.
 
 Native libraries a wheel carries inside itself (the HDF5 in h5py, the OpenBLAS
 in numpy) have no metadata of their own, so they are asked for their version
-directly. Each probe runs only when its module is in the bundle, and a probe
+directly, or, for hdf5plugin's filters, looked up in its documented list. Each probe runs only when its module is in the bundle, and a probe
 that stops working is reported and skipped rather than failing the build: the
 test suite runs every probe against the dev environment, so an upstream change
 shows up there, on the pull request that bumps the pin.
@@ -186,11 +186,59 @@ def _sqlite() -> list[tuple[str, str]]:
     return [("SQLite", sqlite3.sqlite_version)]
 
 
+# hdf5plugin's filter plugins and the compression libraries compiled into them
+# report no version at run time. hdf5plugin documents them per release, in
+# doc/information.rst; this is that list for each pinned version, keyed by the
+# filter that embeds them. A commit stands in where upstream names no release.
+# tests/test_generate_sbom.py fails when the pin moves to a version not listed
+# here, so the pull request that bumps it is the one that updates this.
+_SNAPPY = ("Snappy", "1.2.2")
+_LZ4 = ("LZ4", "1.10.0")
+_ZSTD = ("Zstd", "1.5.7")
+_ZLIB = ("zlib", "1.3.1")
+_ZFP = ("ZFP", "1.0.1")
+HDF5PLUGIN_EMBEDDED: dict[str, dict[str, tuple[tuple[str, str], ...]]] = {
+    "7.1.0": {
+        "blosc": (("hdf5-blosc", "1.0.1"), ("c-blosc", "1.21.6"), _LZ4, _SNAPPY, _ZLIB, _ZSTD),
+        "blosc2": (("HDF5-Blosc2", "3.0.1"), ("c-blosc2", "3.3.2"), _LZ4, _ZFP, _ZLIB, _ZSTD),
+        "bshuf": (("bitshuffle", "0.5.2"), _LZ4, _ZSTD),
+        "bzip2": (("PyTables bzip2 filter", "3.10.2"), ("bzip2", "1.0.8")),
+        "fcidecomp": (("FCIDECOMP", "2.1.1"), ("CharLS", "2.1.0")),
+        "htj2k": (("h5z-htj2k", "0.1.1"), ("OpenJPH", "0.31.0")),
+        "lz4": (("HDF5 LZ4 filter", "5573db8"), _LZ4),
+        "sperr": (("H5Z-SPERR", "0.2.3"), ("SPERR", "0.8.5")),
+        "sz": (("SZ", "308bd06"),),
+        "sz3": (("SZ3", "4bbe9df7e4bcb"),),
+        "zfp": (("H5Z-ZFP", "1.1.1"), _ZFP),
+        "zstd": (("HDF5 Zstd filter", "5573db8"), _ZSTD),
+    },
+}
+
+
+def _hdf5plugin() -> list[tuple[str, str]]:
+    import hdf5plugin
+
+    table = HDF5PLUGIN_EMBEDDED.get(hdf5plugin.version)
+    if table is None:
+        raise LookupError(f"no list of embedded libraries for hdf5plugin {hdf5plugin.version}")
+    config = hdf5plugin.get_config().build_config
+    # Built with Intel IPP, LZ4 is replaced by a patched 1.9.3, which this list
+    # does not describe. The wheels on PyPI are built without it.
+    if config.ipp:
+        raise LookupError("hdf5plugin was built with Intel IPP")
+    found: dict[str, str] = {}
+    for name in config.embedded_filters:
+        for library, version in table.get(name, ()):
+            found.setdefault(library, version)
+    return sorted(found.items())
+
+
 # (carrier distribution or None for the interpreter, module that must be in
 # the bundle, probe). The module is the one that links the library, so a bundle
 # that leaves it out does not get the library listed.
 PROBES: tuple[tuple[str | None, str, Callable[[], list[tuple[str, str]]]], ...] = (
     ("h5py", "h5py.defs", _hdf5),
+    ("hdf5plugin", "hdf5plugin", _hdf5plugin),
     ("numpy", "numpy._core._multiarray_umath", _blas),
     ("pyzmq", "zmq.backend.cython._zmq", _libzmq),
     ("zstandard", "zstandard.backend_c", _libzstd),

@@ -214,8 +214,12 @@ imports, and no build tools), the native libraries those carry that report a
 version (HDF5, OpenBLAS, libzmq, libzstd, Pillow's codecs; OpenSSL, zlib, expat
 and SQLite in the interpreter), the interpreter, the PyInstaller bootloader and
 the files vendored into `frontend/`. The build fails if an installed package
-does not match its pin. The filter plugins inside hdf5plugin report no version
-and appear only as hdf5plugin.
+does not match its pin. The filter plugins inside hdf5plugin, and the
+compression libraries in them, report no version at run time; they are listed
+from hdf5plugin's own documentation of each release, kept in
+`HDF5PLUGIN_EMBEDDED` in `scripts/sbom_bundle.py`. Bumping the hdf5plugin pin
+means adding its list there (a test fails until it is), copied from
+`doc/information.rst` at that release's tag.
 
 The Docker image carries its own bill of materials and provenance as registry
 attestations, made by BuildKit from the finished image:
