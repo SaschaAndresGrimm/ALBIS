@@ -204,6 +204,15 @@ Public GitHub Releases publish architecture-specific install + portable assets:
 - macOS: `ALBIS-macos-arm64-*` and `ALBIS-macos-x64-*` (`.dmg` + `.zip`)
 - Windows: `ALBIS-Setup-windows-x64-*` + `ALBIS-windows-x64-*.zip`
 - Linux: `ALBIS-linux-x64-*.tar.gz`, `ALBIS-*-x86_64.AppImage`, and `ALBIS-*-x86_64-appimage-bundle.tar.gz`, and the same three for arm64 (`ALBIS-linux-arm64-*`, `*-aarch64*`)
+- every target: `ALBIS-<target>-*.cdx.json`, the CycloneDX bill of materials for that bundle
+
+The bill of materials is written by `scripts/generate_sbom.py`, which each build
+script runs right after PyInstaller with the same interpreter. It lists the
+runtime closure of `backend/requirements.txt` as installed for that platform,
+the interpreter, the PyInstaller bootloader and the files vendored into
+`frontend/`. Build tools are left out, and the build fails if an installed
+package does not match its pin. Native libraries inside a wheel (HDF5 in h5py,
+OpenBLAS in numpy, libzmq in pyzmq) appear only as the wheel that carries them.
 
 Public release inputs are pinned:
 

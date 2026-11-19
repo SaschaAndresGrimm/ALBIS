@@ -9,6 +9,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- **Each download now comes with its own bill of materials, listing what is actually inside it.** A release carried one SBOM made by scanning the source repository. It named only the sixteen packages ALBIS asks for directly, missed the packages those pull in, the Python interpreter and the PyInstaller starter that every download contains, and listed development tools that never ship. Each build now writes `ALBIS-<platform>-<version>.cdx.json` (CycloneDX) from the very environment it was built in, so the Windows, macOS and Linux files each describe their own download, and a security review or a vulnerability scanner can check exactly what a facility installed. The build stops if a package is installed at another version than the one pinned. The files are covered by the signed `SHA256SUMS.txt`, as before.
+
 - **Zoom into a box on an ROI plot with the right mouse button, as you draw a region on the image.** Right-drag, or Ctrl-drag on a trackpad with one button, draws the box; it was Shift-drag, which on the image sets the contrast, so the same key meant two things. A Shift-drag on a plot now pans like a plain drag. The plots' info button describes all the ways to pan and zoom, including dragging an axis and **↶ Previous view**.
 
 ### Fixed
