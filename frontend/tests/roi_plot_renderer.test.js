@@ -21,6 +21,10 @@ function createMockContext() {
     fillText: vi.fn(),
     save: vi.fn(),
     restore: vi.fn(),
+    rect: vi.fn(),
+    clip: vi.fn(),
+    arc: vi.fn(),
+    fill: vi.fn(),
     translate: vi.fn(),
     rotate: vi.fn(),
     measureText: vi.fn((text) => ({ width: String(text).length * 6 })),
@@ -102,6 +106,65 @@ describe("roi_plot_renderer", () => {
     expect(canvasEl._roiPlot.data).toEqual([20, 30]);
     expect(canvasEl._roiPlot.xMin).toBe(1);
     expect(canvasEl._roiPlot.xMax).toBe(2);
+  });
+
+  // The range used to be rounded inwards to whole samples, and the wheel took
+  // its next step from that: zooming on a few samples lost two per notch
+  // whatever the factor, zooming out rounded back to where it was, and the
+  // point under the pointer drifted.
+  it("draws exactly the x range asked for, between samples too", () => {
+    const canvasEl = { clientWidth: 300, clientHeight: 120, _roiPlotMeta: { xStart: 0, xStep: 1 } };
+    const ctx = createMockContext();
+    const limits = { xMin: 1.4, xMax: 2.6, yMin: null, yMax: null };
+    renderRoiPlot({
+      canvasEl,
+      ctx,
+      data: [10, 20, 30, 40, 50],
+      logScale: false,
+      plotTheme: PLOT_THEME,
+      getRoiPlotKey: () => "line",
+      getRoiPlotLimits: () => limits,
+      autoscale: false,
+    });
+    const plot = canvasEl._roiPlot;
+    expect(plot.xMin).toBe(1.4);
+    expect(plot.xMax).toBe(2.6);
+    // One sample past each end, so the line runs to the frame (and is clipped).
+    expect(plot.data).toEqual([20, 30, 40]);
+    expect(ctx.clip).toHaveBeenCalled();
+    const right = plot.width - plot.padR;
+    const xs = ctx.lineTo.mock.calls.map(([x]) => x).filter((x) => x > right);
+    expect(xs.length).toBeGreaterThan(0);
+    // The y range comes from the one sample inside the view, not the extras.
+    expect(plot.yMin).toBe(30);
+  });
+
+  it("spans each histogram bar across its bin", () => {
+    const canvasEl = {
+      clientWidth: 300,
+      clientHeight: 120,
+      _roiPlotMeta: { xStart: 0.5, xStep: 1, seriesType: "histogram" },
+    };
+    const ctx = createMockContext();
+    renderRoiPlot({
+      canvasEl,
+      ctx,
+      data: [1, 2, 3],
+      logScale: false,
+      plotTheme: PLOT_THEME,
+      getRoiPlotKey: () => "hist",
+      getRoiPlotLimits: () => ({ xMin: null, xMax: null, yMin: null, yMax: null }),
+      autoscale: true,
+    });
+    const plot = canvasEl._roiPlot;
+    // Bin centres 0.5, 1.5, 2.5: the axis runs from edge to edge, 0 to 3.
+    expect(plot.xMin).toBe(0);
+    expect(plot.xMax).toBe(3);
+    const bars = ctx.fillRect.mock.calls.filter(([x, , w]) => x >= plot.padL && w < 200);
+    expect(bars).toHaveLength(3);
+    const binPx = (plot.width - plot.padL - plot.padR) / 3;
+    expect(bars[0][0]).toBeCloseTo(plot.padL + 0.5);
+    expect(bars[2][0]).toBeCloseTo(plot.padL + 2 * binPx + 0.5);
   });
 
   it("keeps histogram autoscale y-min at zero", () => {

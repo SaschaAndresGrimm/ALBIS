@@ -368,6 +368,30 @@ describe("roi_plot_bindings", () => {
       expect(roiLineCanvas.dataset.panZone).toBeUndefined();
     });
 
+    // Each notch used to start from the drawn range, which the renderer had
+    // rounded to whole samples, so on a short range zooming lost samples per
+    // notch, zooming out stuck, and the point under the pointer drifted.
+    it("zooms a short x range in and back out to where it was, about the pointer", () => {
+      const limits = { xMin: 20, xMax: 26, yMin: null, yMax: null };
+      const { roiLineCanvas } = createBindings({
+        getRoiPlotLimits: vi.fn(() => limits),
+        setRoiPlotAxisLimits: vi.fn((key, axis, min, max) => setAxisLimits(limits, axis, min, max)),
+        normalizeWheelDelta: vi.fn((event) => event.deltaY),
+      });
+      // The drawn range is stale on purpose: the wheel must not read it.
+      roiLineCanvas._roiPlot = { ...shownPlot(), xMin: 21, xMax: 25, xStep: 1 };
+      // Pointer a quarter of the way along the 192 px data area: x = 21.5.
+      const wheel = (deltaY) =>
+        roiLineCanvas.dispatchEvent(new window.WheelEvent("wheel", { clientX: 88, clientY: 100, deltaY, cancelable: true }));
+      const at = () => limits.xMin + 0.25 * (limits.xMax - limits.xMin);
+      for (let i = 0; i < 3; i += 1) wheel(-100);
+      expect(limits.xMax - limits.xMin).toBeCloseTo(6 * Math.exp(-0.6));
+      expect(at()).toBeCloseTo(21.5);
+      for (let i = 0; i < 3; i += 1) wheel(100);
+      expect(limits.xMin).toBeCloseTo(20);
+      expect(limits.xMax).toBeCloseTo(26);
+    });
+
     it("resets only the axis that is double-clicked", () => {
       const { roiLineCanvas, limits, callbacks } = setup();
       setAxisLimits(limits, "x", 10, 20);

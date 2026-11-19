@@ -8,6 +8,7 @@ import {
   normalizeRoiHistogramBinCount,
 } from "./roi_stats_engine.js";
 import { renderRoiPlot } from "./roi_plot_renderer.js";
+import { roiPlotSampleIndexAt } from "./roi_plot_view_utils.js";
 import { t } from "./i18n.js";
 
 export function createRoiPlotController(ctx) {
@@ -198,8 +199,7 @@ function updateRoiTooltip(event, canvasEl) {
     hideRoiTooltip(canvasEl);
     return;
   }
-  const xFraction = plotW ? plotX / plotW : 0;
-  const idx = Math.max(0, Math.min(plot.data.length - 1, Math.round(xFraction * (plot.data.length - 1))));
+  const idx = roiPlotSampleIndexAt(plot, x);
   const xValue = plot.xStart + idx * plot.xStep;
   const value = plot.data[idx];
   const xText = plot.xTickMode === "integer" ? `${Math.round(xValue)}` : formatRoiTick(xValue);

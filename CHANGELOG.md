@@ -15,6 +15,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- **Zooming an ROI plot with the wheel stays smooth down to a few pixels and keeps the point under the pointer in place.** The plots used to round the visible range to whole samples, and each wheel notch started from that rounded range. On a long range nobody noticed, but on a range of a few pixels every notch zoomed in by about two pixels whatever the wheel did, zooming out could get stuck, and the view slid sideways. The plots now show exactly the range you zoomed to, with the curve running to the edge of the plot, so every notch zooms by the same proportion at any scale. Zooming in stops at two samples across (and, on the value axis, at a millionth of the values shown, where only rounding noise is left), and zooming out on the x axis stops at the whole profile. The histogram's x axis now runs from the outer edge of the first bin to the outer edge of the last, so the bars line up with the axis labels; it used to run from centre to centre, half a bin off at each end.
+
 - **Checking for updates on a remote ALBIS no longer offers "Show in Folder", and the download goes to your own computer.** When ALBIS runs on another machine and you open it in a browser, **Download Update** saved the file on that machine's disk and **Show in Folder** opened a file manager on its screen, where nobody could see it. Now the download goes through your browser, to your own computer, and the folder button appears only when ALBIS runs on the computer you are sitting at. If the folder cannot be opened there either (a machine without a desktop, say), ALBIS tells you where the file is.
 
 ### Changed

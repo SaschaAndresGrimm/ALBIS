@@ -1,8 +1,9 @@
 /**
- * Where a pointer is on an ROI plot, and how a drag moves an axis.
+ * Where a pointer is on an ROI plot, and how a drag or the wheel changes an
+ * axis range.
  *
- * Pure helpers for roi_plot_bindings.js: the plot area pans both axes, the
- * tick-label strip left of it pans only y, the strip below it only x.
+ * Pure helpers for roi_plot_bindings.js: the plot area pans and zooms both
+ * axes, the tick-label strip left of it only y, the strip below it only x.
  */
 
 /**
@@ -42,6 +43,53 @@ function fromDisplay(value, log) {
   return log ? Math.max(0, 10 ** value - 1) : value;
 }
 
+function clampToDomain(lo, hi, domainMin, domainMax, log) {
+  if (!Number.isFinite(domainMin) || !Number.isFinite(domainMax)) return [lo, hi];
+  const dLo = toDisplay(Math.min(domainMin, domainMax), log);
+  const dHi = toDisplay(Math.max(domainMin, domainMax), log);
+  if (hi - lo >= dHi - dLo) return [dLo, dHi];
+  if (lo < dLo) return [dLo, hi + (dLo - lo)];
+  if (hi > dHi) return [lo - (hi - dHi), dHi];
+  return [lo, hi];
+}
+
+// Below about a millionth of the values shown, the tick labels run out of
+// digits and the plot only shows floating-point noise.
+const RELATIVE_MIN_SPAN = 1e-6;
+
+/**
+ * Zoom an axis range by `factor` (above 1 zooms in) about the point at
+ * `anchor`, a fraction of the axis from its low end (where the pointer is),
+ * so the value under the pointer stays under it.
+ *
+ * Zooming in stops at `minSpan` (in data units; on a log axis, in the drawn
+ * log units) and at a millionth of the values shown. With a domain, zooming
+ * out stops at the whole data and the range is kept inside it: x past the
+ * data shows nothing, and a range grown past it would need notches of
+ * zooming in before anything changed on screen.
+ *
+ * Returns { min, max } in data units, or null when the range has no span.
+ */
+export function zoomAxisRange(
+  { min, max, domainMin = null, domainMax = null, log = false, minSpan = 0 },
+  anchor,
+  factor
+) {
+  if (![min, max, anchor, factor].every(Number.isFinite) || !(factor > 0)) return null;
+  const lo = toDisplay(Math.min(min, max), log);
+  const hi = toDisplay(Math.max(min, max), log);
+  const span = hi - lo;
+  if (!(span > 0)) return null;
+  const at = Math.max(0, Math.min(1, anchor));
+  const anchorValue = lo + at * span;
+  const floor = Math.max(minSpan, Math.max(Math.abs(lo), Math.abs(hi)) * RELATIVE_MIN_SPAN);
+  let next = span / factor;
+  // Never zoom in past the floor; a range already below it may only grow.
+  if (next < span) next = Math.max(next, Math.min(span, floor));
+  const [nextLo, nextHi] = clampToDomain(anchorValue - at * next, anchorValue + (1 - at) * next, domainMin, domainMax, log);
+  return { min: fromDisplay(nextLo, log), max: fromDisplay(nextHi, log) };
+}
+
 /**
  * Shift an axis range by `fraction` of its span towards smaller values (a
  * negative fraction shifts towards larger ones), keeping it inside the data
@@ -56,22 +104,6 @@ export function panAxisRange({ min, max, domainMin = null, domainMax = null, log
   let hi = toDisplay(Math.max(min, max), log);
   const span = hi - lo;
   if (!(span > 0)) return null;
-  lo -= fraction * span;
-  hi -= fraction * span;
-
-  if (Number.isFinite(domainMin) && Number.isFinite(domainMax)) {
-    const dLo = toDisplay(Math.min(domainMin, domainMax), log);
-    const dHi = toDisplay(Math.max(domainMin, domainMax), log);
-    if (span >= dHi - dLo) {
-      lo = dLo;
-      hi = dHi;
-    } else if (lo < dLo) {
-      hi += dLo - lo;
-      lo = dLo;
-    } else if (hi > dHi) {
-      lo -= hi - dHi;
-      hi = dHi;
-    }
-  }
+  [lo, hi] = clampToDomain(lo - fraction * span, hi - fraction * span, domainMin, domainMax, log);
   return { min: fromDisplay(lo, log), max: fromDisplay(hi, log) };
 }

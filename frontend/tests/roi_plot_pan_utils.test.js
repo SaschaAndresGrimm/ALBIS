@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { panAxisRange, roiPlotHitZone, roiPlotPanMode } from "../modules/roi_plot_pan_utils.js";
+import { panAxisRange, roiPlotHitZone, roiPlotPanMode, zoomAxisRange } from "../modules/roi_plot_pan_utils.js";
 
 const plot = { padL: 40, padR: 8, padT: 8, padB: 30, width: 240, height: 120 };
 
@@ -51,5 +51,49 @@ describe("panAxisRange", () => {
   it("refuses a range without a span", () => {
     expect(panAxisRange({ min: 5, max: 5 }, 0.5)).toBeNull();
     expect(panAxisRange({ min: Number.NaN, max: 5 }, 0.5)).toBeNull();
+  });
+});
+
+describe("zoomAxisRange", () => {
+  it("keeps the value under the pointer where it is", () => {
+    const next = zoomAxisRange({ min: 0, max: 100 }, 0.25, 2);
+    expect(next.min).toBeCloseTo(12.5);
+    expect(next.max).toBeCloseTo(62.5);
+  });
+
+  it("zooms by the same proportion on a short range as on a long one", () => {
+    const long = zoomAxisRange({ min: 0, max: 1000 }, 0.5, 1.25);
+    const short = zoomAxisRange({ min: 100, max: 106 }, 0.5, 1.25);
+    expect(long.max - long.min).toBeCloseTo(800);
+    expect(short.max - short.min).toBeCloseTo(4.8);
+    const back = zoomAxisRange(short, 0.5, 1 / 1.25);
+    expect(back.min).toBeCloseTo(100);
+    expect(back.max).toBeCloseTo(106);
+  });
+
+  it("stops zooming in at the smallest span and still zooms out from it", () => {
+    const stopped = zoomAxisRange({ min: 10, max: 12.2, minSpan: 2 }, 0.5, 4);
+    expect(stopped.max - stopped.min).toBeCloseTo(2);
+    expect(zoomAxisRange({ min: 10, max: 11, minSpan: 2 }, 0.5, 2)).toEqual({ min: 10, max: 11 });
+    const out = zoomAxisRange({ min: 10, max: 11, minSpan: 2 }, 0.5, 0.5);
+    expect(out.max - out.min).toBeCloseTo(2);
+  });
+
+  it("stops at about a millionth of the values shown", () => {
+    const next = zoomAxisRange({ min: 1000, max: 1000.01 }, 0.5, 1e6);
+    expect(next.max - next.min).toBeCloseTo(1000.01e-6, 9);
+  });
+
+  it("zooms out no further than the data and keeps the range inside it", () => {
+    expect(zoomAxisRange({ min: 10, max: 20, domainMin: 0, domainMax: 30 }, 0.5, 0.1)).toEqual({ min: 0, max: 30 });
+    const edge = zoomAxisRange({ min: 0, max: 10, domainMin: 0, domainMax: 100 }, 0, 0.5);
+    expect(edge).toEqual({ min: 0, max: 20 });
+  });
+
+  it("zooms a log axis about the drawn position", () => {
+    // 0..99 is 0..2 drawn; zooming in 2x about the middle (drawn 1, value 9).
+    const next = zoomAxisRange({ min: 0, max: 99, log: true }, 0.5, 2);
+    expect(next.min).toBeCloseTo(10 ** 0.5 - 1);
+    expect(next.max).toBeCloseTo(10 ** 1.5 - 1);
   });
 });

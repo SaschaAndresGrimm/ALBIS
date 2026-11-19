@@ -4,6 +4,7 @@
 
 import { canvasFont } from "./canvas_fonts.js";
 import { pickLinearTicks, pickLogTicks, pickMappedTicks } from "./plot_tick_utils.js";
+import { roiPlotXView } from "./roi_plot_view_utils.js";
 
 const D_AXIS_TITLE_FONT = canvasFont(10, 500);
 const D_AXIS_TICK_FONT = canvasFont(9, 500);
@@ -82,27 +83,24 @@ export function renderRoiPlot({
       }
     }
   }
-  let visibleData = data;
-  if (!autoscale && data.length > 0) {
-    const lo = Number.isFinite(limits.xMin) ? Math.max(totalMinX, limits.xMin) : totalMinX;
-    const hi = Number.isFinite(limits.xMax) ? Math.min(totalMaxX, limits.xMax) : totalMaxX;
-    // A pinned x-range that misses the data entirely belongs to another ROI:
-    // box profiles are plotted against the image's columns, so moving the box
-    // leaves the pin behind. Show this profile's own range rather than a blank
-    // plot; a pin that overlaps the data still zooms as before.
-    if (hi < lo) {
-      visibleData = data;
-    } else {
-      const firstIdx = Math.max(0, Math.ceil((lo - xStart) / xStep));
-      const lastIdx = Math.min(data.length - 1, Math.floor((hi - xStart) / xStep));
-      if (lastIdx >= firstIdx) {
-        visibleData = data.slice(firstIdx, lastIdx + 1);
-        xStart += firstIdx * xStep;
-      } else {
-        visibleData = [];
-      }
-    }
-  }
+  const seriesType = plotMeta.seriesType || "line";
+  const isHistogramSeries = seriesType === "histogram";
+  // The x range asked for, exactly (roi_plot_view_utils.js says why), with
+  // one sample past each end so the curve runs to the frame.
+  const view = roiPlotXView({
+    length: data.length,
+    xStart,
+    xStep,
+    histogram: isHistogramSeries,
+    limits,
+    autoscale,
+  });
+  const visibleData = view.lastIdx >= view.firstIdx ? data.slice(view.firstIdx, view.lastIdx + 1) : [];
+  xStart += view.firstIdx * xStep;
+  const viewMin = view.min;
+  const viewMax = view.max;
+  const inViewFrom = view.yFirstIdx - view.firstIdx;
+  const inViewTo = view.yLastIdx - view.firstIdx;
 
   if (!visibleData || visibleData.length === 0) {
     canvasEl._roiPlot = null;
@@ -115,9 +113,7 @@ export function renderRoiPlot({
     if (!Number.isFinite(value)) return Number.NaN;
     return logScale ? Math.log10(1 + Math.max(0, value)) : value;
   });
-  const finiteValues = values.filter((value) => Number.isFinite(value));
-  const seriesType = plotMeta.seriesType || "line";
-  const isHistogramSeries = seriesType === "histogram";
+  const finiteValues = values.slice(inViewFrom, inViewTo + 1).filter((value) => Number.isFinite(value));
 
   const allValuesRaw = data.filter((value) => Number.isFinite(value));
   const totalMinY = isHistogramSeries || !allValuesRaw.length ? 0 : Math.min(...allValuesRaw);
@@ -183,12 +179,12 @@ export function renderRoiPlot({
   const padL = Math.max(40, Math.ceil(maxYLabelWidth + 24));
   const drawableWidth = Math.max(4, width - padL - padR);
 
-  const xEnd = xStart + (values.length - 1) * xStep;
-  const xSpan = xEnd - xStart;
-  const xToPx = (xValue) => padL + (xSpan ? (xValue - xStart) / xSpan : 0) * drawableWidth;
+  const xSpan = viewMax - viewMin;
+  const xToPx = (xValue) => padL + (xSpan ? (xValue - viewMin) / xSpan : 0) * drawableWidth;
+  const sampleX = (index) => xStart + index * xStep;
   const xTicks = pickLinearTicks({
-    min: Math.min(xStart, xEnd),
-    max: Math.max(xStart, xEnd),
+    min: viewMin,
+    max: viewMax,
     lengthPx: drawableWidth,
     minGapPx: X_TICK_MIN_GAP,
     measure: (label) => ctx.measureText(label).width,
@@ -274,7 +270,7 @@ export function renderRoiPlot({
     // a round value rather than above the x ticks.
     const samples = [];
     for (let px = 0; px <= drawableWidth; px += 2) {
-      const xValue = xStart + (px / drawableWidth) * xSpan;
+      const xValue = viewMin + (px / drawableWidth) * xSpan;
       samples.push({ px: padL + px, value: resolutionDisplayValue(dSpacingForX(xValue), dUnit) });
     }
     const dTicks = pickMappedTicks({
@@ -304,17 +300,26 @@ export function renderRoiPlot({
     ctx.fillText(dAxisTitle, padL + drawableWidth / 2, 2);
   }
 
-  if (seriesType === "histogram") {
-    const barWidth = drawableWidth / Math.max(1, values.length);
+  // The samples just outside the view are drawn too, so the curve meets the
+  // frame; the clip keeps them off the axes.
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(padL, padT, drawableWidth, drawableHeight);
+  ctx.clip();
+
+  if (isHistogramSeries) {
+    // A bar spans its bin: the x values are bin centres.
+    const halfBin = Math.abs(xStep) / 2;
     ctx.fillStyle = "rgba(198, 220, 255, 0.88)";
     values.forEach((value, index) => {
       if (!Number.isFinite(value)) return;
       const yNorm = yRange ? (value - minValue) / yRange : 0;
       const y = padT + drawableHeight - Math.max(0, Math.min(1, yNorm)) * drawableHeight;
-      const x = padL + index * barWidth;
-      const w = Math.max(1, barWidth - 1);
+      const left = xToPx(sampleX(index) - halfBin);
+      const right = xToPx(sampleX(index) + halfBin);
+      const w = Math.max(1, Math.abs(right - left) - 1);
       const h = Math.max(1, padT + drawableHeight - y);
-      ctx.fillRect(x + 0.5, y, w, h);
+      ctx.fillRect(Math.min(left, right) + 0.5, y, w, h);
     });
   } else {
     ctx.strokeStyle = plotTheme.line;
@@ -328,9 +333,11 @@ export function renderRoiPlot({
         hasSegment = false;
         return;
       }
-      const x = padL + (index / Math.max(1, values.length - 1)) * drawableWidth;
+      const x = xToPx(sampleX(index));
+      // Not clamped to the frame: a sample above or below the view would
+      // otherwise bend the line along the edge. The clip cuts it off there.
       const yNorm = yRange ? (value - minValue) / yRange : 0;
-      const y = padT + drawableHeight - Math.max(0, Math.min(1, yNorm)) * drawableHeight;
+      const y = padT + drawableHeight - yNorm * drawableHeight;
       if (!hasSegment) {
         ctx.moveTo(x, y);
         hasSegment = true;
@@ -341,16 +348,15 @@ export function renderRoiPlot({
     ctx.stroke();
     ctx.shadowBlur = 0;
   }
+  ctx.restore();
 
   if (profilePeaks && profilePeaks.length) {
     const peakColor = plotTheme.peak || plotTheme.line;
-    const lastValueIndex = Math.max(1, values.length - 1);
     let lastLabelRight = -Infinity;
     profilePeaks.forEach((peak) => {
       if (!peak || !Number.isFinite(peak.x) || !Number.isFinite(peak.value)) return;
-      const idx = (peak.x - xStart) / xStep;
-      if (idx < 0 || idx > values.length - 1) return;
-      const x = padL + (idx / lastValueIndex) * drawableWidth;
+      if (peak.x < Math.min(viewMin, viewMax) || peak.x > Math.max(viewMin, viewMax)) return;
+      const x = xToPx(peak.x);
       const disp = logScale ? Math.log10(1 + Math.max(0, peak.value)) : peak.value;
       const yNorm = yRange ? (disp - minValue) / yRange : 0;
       const y = padT + drawableHeight - Math.max(0, Math.min(1, yNorm)) * drawableHeight;
@@ -377,8 +383,8 @@ export function renderRoiPlot({
 
   const xLabel = plotMeta.xLabel || "Index";
   const yLabel = plotMeta.yLabel || "Value";
-  const xMinActual = xStart;
-  const xMaxActual = xStart + (values.length - 1) * xStep;
+  const xMinActual = viewMin;
+  const xMaxActual = viewMax;
   const yMinActual = logScale ? Math.max(0, Math.pow(10, minValue) - 1) : minValue;
   const yMaxActual = logScale ? Math.max(0, Math.pow(10, maxValue) - 1) : maxValue;
   ctx.fillStyle = plotTheme.text;
@@ -405,8 +411,8 @@ export function renderRoiPlot({
     xStart,
     xStep,
     xTickMode,
-    totalXMin: totalMinX,
-    totalXMax: totalMaxX,
+    totalXMin: view.domainMin,
+    totalXMax: view.domainMax,
     totalYMin: totalMinY,
     totalYMax: totalMaxY,
     xMin: xMinActual,

@@ -4,7 +4,7 @@
 
 import { t } from "./i18n.js";
 import { axisChipState, toggleAxisChip } from "./roi_axis_chip_utils.js";
-import { panAxisRange, roiPlotHitZone, roiPlotPanMode } from "./roi_plot_pan_utils.js";
+import { panAxisRange, roiPlotHitZone, roiPlotPanMode, zoomAxisRange } from "./roi_plot_pan_utils.js";
 
 export function bindRoiPlotInteractions({
   roiState,
@@ -506,40 +506,40 @@ export function bindRoiPlotInteractions({
           roiState.plotLimits.autoscale = false;
         }
 
-        if (inYAxis) {
-          const yRange = plot.yMax - plot.yMin;
-          const cursorFrac = (plot.height - plot.padB - y) / (plot.height - plot.padB - plot.padT);
-          const cursorValue = plot.yMin + cursorFrac * yRange;
-          const newRange = yRange / factor;
-          const newMin = cursorValue - cursorFrac * newRange;
-          const newMax = cursorValue + (1 - cursorFrac) * newRange;
-          setRoiPlotAxisLimits(plotKey, "y", newMin, newMax);
-        } else if (inXAxis) {
-          const xRange = plot.xMax - plot.xMin;
-          const cursorFrac = (x - plot.padL) / (plot.width - plot.padL - plot.padR);
-          const cursorValue = plot.xMin + cursorFrac * xRange;
-          const newRange = xRange / factor;
-          const newMin = cursorValue - cursorFrac * newRange;
-          const newMax = cursorValue + (1 - cursorFrac) * newRange;
-          setRoiPlotAxisLimits(plotKey, "x", newMin, newMax);
-        } else if (inPlotArea) {
-          const xRange = plot.xMax - plot.xMin;
-          const yRange = plot.yMax - plot.yMin;
-
-          const xCursorFrac = (x - plot.padL) / (plot.width - plot.padL - plot.padR);
-          const xCursorValue = plot.xMin + xCursorFrac * xRange;
-          const newXRange = xRange / factor;
-          const newXMin = xCursorValue - xCursorFrac * newXRange;
-          const newXMax = xCursorValue + (1 - xCursorFrac) * newXRange;
-
-          const yCursorFrac = (plot.height - plot.padB - y) / (plot.height - plot.padB - plot.padT);
-          const yCursorValue = plot.yMin + yCursorFrac * yRange;
-          const newYRange = yRange / factor;
-          const newYMin = yCursorValue - yCursorFrac * newYRange;
-          const newYMax = yCursorValue + (1 - yCursorFrac) * newYRange;
-
-          setRoiPlotAxisLimits(plotKey, "x", newXMin, newXMax);
-          setRoiPlotAxisLimits(plotKey, "y", newYMin, newYMax);
+        // Each notch starts from the range last set, not from what was drawn,
+        // so nothing is lost between notches.
+        const limits = getRoiPlotLimits(plotKey) || {};
+        const pinned = (lo, hi) => Number.isFinite(lo) && Number.isFinite(hi) && hi > lo;
+        const plotW = Math.max(1, plot.width - plot.padL - plot.padR);
+        const plotH = Math.max(1, plot.height - plot.padT - plot.padB);
+        if (inXAxis || inPlotArea) {
+          const useLimits = pinned(limits.xMin, limits.xMax);
+          const next = zoomAxisRange(
+            {
+              min: useLimits ? limits.xMin : plot.xMin,
+              max: useLimits ? limits.xMax : plot.xMax,
+              domainMin: Number.isFinite(plot.totalXMin) ? plot.totalXMin : null,
+              domainMax: Number.isFinite(plot.totalXMax) ? plot.totalXMax : null,
+              // Two samples across at the most: closer than that is empty space.
+              minSpan: 2 * Math.abs(plot.xStep || 1),
+            },
+            (x - plot.padL) / plotW,
+            factor
+          );
+          if (next) setRoiPlotAxisLimits(plotKey, "x", next.min, next.max);
+        }
+        if (inYAxis || inPlotArea) {
+          const useLimits = pinned(limits.yMin, limits.yMax);
+          const next = zoomAxisRange(
+            {
+              min: useLimits ? limits.yMin : plot.yMin,
+              max: useLimits ? limits.yMax : plot.yMax,
+              log: Boolean(plot.log),
+            },
+            (plot.height - plot.padB - y) / plotH,
+            factor
+          );
+          if (next) setRoiPlotAxisLimits(plotKey, "y", next.min, next.max);
         }
 
         syncRoiAxisLimitControls(plotKey);
