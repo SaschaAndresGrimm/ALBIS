@@ -9,17 +9,17 @@ PyInstaller bootloader. Each platform's bundle also differs (pyobjc is macOS
 only, uvloop is not on Windows), so one file could not describe all of them.
 
 Run this with the interpreter PyInstaller used, after PyInstaller has run. It
-walks the runtime closure of `backend/requirements.txt` through the installed
-distributions, evaluating every environment marker for this platform, and adds
-the interpreter, PyInstaller and the third-party files vendored into the
-frontend. Build tools in the same environment (pip, PyInstaller's own
-dependencies) are left out because nothing reaches them from the pins.
+lists what the bundle holds, read from PyInstaller's work directory
+(`sbom_bundle.py`): every installed distribution with a file in the bundle, the
+native libraries those carry that can be asked for their version (HDF5, BLAS,
+libzmq, libzstd, Pillow's codecs, and OpenSSL, zlib, expat and SQLite in the
+interpreter), the interpreter, the PyInstaller bootloader and the third-party
+files vendored into the frontend. The dependency edges come from walking the
+runtime closure of `backend/requirements.txt` for this platform.
 
-What it does not see: native libraries a wheel carries inside itself (the HDF5
-in h5py, the OpenBLAS in numpy, libzmq in pyzmq) are covered only through the
-wheel that bundles them. On macOS the closure lists every pyobjc framework
-package although PyInstaller bundles only the few ALBIS imports, so the file
-over-reports there rather than under-reports.
+Build tools in the same environment are not in the bundle and so not listed.
+The pyobjc meta-package pins some 170 framework packages on macOS; only the few
+ALBIS imports are bundled, and only those are listed.
 
 The build fails if a pin is not installed, or installed at another version: a
 bill of materials for a build that did not use the pins would be wrong.
@@ -33,17 +33,23 @@ import platform
 import re
 import sys
 import uuid
+from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
-from importlib.metadata import Distribution, PackageNotFoundError, distribution
+from importlib.metadata import Distribution, PackageNotFoundError, distribution, distributions
 from pathlib import Path
 
 from packaging.markers import default_environment
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from sbom_bundle import Bundle, Native, is_bundled, probe_natives, read_bundle  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
 REQUIREMENTS = ROOT / "backend" / "requirements.txt"
 VERSION_FILE = ROOT / "VERSION"
+# PyInstaller's work directory for ALBIS.spec, where its TOC files land.
+WORKDIR = ROOT / "build" / "ALBIS"
 
 # Third-party files copied into the bundle as files rather than installed as
 # packages, so no metadata names them. Versions follow THIRD_PARTY_LICENSES.md;
@@ -224,35 +230,116 @@ def vendored_components() -> list[dict]:
     return components
 
 
+def native_component(native: Native) -> dict:
+    owner = canonicalize_name(native.carrier) if native.carrier else "cpython"
+    slug = canonicalize_name(native.name)
+    return {
+        "type": "library",
+        "bom-ref": _ref("native", f"{owner}/{slug}"),
+        "name": native.name,
+        "version": native.version,
+        "purl": f"pkg:generic/{slug}@{native.version}",
+        "properties": [{"name": "albis:bundled-in", "value": native.carrier or "CPython"}],
+    }
+
+
+def bundled_distributions(
+    bundle: Bundle, installed: Iterable[Distribution]
+) -> dict[str, Distribution]:
+    """Installed distributions with at least one file in the bundle, by name."""
+    found: dict[str, Distribution] = {}
+    for dist in installed:
+        name = canonicalize_name(dist.metadata["Name"] or "")
+        # PyInstaller's own runtime hooks land in the bundle; it is listed once,
+        # as the bootloader.
+        if not name or name == "pyinstaller" or name in found:
+            continue
+        if is_bundled(dist, bundle):
+            found[name] = dist
+    return found
+
+
+def contract(children: Iterable[str], edges: dict[str, set[str]], keep: set[str]) -> set[str]:
+    """The nearest kept nodes below `children`, passing through dropped ones.
+
+    The pyobjc meta-package ships no file of its own, so it is not in the
+    bundle; the frameworks it pulls in are, and stay reachable from ALBIS.
+    """
+    reached: set[str] = set()
+    stack, seen = list(children), set()
+    while stack:
+        node = stack.pop()
+        if node in seen:
+            continue
+        seen.add(node)
+        if node in keep:
+            reached.add(node)
+        else:
+            stack.extend(edges.get(node, ()))
+    return reached
+
+
 def build_sbom(
     target: str,
     version: str,
     pins: list[Requirement],
     timestamp: datetime,
+    bundle: Bundle,
     env: dict[str, str] | None = None,
     lookup=distribution,
+    installed: Callable[[], Iterable[Distribution]] = distributions,
+    probe: Callable[[Bundle, set[str]], list[Native]] = probe_natives,
+    log=print,
 ) -> dict:
+    env = dict(env or default_environment())
     found, edges = resolve_closure(pins, env, lookup)
+    included = bundled_distributions(bundle, installed())
+    left_out = sorted(set(found) - set(included))
+    added = sorted(set(included) - set(found))
+    if left_out:
+        log(f"SBOM: {len(left_out)} distributions reached from the pins are not in the bundle")
+    if added:
+        log(f"SBOM: in the bundle without a pin reaching them: {', '.join(added)}")
+
+    natives = probe(bundle, set(included))
+    native_refs: dict[str, list[str]] = {}
+    for native in natives:
+        owner = (
+            _ref("pypi", canonicalize_name(native.carrier))
+            if native.carrier
+            else _ref("runtime", "cpython")
+        )
+        native_refs.setdefault(owner, []).append(native_component(native)["bom-ref"])
+
+    keep = set(included)
+    pinned = {canonicalize_name(p.name) for p in pins if p.marker is None or p.marker.evaluate(env)}
     root_ref = "albis"
-    python_components = [python_component(found[name]) for name in sorted(found)]
-    pinned = {canonicalize_name(p.name) for p in pins} & set(found)
+    vendored = vendored_components()
     dependencies = [
         {
             "ref": root_ref,
             "dependsOn": sorted(
-                [_ref("pypi", name) for name in pinned]
+                [_ref("pypi", name) for name in contract(pinned, edges, keep)]
                 + [_ref("runtime", "cpython"), _ref("bootloader", "pyinstaller")]
-                + [c["bom-ref"] for c in vendored_components()]
+                + [c["bom-ref"] for c in vendored]
             ),
-        }
-    ]
-    dependencies += [
+        },
         {
-            "ref": _ref("pypi", name),
-            "dependsOn": sorted(_ref("pypi", child) for child in edges[name]),
-        }
-        for name in sorted(edges)
+            "ref": _ref("runtime", "cpython"),
+            "dependsOn": sorted(native_refs.get(_ref("runtime", "cpython"), [])),
+        },
     ]
+    for name in sorted(included):
+        ref = _ref("pypi", name)
+        children = contract(edges.get(name, ()), edges, keep - {name})
+        dependencies.append(
+            {
+                "ref": ref,
+                "dependsOn": sorted(
+                    [_ref("pypi", child) for child in children] + native_refs.get(ref, [])
+                ),
+            }
+        )
     return {
         "bomFormat": "CycloneDX",
         "specVersion": "1.6",
@@ -273,8 +360,9 @@ def build_sbom(
             },
         },
         "components": [interpreter_component(), pyinstaller_component(lookup)]
-        + python_components
-        + vendored_components(),
+        + [python_component(included[name]) for name in sorted(included)]
+        + [native_component(native) for native in natives]
+        + vendored,
         "dependencies": dependencies,
     }
 
@@ -283,12 +371,19 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     parser.add_argument("--target", required=True, help="Build target, e.g. linux-x64.")
     parser.add_argument("--output", required=True, type=Path, help="Where to write the JSON.")
+    parser.add_argument(
+        "--workdir",
+        type=Path,
+        default=WORKDIR,
+        help="PyInstaller's work directory (default build/ALBIS).",
+    )
     args = parser.parse_args(argv)
 
     version = VERSION_FILE.read_text(encoding="utf-8").strip()
     try:
-        sbom = build_sbom(args.target, version, read_pins(), datetime.now(UTC))
-    except SbomError as exc:
+        bundle = read_bundle(args.workdir)
+        sbom = build_sbom(args.target, version, read_pins(), datetime.now(UTC), bundle)
+    except (SbomError, FileNotFoundError) as exc:
         print(f"SBOM: {exc}", file=sys.stderr)
         return 1
     args.output.parent.mkdir(parents=True, exist_ok=True)

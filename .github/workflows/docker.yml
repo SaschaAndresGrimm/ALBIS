@@ -269,6 +269,12 @@ jobs:
           tags: albis-validate:arm64
           cache-from: type=gha,scope=albis-docker-publish
 
+      # `sbom` attaches an SPDX bill of materials to each platform's image,
+      # made by BuildKit scanning the finished image: the Debian packages and
+      # the Python packages as installed, which is what a container runs.
+      # `provenance` records the workflow and commit that built it. Both are
+      # stored in the registry beside the image; read them with
+      #   docker buildx imagetools inspect ghcr.io/<owner>/albis:<tag> --format '{{ json .SBOM }}'
       - name: Build and push multi-arch image
         if: startsWith(github.ref, 'refs/tags/v')
         uses: docker/build-push-action@v7
@@ -279,6 +285,8 @@ jobs:
             ALBIS_BUILD_COMMIT=${{ github.sha }}
           platforms: linux/amd64,linux/arm64
           push: true
+          sbom: true
+          provenance: mode=max
           tags: ${{ steps.meta_release.outputs.tags }}
           labels: ${{ steps.meta_release.outputs.labels }}
           cache-from: type=gha,scope=albis-docker-publish

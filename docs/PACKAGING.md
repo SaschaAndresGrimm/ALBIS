@@ -207,12 +207,19 @@ Public GitHub Releases publish architecture-specific install + portable assets:
 - every target: `ALBIS-<target>-*.cdx.json`, the CycloneDX bill of materials for that bundle
 
 The bill of materials is written by `scripts/generate_sbom.py`, which each build
-script runs right after PyInstaller with the same interpreter. It lists the
-runtime closure of `backend/requirements.txt` as installed for that platform,
-the interpreter, the PyInstaller bootloader and the files vendored into
-`frontend/`. Build tools are left out, and the build fails if an installed
-package does not match its pin. Native libraries inside a wheel (HDF5 in h5py,
-OpenBLAS in numpy, libzmq in pyzmq) appear only as the wheel that carries them.
+script runs right after PyInstaller with the same interpreter. It reads the TOC
+files PyInstaller leaves in `build/ALBIS/` and lists every installed package
+with a file in the bundle (so on macOS only the pyobjc frameworks ALBIS
+imports, and no build tools), the native libraries those carry that report a
+version (HDF5, OpenBLAS, libzmq, libzstd, Pillow's codecs; OpenSSL, zlib, expat
+and SQLite in the interpreter), the interpreter, the PyInstaller bootloader and
+the files vendored into `frontend/`. The build fails if an installed package
+does not match its pin. The filter plugins inside hdf5plugin report no version
+and appear only as hdf5plugin.
+
+The Docker image carries its own bill of materials and provenance as registry
+attestations, made by BuildKit from the finished image:
+`docker buildx imagetools inspect ghcr.io/<owner>/albis:<tag> --format '{{ json .SBOM }}'`.
 
 Public release inputs are pinned:
 
