@@ -513,6 +513,21 @@ def test_the_macos_bundle_is_built_on_python_build_standalone(workflow: str) -> 
     assert any("install_python_standalone.sh" in str(step.get("run", "")) for step in steps)
 
 
+@pytest.mark.parametrize("workflow", ["release.yml", "artifacts.yml"])
+def test_the_windows_bundle_is_built_on_python_build_standalone(workflow: str) -> None:
+    import yaml
+
+    text = (ROOT / ".github" / "workflows" / workflow).read_text(encoding="utf-8")
+    steps = yaml.safe_load(text)["jobs"]["build_windows"]["steps"]
+    # setup-python stays for the helper scripts; PYTHON_BIN, which
+    # build_windows.ps1 makes its venv from, must point at the pinned build.
+    install = next(s for s in steps if "install_python_standalone.sh" in str(s.get("run", "")))
+    assert install.get("shell") == "bash"
+    assert "PYTHON_BIN=" in install["run"]
+    build = (ROOT / "scripts" / "build_windows.ps1").read_text(encoding="utf-8")
+    assert "$env:PYTHON_BIN" in build
+
+
 def test_the_pinned_interpreter_has_a_checksum_for_every_build_platform() -> None:
     script = (ROOT / "scripts" / "install_python_standalone.sh").read_text(encoding="utf-8")
     for platform in (
@@ -520,5 +535,6 @@ def test_the_pinned_interpreter_has_a_checksum_for_every_build_platform() -> Non
         "aarch64-unknown-linux-gnu",
         "x86_64-apple-darwin",
         "aarch64-apple-darwin",
+        "x86_64-pc-windows-msvc",
     ):
         assert re.search(rf'{platform}\) default_sha="[0-9a-f]{{64}}" ;;', script), platform

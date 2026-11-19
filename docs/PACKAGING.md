@@ -150,6 +150,12 @@ To also remove `~/ALBIS-data` and `~/.config/albis`:
 .\scripts\package_windows_innosetup.ps1
 ```
 
+`build_windows.ps1` makes its build venv from `PYTHON_BIN`, or `python` on `PATH`.
+Release builds set `PYTHON_BIN` to the same python-build-standalone interpreter as
+Linux and macOS, installed from Git Bash with
+`scripts/install_python_standalone.sh`, because the interpreter ships inside the
+app with its OpenSSL, SQLite and expat.
+
 Example output:
 
 - `ALBIS-windows-<arch>-v<version>-<commit>.zip`
@@ -254,7 +260,7 @@ Public release inputs are pinned:
 - PyInstaller via the build scripts
 - Docker base image by digest
 - Linux build images (`manylinux_2_28`, x86_64 and aarch64 of the same date) and the distribution images `smoke_linux` runs on, by digest
-- the Linux and macOS builds' Python (python-build-standalone) by release + checksum per platform in `scripts/install_python_standalone.sh`
+- the Python bundled on Linux, macOS and Windows (python-build-standalone) by release + checksum per platform in `scripts/install_python_standalone.sh`
 - AppImage tooling by explicit version + checksum in CI
 
 ### Output
