@@ -1124,6 +1124,7 @@
   "roi.axis.chip_hint.auto": "恢复之前的坐标轴",
   "roi.axis.chip_hint.manual": "恢复自动坐标轴；再次点击可恢复这些坐标轴",
   "roi.axis.manual_chip": "手动坐标轴",
+  "roi.axis.previous_view": "上一个视图",
   "roi.axis.reset": "重置",
   "roi.axis.resolution_unit": "分辨率轴",
   "roi.axis.settings": "绘图设置",

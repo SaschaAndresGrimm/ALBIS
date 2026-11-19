@@ -1124,6 +1124,7 @@
   "roi.axis.chip_hint.auto": "Tillbaka till de tidigare axlarna",
   "roi.axis.chip_hint.manual": "Tillbaka till automatiska axlar; klicka igen för att få tillbaka de här axlarna",
   "roi.axis.manual_chip": "Manuella axlar",
+  "roi.axis.previous_view": "Föregående vy",
   "roi.axis.reset": "Återställ",
   "roi.axis.resolution_unit": "Upplösningsaxel",
   "roi.axis.settings": "Plotinställningar",

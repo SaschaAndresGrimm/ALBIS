@@ -1124,6 +1124,7 @@
   "roi.axis.chip_hint.auto": "Revenir aux axes précédents",
   "roi.axis.chip_hint.manual": "Revenir aux axes automatiques ; cliquer à nouveau pour retrouver ces axes",
   "roi.axis.manual_chip": "Axes manuels",
+  "roi.axis.previous_view": "Vue précédente",
   "roi.axis.reset": "Réinitialiser",
   "roi.axis.resolution_unit": "Axe de résolution",
   "roi.axis.settings": "Paramètres du graphique",

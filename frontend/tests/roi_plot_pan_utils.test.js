@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { panAxisRange, roiPlotHitZone, roiPlotPanMode, zoomAxisRange } from "../modules/roi_plot_pan_utils.js";
+import {
+  panAxisRange,
+  roiPlotBoxLimits,
+  roiPlotHitZone,
+  roiPlotPanMode,
+  roiPlotWheelAction,
+  zoomAxisRange,
+} from "../modules/roi_plot_pan_utils.js";
 
 const plot = { padL: 40, padR: 8, padT: 8, padB: 30, width: 240, height: 120 };
 
@@ -95,5 +102,56 @@ describe("zoomAxisRange", () => {
     const next = zoomAxisRange({ min: 0, max: 99, log: true }, 0.5, 2);
     expect(next.min).toBeCloseTo(10 ** 0.5 - 1);
     expect(next.max).toBeCloseTo(10 ** 1.5 - 1);
+  });
+});
+
+describe("roiPlotWheelAction", () => {
+  it("zooms on a vertical wheel and pans x on a sideways swipe", () => {
+    expect(roiPlotWheelAction({ deltaY: -100 })).toEqual({ kind: "zoom", factor: Math.exp(0.2) });
+    expect(roiPlotWheelAction({ deltaX: 30, deltaY: 4 })).toEqual({ kind: "pan-x", px: 30 });
+    expect(roiPlotWheelAction({ deltaX: 0, deltaY: 0 })).toBeNull();
+  });
+
+  // A pinch arrives as a ctrl-wheel of a few px per event; at the wheel's
+  // rate it barely zoomed.
+  it("zooms faster on a pinch than on the wheel, by the same delta", () => {
+    const pinch = roiPlotWheelAction({ deltaY: -5, ctrlKey: true });
+    const wheel = roiPlotWheelAction({ deltaY: -5 });
+    expect(pinch.kind).toBe("zoom");
+    expect(pinch.factor).toBeGreaterThan(wheel.factor);
+  });
+
+  it("reads line and page deltas in pixels and caps a burst", () => {
+    expect(roiPlotWheelAction({ deltaY: 3, deltaMode: 1 }).factor).toBeCloseTo(Math.exp(-48 * 0.002));
+    expect(roiPlotWheelAction({ deltaY: 5000 }).factor).toBeCloseTo(Math.exp(-200 * 0.002));
+  });
+});
+
+describe("roiPlotBoxLimits", () => {
+  // Data area x 40..232 (192 px) over x 0..96, y 8..90 (82 px) over y 0..82.
+  const view = { ...plot, xMin: 0, xMax: 96, yMin: 0, yMax: 82 };
+
+  it("turns the box into both ranges", () => {
+    const next = roiPlotBoxLimits(view, { x0: 40, y0: 90, x1: 136, y1: 49 });
+    expect(next.x.min).toBeCloseTo(0);
+    expect(next.x.max).toBeCloseTo(48);
+    expect(next.y.min).toBeCloseTo(0);
+    expect(next.y.max).toBeCloseTo(41);
+  });
+
+  it("zooms only the direction a flat or thin box spans", () => {
+    expect(roiPlotBoxLimits(view, { x0: 60, y0: 50, x1: 160, y1: 52 }).y).toBeNull();
+    expect(roiPlotBoxLimits(view, { x0: 60, y0: 20, x1: 62, y1: 80 }).x).toBeNull();
+  });
+
+  it("widens a box narrower than the smallest x span", () => {
+    const next = roiPlotBoxLimits(view, { x0: 100, y0: 20, x1: 106, y1: 80 }, { minXSpan: 10 });
+    expect(next.x.max - next.x.min).toBeCloseTo(10);
+  });
+
+  it("reads a log axis on the drawn scale", () => {
+    const next = roiPlotBoxLimits({ ...view, yMin: 0, yMax: 99, log: true }, { x0: 60, y0: 49, x1: 160, y1: 90 });
+    expect(next.y.min).toBeCloseTo(0);
+    expect(next.y.max).toBeCloseTo(9);
   });
 });

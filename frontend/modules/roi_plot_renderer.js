@@ -17,6 +17,7 @@ const X_TICK_MIN_GAP = 16;
 // Samples at least this far apart get a dot each.
 const SAMPLE_DOT_MIN_GAP_PX = 8;
 const SAMPLE_DOT_RADIUS = 2;
+const HOVER_DOT_RADIUS = 3.5;
 
 // Q (nm^-1) = 2*pi / d(nm) = 20*pi / d(Å). Physics/SAXS convention Q = 4*pi*sin(theta)/lambda.
 const Q_FROM_D_NM = 20 * Math.PI;
@@ -317,7 +318,7 @@ export function renderRoiPlot({
   if (isHistogramSeries) {
     // A bar spans its bin: the x values are bin centres.
     const halfBin = Math.abs(xStep) / 2;
-    ctx.fillStyle = "rgba(198, 220, 255, 0.88)";
+    ctx.fillStyle = plotTheme.bar;
     values.forEach((value, index) => {
       if (!Number.isFinite(value)) return;
       const yNorm = yRange ? (value - minValue) / yRange : 0;
@@ -367,6 +368,52 @@ export function renderRoiPlot({
         ctx.fill();
       });
     }
+  }
+
+  // The sample the tooltip is reading (roi_plot_bindings.js sets
+  // _roiHoverX): on a dense profile the number alone does not say which
+  // point it belongs to.
+  const hoverX = canvasEl._roiHoverX;
+  const hoverIdx = Number.isFinite(hoverX) ? Math.round((hoverX - xStart) / xStep) : -1;
+  if (hoverIdx >= 0 && hoverIdx < values.length && Number.isFinite(values[hoverIdx])) {
+    const hx = xToPx(sampleX(hoverIdx));
+    const hy = padT + drawableHeight - (yRange ? (values[hoverIdx] - minValue) / yRange : 0) * drawableHeight;
+    ctx.strokeStyle = plotTheme.axis;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(Math.round(hx) + 0.5, padT);
+    ctx.lineTo(Math.round(hx) + 0.5, padT + drawableHeight);
+    ctx.stroke();
+    if (isHistogramSeries) {
+      const halfBin = Math.abs(xStep) / 2;
+      const left = xToPx(sampleX(hoverIdx) - halfBin);
+      const right = xToPx(sampleX(hoverIdx) + halfBin);
+      const top = Math.min(hy, padT + drawableHeight - 1);
+      // The bars are drawn in about the line colour; the accent shows on them.
+      ctx.strokeStyle = plotTheme.peak || plotTheme.line;
+      ctx.strokeRect(Math.min(left, right) + 0.5, top, Math.max(1, Math.abs(right - left) - 1), padT + drawableHeight - top);
+    } else {
+      ctx.fillStyle = plotTheme.line;
+      ctx.strokeStyle = plotTheme.markerOutline;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(hx, hy, HOVER_DOT_RADIUS, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.lineWidth = 1;
+    }
+  }
+
+  // The box being dragged with Shift to zoom into.
+  const box = canvasEl._roiZoomBox;
+  if (box) {
+    const bx = Math.min(box.x0, box.x1);
+    const by = Math.min(box.y0, box.y1);
+    ctx.fillStyle = plotTheme.axisHover;
+    ctx.fillRect(bx, by, Math.abs(box.x1 - box.x0), Math.abs(box.y1 - box.y0));
+    ctx.strokeStyle = plotTheme.axis;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(Math.round(bx) + 0.5, Math.round(by) + 0.5, Math.round(Math.abs(box.x1 - box.x0)), Math.round(Math.abs(box.y1 - box.y0)));
   }
   ctx.restore();
 

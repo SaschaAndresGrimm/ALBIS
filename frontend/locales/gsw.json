@@ -1124,6 +1124,7 @@
   "roi.axis.chip_hint.auto": "Zrugg zu de vorherige Achse",
   "roi.axis.chip_hint.manual": "Zrugg zu automatische Achse; nomal klicke, zum die Achse zrugg z hole",
   "roi.axis.manual_chip": "Manuelli Achse",
+  "roi.axis.previous_view": "Vorherigi Aasicht",
   "roi.axis.reset": "Zruggsetze",
   "roi.axis.resolution_unit": "Uflösigsachse",
   "roi.axis.settings": "Plot-Iistellige",

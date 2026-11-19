@@ -4,7 +4,20 @@
 
 import { t } from "./i18n.js";
 import { axisChipState, toggleAxisChip } from "./roi_axis_chip_utils.js";
-import { panAxisRange, roiPlotHitZone, roiPlotPanMode, zoomAxisRange } from "./roi_plot_pan_utils.js";
+import {
+  panAxisRange,
+  roiPlotBoxLimits,
+  roiPlotHitZone,
+  roiPlotPanMode,
+  roiPlotWheelAction,
+  zoomAxisRange,
+} from "./roi_plot_pan_utils.js";
+import { createRoiPlotViewHistory } from "./roi_plot_view_history.js";
+import { roiPlotSampleIndexAt } from "./roi_plot_view_utils.js";
+
+// Wheel and trackpad events closer together than this are one gesture, and
+// the history remembers the view once for it, not once per event.
+const WHEEL_GESTURE_GAP_MS = 600;
 
 export function bindRoiPlotInteractions({
   roiState,
@@ -34,7 +47,6 @@ export function bindRoiPlotInteractions({
     clearRoiPlotLimitsForKey,
     hasManualRoiPlotLimits,
     hasAnyManualRoiPlotLimits,
-    normalizeWheelDelta,
   } = callbacks;
 
   const roiPlotCanvases = [roiLineCanvas, roiXCanvas, roiYCanvas, roiHistCanvas].filter(Boolean);
@@ -54,10 +66,14 @@ export function bindRoiPlotInteractions({
     autoToggle: entry.container.querySelector("[data-roi-axis-auto]"),
     inputs: [...entry.container.querySelectorAll(".roi-axis-limits-grid input")],
     resetBtn: entry.container.querySelector("[data-roi-axis-reset]"),
+    backBtn: entry.container.querySelector("[data-roi-view-back]"),
   }));
   let roiPlotResizing = null;
   let roiPlotResizeStart = { x: 0, y: 0, height: 0, container: null };
   let roiPlotPanning = null;
+  let roiPlotBoxZoom = null;
+  const viewHistory = createRoiPlotViewHistory();
+  const lastWheelAt = new Map();
   let roiPlotRedrawScheduled = false;
   let roiAxisPopoverRepositionScheduled = false;
   let roiAxisPopoverOpenedAt = 0;
@@ -210,6 +226,9 @@ export function bindRoiPlotInteractions({
       }
       if (entry.autoToggle) {
         entry.autoToggle.checked = !hasManual;
+      }
+      if (entry.backBtn) {
+        entry.backBtn.classList.toggle("is-hidden", viewHistory.size(entry.key) === 0);
       }
       if (entry.resetBtn) {
         entry.resetBtn.disabled = !hasManual;
@@ -374,6 +393,7 @@ export function bindRoiPlotInteractions({
 
     if (!pan.hasMoved && (Math.abs(dx) > 2 || Math.abs(dy) > 2)) {
       pan.hasMoved = true;
+      rememberView(plotKey);
       if (roiState.plotLimits.autoscale) {
         roiState.plotLimits.autoscale = false;
       }
@@ -428,26 +448,132 @@ export function bindRoiPlotInteractions({
     }
   }
 
+  function rememberView(plotKey) {
+    viewHistory.push(plotKey, getRoiPlotLimits(plotKey));
+  }
+
+  function rememberViewOncePerGesture(plotKey) {
+    const now = Date.now();
+    if (now - (lastWheelAt.get(plotKey) ?? 0) > WHEEL_GESTURE_GAP_MS) rememberView(plotKey);
+    lastWheelAt.set(plotKey, now);
+  }
+
+  function goToPreviousView(plotKey) {
+    const view = viewHistory.pop(plotKey);
+    if (!view) return;
+    setRoiPlotAxisLimits(plotKey, "x", view.xMin, view.xMax);
+    setRoiPlotAxisLimits(plotKey, "y", view.yMin, view.yMax);
+    roiState.plotLimits.autoscale = !hasAnyManualRoiPlotLimits();
+    syncRoiAxisLimitControls(plotKey);
+    scheduleRoiPlotRedraw();
+  }
+
+  // The sample under the pointer, which the renderer marks: the tooltip's
+  // number alone does not say which point on a dense profile it belongs to.
+  function updateRoiHoverSample(canvasEl, clientX, clientY) {
+    const plot = canvasEl._roiPlot;
+    let next = null;
+    if (plot && !roiPlotBoxZoom && roiPlotZoneAt(canvasEl, clientX, clientY) === "plot") {
+      const idx = roiPlotSampleIndexAt(plot, clientX - canvasEl.getBoundingClientRect().left);
+      if (idx >= 0) next = plot.xStart + idx * plot.xStep;
+    }
+    if (next === (canvasEl._roiHoverX ?? null)) return;
+    canvasEl._roiHoverX = next;
+    scheduleRoiPlotRedraw();
+  }
+
+  function boxPointFor(canvasEl, event) {
+    const plot = canvasEl._roiPlot;
+    const rect = canvasEl.getBoundingClientRect();
+    return {
+      x: Math.max(plot.padL, Math.min(plot.width - plot.padR, event.clientX - rect.left)),
+      y: Math.max(plot.padT, Math.min(plot.height - plot.padB, event.clientY - rect.top)),
+    };
+  }
+
+  // Shift-drag in the plot draws a box and zooms into it on release.
+  function beginRoiPlotBoxZoom(event, canvasEl) {
+    if (!event.shiftKey || event.button !== 0 || roiPlotResizing || !canvasEl._roiPlot) return false;
+    if (roiPlotZoneAt(canvasEl, event.clientX, event.clientY) !== "plot") return false;
+    const { x, y } = boxPointFor(canvasEl, event);
+    roiPlotBoxZoom = { canvasEl, pointerId: event.pointerId };
+    canvasEl._roiZoomBox = { x0: x, y0: y, x1: x, y1: y };
+    canvasEl._roiHoverX = null;
+    canvasEl.classList.add("is-box-zooming");
+    if (typeof canvasEl.setPointerCapture === "function") {
+      canvasEl.setPointerCapture(event.pointerId);
+    }
+    event.preventDefault();
+    return true;
+  }
+
+  function moveRoiPlotBoxZoom(event, canvasEl) {
+    const box = canvasEl._roiZoomBox;
+    if (!box || !canvasEl._roiPlot || roiPlotBoxZoom.pointerId !== event.pointerId) return;
+    const { x, y } = boxPointFor(canvasEl, event);
+    box.x1 = x;
+    box.y1 = y;
+    scheduleRoiPlotRedraw();
+    event.preventDefault();
+  }
+
+  function endRoiPlotBoxZoom(event, canvasEl, { apply }) {
+    const box = canvasEl._roiZoomBox;
+    const pointerId = roiPlotBoxZoom?.pointerId;
+    roiPlotBoxZoom = null;
+    canvasEl._roiZoomBox = null;
+    canvasEl.classList.remove("is-box-zooming");
+    if (Number.isFinite(pointerId) && canvasEl.hasPointerCapture?.(pointerId)) {
+      canvasEl.releasePointerCapture(pointerId);
+    }
+    const plot = canvasEl._roiPlot;
+    if (apply && plot && box) {
+      const next = roiPlotBoxLimits(plot, box, { minXSpan: 2 * Math.abs(plot.xStep || 1) });
+      if (next.x || next.y) {
+        const plotKey = getRoiPlotKey(canvasEl);
+        rememberView(plotKey);
+        roiState.plotLimits.autoscale = false;
+        // A flat or thin box zooms one direction; the other stays as shown.
+        const x = next.x ?? { min: plot.xMin, max: plot.xMax };
+        const y = next.y ?? { min: plot.yMin, max: plot.yMax };
+        setRoiPlotAxisLimits(plotKey, "x", x.min, x.max);
+        setRoiPlotAxisLimits(plotKey, "y", y.min, y.max);
+        syncRoiAxisLimitControls(plotKey);
+      }
+    }
+    scheduleRoiPlotRedraw();
+  }
+
   roiPlotCanvases.forEach((canvasEl) => {
     if (!canvasEl) return;
 
     canvasEl.addEventListener("mousemove", (event) => {
       updateRoiTooltip(event, canvasEl);
+      updateRoiHoverSample(canvasEl, event.clientX, event.clientY);
       updateRoiPlotPanReadyState(canvasEl, event.clientX, event.clientY);
     });
 
     canvasEl.addEventListener("mouseleave", () => {
       hideRoiTooltip(canvasEl);
+      if (canvasEl._roiHoverX != null) {
+        canvasEl._roiHoverX = null;
+        scheduleRoiPlotRedraw();
+      }
       if (!(roiPlotPanning && roiPlotPanning.canvasEl === canvasEl)) {
         setRoiPlotPanZone(canvasEl, null);
       }
     });
 
     canvasEl.addEventListener("pointerdown", (event) => {
+      if (beginRoiPlotBoxZoom(event, canvasEl)) return;
       beginRoiPlotPan(event, canvasEl);
     });
 
     canvasEl.addEventListener("pointermove", (event) => {
+      if (roiPlotBoxZoom && roiPlotBoxZoom.canvasEl === canvasEl) {
+        moveRoiPlotBoxZoom(event, canvasEl);
+        return;
+      }
       if (roiPlotPanning && roiPlotPanning.canvasEl === canvasEl) {
         moveRoiPlotPan(event, canvasEl);
         return;
@@ -456,10 +582,18 @@ export function bindRoiPlotInteractions({
     });
 
     canvasEl.addEventListener("pointerup", (event) => {
+      if (roiPlotBoxZoom && roiPlotBoxZoom.canvasEl === canvasEl) {
+        endRoiPlotBoxZoom(event, canvasEl, { apply: true });
+        return;
+      }
       endRoiPlotPan(event, canvasEl);
     });
 
     canvasEl.addEventListener("pointercancel", (event) => {
+      if (roiPlotBoxZoom && roiPlotBoxZoom.canvasEl === canvasEl) {
+        endRoiPlotBoxZoom(event, canvasEl, { apply: false });
+        return;
+      }
       endRoiPlotPan(event, canvasEl);
     });
 
@@ -469,6 +603,7 @@ export function bindRoiPlotInteractions({
       const mode = roiPlotPanMode(roiPlotZoneAt(canvasEl, event.clientX, event.clientY));
       const dblEntry = roiAxisLimitControls.find((e) => e.key === plotKey);
       if (dblEntry) dblEntry.stash = null;
+      if (hasManualRoiPlotLimits?.(plotKey)) rememberView(plotKey);
       if (mode === "x" || mode === "y") {
         // On an axis, reset that axis only.
         setRoiPlotAxisLimits(plotKey, mode, null, null);
@@ -497,10 +632,12 @@ export function bindRoiPlotInteractions({
         const inPlotArea = zone === "plot";
         if (!zone) return;
 
-        const delta = normalizeWheelDelta(event);
-        if (!delta) return;
-        const factor = Math.exp(-delta * 0.002);
+        const action = roiPlotWheelAction(event);
+        if (!action) return;
+        // A sideways swipe pans x; over the y axis there is no x to pan.
+        if (action.kind === "pan-x" && inYAxis) return;
         const plotKey = getRoiPlotKey(canvasEl);
+        rememberViewOncePerGesture(plotKey);
 
         if (roiState.plotLimits.autoscale) {
           roiState.plotLimits.autoscale = false;
@@ -512,34 +649,46 @@ export function bindRoiPlotInteractions({
         const pinned = (lo, hi) => Number.isFinite(lo) && Number.isFinite(hi) && hi > lo;
         const plotW = Math.max(1, plot.width - plot.padL - plot.padR);
         const plotH = Math.max(1, plot.height - plot.padT - plot.padB);
-        if (inXAxis || inPlotArea) {
+        const xRange = () => {
           const useLimits = pinned(limits.xMin, limits.xMax);
-          const next = zoomAxisRange(
-            {
-              min: useLimits ? limits.xMin : plot.xMin,
-              max: useLimits ? limits.xMax : plot.xMax,
-              domainMin: Number.isFinite(plot.totalXMin) ? plot.totalXMin : null,
-              domainMax: Number.isFinite(plot.totalXMax) ? plot.totalXMax : null,
-              // Two samples across at the most: closer than that is empty space.
-              minSpan: 2 * Math.abs(plot.xStep || 1),
-            },
-            (x - plot.padL) / plotW,
-            factor
-          );
+          return {
+            min: useLimits ? limits.xMin : plot.xMin,
+            max: useLimits ? limits.xMax : plot.xMax,
+            domainMin: Number.isFinite(plot.totalXMin) ? plot.totalXMin : null,
+            domainMax: Number.isFinite(plot.totalXMax) ? plot.totalXMax : null,
+          };
+        };
+
+        if (action.kind === "pan-x") {
+          // Like a drag, a swipe keeps y where it is rather than refitting it
+          // to every step.
+          if (!pinned(limits.yMin, limits.yMax)) setRoiPlotAxisLimits(plotKey, "y", plot.yMin, plot.yMax);
+          // Swiping right shows what lies to the right, as a scrollbar does.
+          const next = panAxisRange(xRange(), -action.px / plotW);
           if (next) setRoiPlotAxisLimits(plotKey, "x", next.min, next.max);
-        }
-        if (inYAxis || inPlotArea) {
-          const useLimits = pinned(limits.yMin, limits.yMax);
-          const next = zoomAxisRange(
-            {
-              min: useLimits ? limits.yMin : plot.yMin,
-              max: useLimits ? limits.yMax : plot.yMax,
-              log: Boolean(plot.log),
-            },
-            (plot.height - plot.padB - y) / plotH,
-            factor
-          );
-          if (next) setRoiPlotAxisLimits(plotKey, "y", next.min, next.max);
+        } else {
+          if (inXAxis || inPlotArea) {
+            const next = zoomAxisRange(
+              // Two samples across at the most: closer than that is empty space.
+              { ...xRange(), minSpan: 2 * Math.abs(plot.xStep || 1) },
+              (x - plot.padL) / plotW,
+              action.factor
+            );
+            if (next) setRoiPlotAxisLimits(plotKey, "x", next.min, next.max);
+          }
+          if (inYAxis || inPlotArea) {
+            const useLimits = pinned(limits.yMin, limits.yMax);
+            const next = zoomAxisRange(
+              {
+                min: useLimits ? limits.yMin : plot.yMin,
+                max: useLimits ? limits.yMax : plot.yMax,
+                log: Boolean(plot.log),
+              },
+              (plot.height - plot.padB - y) / plotH,
+              action.factor
+            );
+            if (next) setRoiPlotAxisLimits(plotKey, "y", next.min, next.max);
+          }
         }
 
         syncRoiAxisLimitControls(plotKey);
@@ -600,6 +749,10 @@ export function bindRoiPlotInteractions({
 
     entry.resetBtn?.addEventListener("click", () => {
       clearRoiAxisLimitsForEntry(entry);
+    });
+
+    entry.backBtn?.addEventListener("click", () => {
+      goToPreviousView(entry.key);
     });
   });
 

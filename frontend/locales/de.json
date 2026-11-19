@@ -1124,6 +1124,7 @@
   "roi.axis.chip_hint.auto": "Zurück zu den vorherigen Achsen",
   "roi.axis.chip_hint.manual": "Zurück zu automatischen Achsen; erneut klicken, um diese Achsen wiederherzustellen",
   "roi.axis.manual_chip": "Manuelle Achsen",
+  "roi.axis.previous_view": "Vorherige Ansicht",
   "roi.axis.reset": "Zurücksetzen",
   "roi.axis.resolution_unit": "Auflösungsachse",
   "roi.axis.settings": "Plot-Einstellungen",

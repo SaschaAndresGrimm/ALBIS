@@ -1124,6 +1124,7 @@
   "roi.axis.chip_hint.auto": "Volver a los ejes anteriores",
   "roi.axis.chip_hint.manual": "Volver a los ejes automáticos; haga clic de nuevo para recuperar estos ejes",
   "roi.axis.manual_chip": "Ejes manuales",
+  "roi.axis.previous_view": "Vista anterior",
   "roi.axis.reset": "Restablecer",
   "roi.axis.resolution_unit": "Eje de resolución",
   "roi.axis.settings": "Ajustes del gráfico",

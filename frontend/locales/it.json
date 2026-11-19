@@ -1124,6 +1124,7 @@
   "roi.axis.chip_hint.auto": "Torna agli assi precedenti",
   "roi.axis.chip_hint.manual": "Torna agli assi automatici; fai clic di nuovo per riavere questi assi",
   "roi.axis.manual_chip": "Assi manuali",
+  "roi.axis.previous_view": "Vista precedente",
   "roi.axis.reset": "Ripristina",
   "roi.axis.resolution_unit": "Asse di risoluzione",
   "roi.axis.settings": "Impostazioni grafico",

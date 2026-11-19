@@ -15,6 +15,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - **A zoomed-in ROI profile marks each sample with a dot.** Once you zoom in so far that the samples are at least 8 pixels apart, every pixel of the profile gets a small dot, so you can see which pixels you are looking at and that the line between two dots only joins them. While only the x axis is zoomed, the value axis keeps the same small margin above and below the curve as with automatic axes, so the highest and lowest points are no longer drawn on the frame.
 
+- **ROI plots: zoom into a box, swipe along x, go back to the previous view, and see which point the tooltip reads.** Four additions to moving around a plot:
+  - **Shift-drag** a box over a plot to zoom into it in one move, instead of many wheel notches. A flat box zooms only along x, a thin tall one only along y.
+  - On a **trackpad**, a sideways two-finger swipe pans along x, as a horizontal scrollbar would, and **pinching** zooms at the speed your fingers move. Pinching used to zoom very slowly, and a sideways swipe did nothing. Shift with a mouse wheel also pans along x.
+  - The new **↶ Previous view** button in a plot's header goes back one view after a zoom, a pan or a double-click reset, so you can look at the whole profile and return to the part you had zoomed into. It appears once there is a view to go back to.
+  - Hovering over a plot marks the sample the tooltip is reading with a line and a dot (or an outline on a histogram bar). On a dense profile the number alone did not say which point it belonged to.
+
 ### Fixed
 
 - **Zooming an ROI plot with the wheel stays smooth down to a few pixels and keeps the point under the pointer in place.** The plots used to round the visible range to whole samples, and each wheel notch started from that rounded range. On a long range nobody noticed, but on a range of a few pixels every notch zoomed in by about two pixels whatever the wheel did, zooming out could get stuck, and the view slid sideways. The plots now show exactly the range you zoomed to, with the curve running to the edge of the plot, so every notch zooms by the same proportion at any scale. Zooming in stops at two samples across (and, on the value axis, at a millionth of the values shown, where only rounding noise is left), and zooming out on the x axis stops at the whole profile. The histogram's x axis now runs from the outer edge of the first bin to the outer edge of the last, so the bars line up with the axis labels; it used to run from centre to centre, half a bin off at each end.
@@ -22,6 +28,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - **Checking for updates on a remote ALBIS no longer offers "Show in Folder", and the download goes to your own computer.** When ALBIS runs on another machine and you open it in a browser, **Download Update** saved the file on that machine's disk and **Show in Folder** opened a file manager on its screen, where nobody could see it. Now the download goes through your browser, to your own computer, and the folder button appears only when ALBIS runs on the computer you are sitting at. If the folder cannot be opened there either (a machine without a desktop, say), ALBIS tells you where the file is.
 
 ### Changed
+
+- **The ROI histogram's bars follow the light and dark theme.** They were always drawn in the same pale blue, which barely showed against the white plot of the light theme. They now use the same bar colour as the main histogram.
 
 - **The ROI plots label their axes at round numbers.** The ticks used to split the plotted range into equal parts and label whatever value fell there, so a profile peaking at 0.13 read 0, 0.043, 0.087, 0.13 and a box from column 562 to 1699 read 562, 941, 1320, 1699, with the last label cut off at the edge. Ticks now sit on steps of 1, 2 or 5 times a power of ten: 0, 0.02, 0.04 … 0.12, and 600, 800 … 1600. The curve still fills the plot; the ends just carry no label when they are not round. A taller plot gets more ticks. The log scale is labelled at 0, 1, 10, 100 …, with 2 and 5 in between where there is room, and the d or Q axis above a profile shows round resolutions (10, 5, 4, 3, 2.5, 2 Å) where they fall, instead of whatever d sat above each pixel tick. The histogram's axes follow the same rules.
 

@@ -343,6 +343,11 @@
   cursor: ns-resize;
 }
 
+/* Shift-drag draws a box to zoom into. */
+.roi-plot canvas.is-box-zooming {
+  cursor: crosshair;
+}
+
 .roi-tooltip {
   position: absolute;
   top: 8px;

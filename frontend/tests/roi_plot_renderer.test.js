@@ -39,6 +39,10 @@ const PLOT_THEME = {
   line: "#8fc4ff",
   lineGlow: "rgba(143,196,255,0.28)",
   text: "#d7e6ff",
+  bar: "#bar-colour",
+  peak: "#peak-colour",
+  markerOutline: "#outline",
+  axisHover: "#hover",
 };
 
 describe("roi_plot_renderer", () => {
@@ -176,6 +180,52 @@ describe("roi_plot_renderer", () => {
     // 10 samples across about 250 px, 25 px apart: 51..60 in view, plus 50
     // and 61 just past the ends (clipped at the frame).
     expect(draw({ xMin: 50.5, xMax: 60.5 })).toBe(12);
+  });
+
+  it("marks the sample under the pointer and draws the zoom box", () => {
+    const canvasEl = {
+      clientWidth: 300,
+      clientHeight: 120,
+      _roiPlotMeta: { xStart: 0, xStep: 1 },
+      _roiHoverX: 2,
+      _roiZoomBox: { x0: 60, y0: 20, x1: 120, y1: 70 },
+    };
+    const ctx = createMockContext();
+    const fills = [];
+    Object.defineProperty(ctx, "fillStyle", { set: (v) => fills.push(v), get: () => fills.at(-1) });
+    renderRoiPlot({
+      canvasEl,
+      ctx,
+      data: [1, 5, 3, 4],
+      logScale: false,
+      plotTheme: PLOT_THEME,
+      getRoiPlotKey: () => "line",
+      getRoiPlotLimits: () => ({ xMin: null, xMax: null, yMin: null, yMax: null }),
+      autoscale: true,
+    });
+    const plot = canvasEl._roiPlot;
+    const hoverPx = plot.padL + (2 / 3) * (plot.width - plot.padL - plot.padR);
+    expect(ctx.arc.mock.calls.some(([x]) => Math.abs(x - hoverPx) < 0.01)).toBe(true);
+    expect(ctx.fillRect).toHaveBeenCalledWith(60, 20, 60, 50);
+    expect(fills).toContain("#hover");
+  });
+
+  it("draws histogram bars in the theme's bar colour", () => {
+    const canvasEl = { clientWidth: 300, clientHeight: 120, _roiPlotMeta: { xStart: 0.5, xStep: 1, seriesType: "histogram" } };
+    const ctx = createMockContext();
+    const fills = [];
+    Object.defineProperty(ctx, "fillStyle", { set: (v) => fills.push(v), get: () => fills.at(-1) });
+    renderRoiPlot({
+      canvasEl,
+      ctx,
+      data: [1, 2, 3],
+      logScale: false,
+      plotTheme: PLOT_THEME,
+      getRoiPlotKey: () => "hist",
+      getRoiPlotLimits: () => ({ xMin: null, xMax: null, yMin: null, yMax: null }),
+      autoscale: true,
+    });
+    expect(fills).toContain("#bar-colour");
   });
 
   it("spans each histogram bar across its bin", () => {

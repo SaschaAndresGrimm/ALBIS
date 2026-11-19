@@ -433,6 +433,13 @@ a two-way arrow and the axis is shaded while it is under the pointer.
 Double-clicking an axis resets just that axis. Zoomed in far enough, a profile marks each
 sample with a dot.
 
+**Shift-drag** a box over a plot to zoom into it; a flat box zooms along x
+only, a thin tall one along y only. On a trackpad, pinch to zoom and swipe
+sideways with two fingers to pan along x (Shift with a mouse wheel does the
+same). **↶ Previous view** in the plot's header goes back one view after a
+zoom, a pan or a reset. While you hover over a plot, a line and a dot mark
+the sample the tooltip is reading.
+
 The **Manual axes** tag on a plot is a button: click it to return that plot to
 automatic axes (it then reads **Auto axes**), and click again to get back the
 axes you had. Double-click or the plot's settings forget them instead.

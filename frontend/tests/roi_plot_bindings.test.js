@@ -19,7 +19,10 @@ function createPlotContainer(id, canvas) {
   container.id = id;
   const resizeHandle = document.createElement("div");
   resizeHandle.className = "roi-resize-handle";
-  container.append(canvas, resizeHandle);
+  const backBtn = document.createElement("button");
+  backBtn.dataset.roiViewBack = "";
+  backBtn.className = "is-hidden";
+  container.append(backBtn, canvas, resizeHandle);
   document.body.append(container);
   return container;
 }
@@ -318,6 +321,7 @@ describe("roi_plot_bindings", () => {
         getRoiPlotLimits: vi.fn(() => limits),
         setRoiPlotAxisLimits: vi.fn((key, axis, min, max) => setAxisLimits(limits, axis, min, max)),
         clearRoiPlotLimitsForKey: vi.fn(() => clearAxisLimits(limits)),
+        hasManualRoiPlotLimits: vi.fn(() => hasManualLimits(limits)),
         hasAnyManualRoiPlotLimits: vi.fn(() => hasManualLimits(limits)),
       });
       bindings.roiLineCanvas._roiPlot = shownPlot();
@@ -390,6 +394,60 @@ describe("roi_plot_bindings", () => {
       for (let i = 0; i < 3; i += 1) wheel(100);
       expect(limits.xMin).toBeCloseTo(20);
       expect(limits.xMax).toBeCloseTo(26);
+    });
+
+    it("zooms into a box dragged with Shift", () => {
+      const { roiLineCanvas, limits } = setup();
+      const down = pointer("pointerdown", 40, 49);
+      Object.defineProperty(down, "shiftKey", { value: true });
+      roiLineCanvas.dispatchEvent(down);
+      roiLineCanvas.dispatchEvent(pointer("pointermove", 136, 90));
+      expect(roiLineCanvas._roiZoomBox).toEqual({ x0: 40, y0: 49, x1: 136, y1: 90 });
+      roiLineCanvas.dispatchEvent(pointer("pointerup", 136, 90));
+      expect(roiLineCanvas._roiZoomBox).toBeNull();
+      expect(limits.xMin).toBeCloseTo(0);
+      expect(limits.xMax).toBeCloseTo(50);
+      expect(limits.yMin).toBeCloseTo(0);
+      expect(limits.yMax).toBeCloseTo(25);
+    });
+
+    it("pans x on a sideways swipe and keeps y where it is", () => {
+      const { roiLineCanvas, limits } = setup();
+      roiLineCanvas.dispatchEvent(
+        new window.WheelEvent("wheel", { clientX: 100, clientY: 50, deltaX: 96, deltaY: 2, cancelable: true })
+      );
+      // 96 px is half the data area: half of the 0..100 view to the right.
+      expect(limits.xMin).toBeCloseTo(50);
+      expect(limits.xMax).toBeCloseTo(150);
+      expect(limits.yMin).toBe(0);
+      expect(limits.yMax).toBe(50);
+    });
+
+    it("marks the sample under the pointer and forgets it on leaving", () => {
+      const { roiLineCanvas, callbacks } = setup();
+      Object.assign(roiLineCanvas._roiPlot, { data: new Array(101).fill(1), xStart: 0, xStep: 1 });
+      // x 0..100 over 192 px from px 40: px 136 is x 50.
+      roiLineCanvas.dispatchEvent(new window.MouseEvent("mousemove", { clientX: 136, clientY: 50 }));
+      expect(roiLineCanvas._roiHoverX).toBe(50);
+      roiLineCanvas.dispatchEvent(new window.MouseEvent("mouseleave"));
+      expect(roiLineCanvas._roiHoverX).toBeNull();
+      expect(callbacks.redrawRoiPlots).toHaveBeenCalled();
+    });
+
+    it("goes back to the previous view after a reset or a zoom", () => {
+      const { roiLineCanvas, limits } = setup();
+      const back = roiLineCanvas.parentElement.querySelector("[data-roi-view-back]");
+      expect(back.classList.contains("is-hidden")).toBe(true);
+      drag(roiLineCanvas, [196, 100], [100, 60]);
+      const zoomed = { ...limits };
+      roiLineCanvas.dispatchEvent(new window.MouseEvent("dblclick", { bubbles: true, clientX: 100, clientY: 50 }));
+      expect(limits.xMin).toBeNull();
+      expect(back.classList.contains("is-hidden")).toBe(false);
+      back.click();
+      expect(limits).toEqual(zoomed);
+      back.click();
+      expect(limits).toEqual({ xMin: null, xMax: null, yMin: null, yMax: null });
+      expect(back.classList.contains("is-hidden")).toBe(true);
     });
 
     it("resets only the axis that is double-clicked", () => {

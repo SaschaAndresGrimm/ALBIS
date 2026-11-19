@@ -35,7 +35,6 @@ const BASELINE = {
   "modules/magnifier_controller.js": 4,
   "modules/pixel_mask_edit_controller.js": 3,
   "modules/histogram_render_controller.js": 2,
-  "modules/roi_plot_renderer.js": 1,
   "modules/remote_stream_controller.js": 1,
 };
 

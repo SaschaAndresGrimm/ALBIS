@@ -191,7 +191,9 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
 - `frontend/modules/roi_geometry_utils.js`, `frontend/modules/roi_controls_bindings.js`, `frontend/modules/roi_plot_bindings.js`:
   - ROI geometry in physical units (non-square pixels), the ROI controls' listeners, and the ROI plot's pan, zoom and resize.
 - `frontend/modules/roi_plot_pan_utils.js`:
-  - Where a pointer is on an ROI plot (data area, x-axis or y-axis strip) and how a drag or the wheel changes an axis range: clamped to the data, with a smallest zoom, on the log scale as drawn.
+  - Where a pointer is on an ROI plot (data area, x-axis or y-axis strip) and how a drag, the wheel, a trackpad gesture or a Shift-drag box changes an axis range: clamped to the data, with a smallest zoom, on the log scale as drawn.
+- `frontend/modules/roi_plot_view_history.js`:
+  - The views each ROI plot has been through, for its Previous view button.
 - `frontend/modules/roi_plot_view_utils.js`:
   - The x range an ROI plot draws (exactly the range asked for, not rounded to whole samples), the samples it needs, and the sample under the pointer for the tooltip.
 - `frontend/modules/roi_axis_chip_utils.js`:

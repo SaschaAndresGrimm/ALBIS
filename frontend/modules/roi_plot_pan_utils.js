@@ -107,3 +107,73 @@ export function panAxisRange({ min, max, domainMin = null, domainMax = null, log
   [lo, hi] = clampToDomain(lo - fraction * span, hi - fraction * span, domainMin, domainMax, log);
   return { min: fromDisplay(lo, log), max: fromDisplay(hi, log) };
 }
+
+// A mouse wheel notch is about 100 px of delta; a trackpad pinch arrives as
+// a wheel event with ctrlKey and a delta of a few px per event, so it needs
+// a larger rate to zoom at the speed the fingers move.
+const WHEEL_ZOOM_RATE = 0.002;
+const PINCH_ZOOM_RATE = 0.01;
+const MAX_WHEEL_DELTA = 200;
+
+/**
+ * What a wheel event over a plot asks for, from the browser's wheel fields:
+ * { kind: "zoom", factor } (above 1 zooms in) for the mouse wheel, a vertical
+ * two-finger scroll or a pinch, { kind: "pan-x", px } for a sideways
+ * two-finger swipe (or Shift with the wheel, which the browser turns
+ * sideways), or null.
+ */
+export function roiPlotWheelAction({ deltaX = 0, deltaY = 0, deltaMode = 0, ctrlKey = false } = {}) {
+  const scale = deltaMode === 1 ? 16 : deltaMode === 2 ? 120 : 1;
+  const clamp = (value) => Math.max(-MAX_WHEEL_DELTA, Math.min(MAX_WHEEL_DELTA, value));
+  const dx = Number.isFinite(deltaX) ? clamp(deltaX * scale) : 0;
+  const dy = Number.isFinite(deltaY) ? clamp(deltaY * scale) : 0;
+  if (ctrlKey) {
+    return dy ? { kind: "zoom", factor: Math.exp(-dy * PINCH_ZOOM_RATE) } : null;
+  }
+  if (Math.abs(dx) > Math.abs(dy)) return { kind: "pan-x", px: dx };
+  return dy ? { kind: "zoom", factor: Math.exp(-dy * WHEEL_ZOOM_RATE) } : null;
+}
+
+// A box narrower than this in one direction zooms the other direction only:
+// a flat box is a zoom along x, a thin tall one along y.
+const BOX_MIN_PX = 4;
+
+/**
+ * The axis ranges a box dragged over the plot covers, from its corners in
+ * canvas pixels (clamped to the data area): { x: { min, max } | null,
+ * y: { min, max } | null }, null for a direction the box is too thin in. On
+ * a log y axis the box is read on the drawn scale. The x range is widened to
+ * `minXSpan` about its middle when narrower.
+ */
+export function roiPlotBoxLimits(plot, { x0, y0, x1, y1 }, { minXSpan = 0 } = {}) {
+  const left = plot.padL;
+  const right = plot.width - plot.padR;
+  const top = plot.padT;
+  const bottom = plot.height - plot.padB;
+  const clampX = (v) => Math.max(left, Math.min(right, v));
+  const clampY = (v) => Math.max(top, Math.min(bottom, v));
+  const ax = clampX(Math.min(x0, x1));
+  const bx = clampX(Math.max(x0, x1));
+  const ay = clampY(Math.min(y0, y1));
+  const by = clampY(Math.max(y0, y1));
+  const result = { x: null, y: null };
+  if (bx - ax >= BOX_MIN_PX && right > left) {
+    const span = plot.xMax - plot.xMin;
+    let min = plot.xMin + ((ax - left) / (right - left)) * span;
+    let max = plot.xMin + ((bx - left) / (right - left)) * span;
+    if (max - min < minXSpan) {
+      const mid = (min + max) / 2;
+      min = mid - minXSpan / 2;
+      max = mid + minXSpan / 2;
+    }
+    result.x = { min, max };
+  }
+  if (by - ay >= BOX_MIN_PX && bottom > top) {
+    const log = Boolean(plot.log);
+    const lo = toDisplay(plot.yMin, log);
+    const hi = toDisplay(plot.yMax, log);
+    const at = (py) => fromDisplay(lo + ((bottom - py) / (bottom - top)) * (hi - lo), log);
+    result.y = { min: at(by), max: at(ay) };
+  }
+  return result;
+}

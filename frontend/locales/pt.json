@@ -1124,6 +1124,7 @@
   "roi.axis.chip_hint.auto": "Voltar aos eixos anteriores",
   "roi.axis.chip_hint.manual": "Voltar aos eixos automáticos; clique de novo para recuperar estes eixos",
   "roi.axis.manual_chip": "Eixos manuais",
+  "roi.axis.previous_view": "Visualização anterior",
   "roi.axis.reset": "Redefinir",
   "roi.axis.resolution_unit": "Eixo de resolução",
   "roi.axis.settings": "Configurações do gráfico",
