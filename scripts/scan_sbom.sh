@@ -61,7 +61,7 @@ install_grype() {
   fi
   mkdir -p "$dir"
   archive="$dir/grype.tar.gz"
-  curl -fsSL --retry 3 -o "$archive" \
+  curl -fsSL --retry 5 --retry-connrefused -o "$archive" \
     "https://github.com/anchore/grype/releases/download/v${GRYPE_VERSION}/grype_${GRYPE_VERSION}_${platform}.tar.gz"
   if command -v sha256sum >/dev/null; then
     echo "${sum}  ${archive}" | sha256sum -c - >&2

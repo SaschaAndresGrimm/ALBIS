@@ -199,9 +199,9 @@ def python_component(dist: Distribution) -> dict:
     return component
 
 
-def interpreter_component() -> dict:
+def interpreter_component(from_system: list[Native] = ()) -> dict:
     version = platform.python_version()
-    return {
+    component = {
         "type": "platform",
         "bom-ref": _ref("runtime", "cpython"),
         "name": "CPython",
@@ -211,6 +211,14 @@ def interpreter_component() -> dict:
         "purl": f"pkg:generic/cpython@{version}",
         "cpe": cpe_for("CPython", version),
     }
+    # Libraries the interpreter uses from the operating system: named, so the
+    # file is complete, but not as components a scanner would hold against
+    # the download.
+    if from_system:
+        component["properties"] = [
+            {"name": "albis:system-library", "value": f"{n.name} {n.version}"} for n in from_system
+        ]
+    return component
 
 
 def pyinstaller_component(lookup=distribution) -> dict:
@@ -315,7 +323,14 @@ def build_sbom(
     if added:
         log(f"SBOM: in the bundle without a pin reaching them: {', '.join(added)}")
 
-    natives = probe(bundle, set(included))
+    probed = probe(bundle, set(included))
+    natives = [n for n in probed if not n.system]
+    from_system = [n for n in probed if n.system]
+    if from_system:
+        log(
+            "SBOM: linked from the operating system, not shipped: "
+            + ", ".join(f"{n.name} {n.version}" for n in from_system)
+        )
     native_refs: dict[str, list[str]] = {}
     for native in natives:
         owner = (
@@ -376,7 +391,7 @@ def build_sbom(
                 "properties": [{"name": "albis:target", "value": target}],
             },
         },
-        "components": [interpreter_component(), pyinstaller_component(lookup)]
+        "components": [interpreter_component(from_system), pyinstaller_component(lookup)]
         + [python_component(included[name]) for name in sorted(included)]
         + [native_component(native) for native in natives]
         + vendored,

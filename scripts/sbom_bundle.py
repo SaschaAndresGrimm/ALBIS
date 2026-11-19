@@ -100,6 +100,11 @@ class Native:
     version: str
     # The distribution that carries it, or None for one inside the interpreter.
     carrier: str | None
+    # Linked from the operating system rather than shipped: on macOS the
+    # interpreter's zlib is /usr/lib/libz.1.dylib. Not part of the download,
+    # and Apple patches it in place without changing the version it reports,
+    # so it is noted on the interpreter instead of listed for scanners.
+    system: bool = False
 
 
 # CPE vendor:product for the libraries NVD lists, so a scanner matching on CPE
@@ -295,6 +300,64 @@ PROBES: tuple[tuple[str | None, str, Callable[[], list[tuple[str, str]]]], ...] 
 )
 
 
+# The library file each interpreter module links, by name prefix.
+_INTERPRETER_LIBRARIES = {
+    "_ssl": "libssl",
+    "zlib": "libz.",
+    "pyexpat": "libexpat",
+    "_sqlite3": "libsqlite3",
+}
+_SYSTEM_PREFIXES = ("/usr/lib/", "/System/")
+
+
+def _binaries_implementing(module: str) -> list[str]:
+    """The extension file of `module`, or libpython when it is built in."""
+    import importlib.util
+    import sysconfig
+
+    spec = importlib.util.find_spec(module)
+    if spec is not None and spec.origin and os.path.isfile(spec.origin):
+        return [spec.origin]
+    libdir = sysconfig.get_config_var("LIBDIR") or ""
+    framework = sysconfig.get_config_var("PYTHONFRAMEWORKPREFIX") or ""
+    ldlibrary = sysconfig.get_config_var("LDLIBRARY") or ""
+    candidates = [
+        # python-build-standalone records its build-time LIBDIR; the library is
+        # under the prefix it was unpacked to.
+        os.path.join(sys.base_prefix, "lib", ldlibrary),
+        os.path.join(libdir, ldlibrary),
+        os.path.join(framework, ldlibrary),
+    ]
+    return [c for c in candidates if os.path.isfile(c)]
+
+
+def links_system_library(module: str) -> bool:
+    """On macOS, whether `module` takes its library from the operating system.
+
+    Elsewhere the interpreter's libraries are its own: python-build-standalone
+    links them statically on Linux, and the Windows build carries its DLLs.
+    """
+    if sys.platform != "darwin":
+        return False
+    import subprocess
+
+    prefix = _INTERPRETER_LIBRARIES.get(module)
+    if prefix is None:
+        return False
+    for binary in _binaries_implementing(module):
+        try:
+            out = subprocess.run(
+                ["otool", "-L", binary], capture_output=True, text=True, check=True
+            ).stdout
+        except (OSError, subprocess.CalledProcessError):
+            continue
+        for line in out.splitlines()[1:]:
+            path = line.strip().split(" ", 1)[0]
+            if os.path.basename(path).startswith(prefix):
+                return path.startswith(_SYSTEM_PREFIXES)
+    return False
+
+
 def probe_natives(bundle: Bundle, carriers: set[str], warn=print) -> list[Native]:
     """The native libraries in the bundle whose version can be asked for."""
     found = []
@@ -308,5 +371,6 @@ def probe_natives(bundle: Bundle, carriers: set[str], warn=print) -> list[Native
         except Exception as exc:  # noqa: BLE001 -- any upstream change, reported below
             warn(f"SBOM: could not read the native library version via {probe.__name__}: {exc!r}")
             continue
-        found += [Native(name, version, carrier) for name, version in results]
+        system = carrier is None and links_system_library(module)
+        found += [Native(name, version, carrier, system) for name, version in results]
     return found

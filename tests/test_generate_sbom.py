@@ -467,3 +467,58 @@ def test_the_scan_script_runs_on_the_bash_macos_ships() -> None:
     assert '="$(install_grype)' not in script
     for platform in ("linux_amd64", "linux_arm64", "darwin_amd64", "darwin_arm64"):
         assert re.search(rf"{platform}\) echo [0-9a-f]{{64}} ;;", script), platform
+
+
+# --- The interpreter's own libraries -------------------------------------------
+
+
+def test_a_library_from_the_operating_system_is_noted_not_listed() -> None:
+    def probe(bundle, carriers):
+        return [
+            bundle_mod.Native("zlib", "1.2.12", None, system=True),
+            bundle_mod.Native("OpenSSL", "3.5.9", None),
+        ]
+
+    messages = []
+    doc = _build(_bundle(*EVERYTHING), probe=probe, log=messages.append)
+    names = {c["name"] for c in doc["components"]}
+    assert "OpenSSL" in names
+    # Not a component: a scanner would hold Apple's patched zlib against ALBIS.
+    assert "zlib" not in names
+    cpython = next(c for c in doc["components"] if c["name"] == "CPython")
+    assert {"name": "albis:system-library", "value": "zlib 1.2.12"} in cpython["properties"]
+    assert any("zlib 1.2.12" in m for m in messages)
+
+
+def test_off_macos_the_interpreters_libraries_are_its_own(monkeypatch) -> None:
+    monkeypatch.setattr(bundle_mod.sys, "platform", "linux")
+    assert not bundle_mod.links_system_library("zlib")
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="otool and /usr/lib/libz are macOS")
+def test_on_macos_the_interpreters_zlib_comes_from_the_system() -> None:
+    # python.org, Homebrew and python-build-standalone all link /usr/lib/libz.
+    assert bundle_mod.links_system_library("zlib")
+
+
+@pytest.mark.parametrize("workflow", ["release.yml", "artifacts.yml"])
+def test_the_macos_bundle_is_built_on_python_build_standalone(workflow: str) -> None:
+    import yaml
+
+    text = (ROOT / ".github" / "workflows" / workflow).read_text(encoding="utf-8")
+    steps = yaml.safe_load(text)["jobs"]["build_macos"]["steps"]
+    # setup-python's macOS builds carry OpenSSL 3.0 and older expat and SQLite,
+    # and the interpreter is copied into the app.
+    assert not any("setup-python" in str(step.get("uses", "")) for step in steps)
+    assert any("install_python_standalone.sh" in str(step.get("run", "")) for step in steps)
+
+
+def test_the_pinned_interpreter_has_a_checksum_for_every_build_platform() -> None:
+    script = (ROOT / "scripts" / "install_python_standalone.sh").read_text(encoding="utf-8")
+    for platform in (
+        "x86_64-unknown-linux-gnu",
+        "aarch64-unknown-linux-gnu",
+        "x86_64-apple-darwin",
+        "aarch64-apple-darwin",
+    ):
+        assert re.search(rf'{platform}\) default_sha="[0-9a-f]{{64}}" ;;', script), platform

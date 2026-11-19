@@ -24,6 +24,17 @@ This produces versioned artifacts in `dist/`, e.g.:
 - `ALBIS-macos-<arch>-v<version>-<commit>.zip`
 - `ALBIS-macos-<arch>-v<version>-<commit>.dmg`
 
+`build_mac.sh` builds with whichever `python3` is first on `PATH`, or `PYTHON_BIN`.
+Release builds use the same python-build-standalone interpreter as Linux, because
+PyInstaller copies the interpreter into the app with its OpenSSL, SQLite and expat,
+and `actions/setup-python`'s macOS builds carry OpenSSL from the 3.0 line. To build
+the way the release does:
+
+```bash
+./scripts/install_python_standalone.sh /tmp/albis-python
+PYTHON_BIN=/tmp/albis-python/bin/python3 ./scripts/build_mac.sh
+```
+
 `build_mac.sh` also attempts to create a macOS `.app` bundle with icon support (from `frontend/resources/icon.png`).
 DMG images get their layout — background image, icon positions, an `Applications`
 shortcut for drag-and-drop installation — from `scripts/build_styled_dmg.sh`, which
@@ -213,7 +224,10 @@ with a file in the bundle (so on macOS only the pyobjc frameworks ALBIS
 imports, and no build tools), the native libraries those carry that report a
 version (HDF5, OpenBLAS, libzmq, libzstd, Pillow's codecs; OpenSSL, zlib, expat
 and SQLite in the interpreter), the interpreter, the PyInstaller bootloader and
-the files vendored into `frontend/`. The build fails if an installed package
+the files vendored into `frontend/`. A library the interpreter takes from the
+operating system (on macOS, zlib from `/usr/lib`) is not shipped and is only
+named on the CPython entry, so a scanner does not hold Apple's copy against
+ALBIS. The build fails if an installed package
 does not match its pin. The filter plugins inside hdf5plugin, and the
 compression libraries in them, report no version at run time; they are listed
 from hdf5plugin's own documentation of each release, kept in
@@ -240,7 +254,7 @@ Public release inputs are pinned:
 - PyInstaller via the build scripts
 - Docker base image by digest
 - Linux build images (`manylinux_2_28`, x86_64 and aarch64 of the same date) and the distribution images `smoke_linux` runs on, by digest
-- the Linux build's Python (python-build-standalone) by release + checksum in `scripts/install_python_standalone.sh`
+- the Linux and macOS builds' Python (python-build-standalone) by release + checksum per platform in `scripts/install_python_standalone.sh`
 - AppImage tooling by explicit version + checksum in CI
 
 ### Output
