@@ -8,6 +8,13 @@ on:
 permissions:
   contents: read
 
+# A new push to a pull request makes the run for the old commit moot; cancel
+# it rather than finish three operating systems' worth of tests nobody reads.
+# Runs on main and dev always finish, so every commit there has a result.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   python:
     name: Python (${{ matrix.os }}, py${{ matrix.python-version }})
@@ -33,10 +40,13 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --upgrade pip && pip install -r requirements-dev.txt
 
+      # Lint and formatting do not depend on the platform: once is enough.
       - name: Ruff
+        if: runner.os == 'Linux'
         run: ruff check backend albis_launcher.py tests scripts test_scripts
 
       - name: Black
+        if: runner.os == 'Linux'
         run: black --check backend albis_launcher.py tests scripts test_scripts
 
       - name: Pytest
