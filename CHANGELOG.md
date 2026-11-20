@@ -13,6 +13,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - **The Linux downloads are less than half their former size.** The Linux tarball and AppImage were about three times as large as the Windows and macOS downloads (137 MB against 45 MB). Most of that was debug information that the Linux builds of Python and of several libraries carry, used only to step through their C code in a debugger: the Python runtime alone was 140 MB unpacked, of which about 20 MB is the program. The Linux build now removes it, as the Windows and macOS builds in effect always did. Nothing changes in how ALBIS runs. With the filters above gone as well, the arm64 download goes from 119 MB to 52 MB.
 
+- **The downloads are smaller again: the Linux tarball is now a `.tar.xz`, and the macOS disk image uses stronger compression.** The Linux tarball is packed with xz instead of gzip (32 MB instead of 50 MB for arm64), so it is now `ALBIS-linux-<arch>-v<version>-<commit>.tar.xz`; `tar -xf` unpacks it on every distribution ALBIS supports. The macOS disk image is compressed with lzma instead of zlib (34 MB instead of 43 MB); it opens as before on macOS 14 and later. Every download also leaves out about 3 MB the program never used: the frontend's test suite, the README's screenshot, two unused splash pictures, and icons used only to build the installers.
+
 ## [0.47.0] - 2026-11-20
 
 ### Added

@@ -70,6 +70,10 @@ rm -f "$OUTPUT_DMG"
 # theoretical concern. create-dmg treats that as non-fatal on its own (it
 # still finalizes a valid, just unstyled, DMG and exits 0), so the retry
 # has to watch its output for the failure text rather than its exit code.
+#
+# --format ULMO: lzma instead of the default zlib (UDZO), 34 MB instead of
+# 43 MB for the 0.47.0 arm64 app. It opens on macOS 10.15 and later; ALBIS
+# needs macOS 14.
 MAX_ATTEMPTS=3
 attempt=1
 styled=0
@@ -88,6 +92,7 @@ while [ "$attempt" -le "$MAX_ATTEMPTS" ]; do
     --background "$BACKGROUND" \
     --volicon "$VOLUME_ICON" \
     --no-internet-enable \
+    --format ULMO \
     --overwrite \
     "$OUTPUT_DMG" \
     "$SRC_FOLDER" >"$log" 2>&1

@@ -54,7 +54,9 @@ fi
 # the runtime closure of the pins on this platform, not the repository.
 "$PYTHON_BIN" scripts/generate_sbom.py --target "$TARGET" --output "dist/ALBIS-${TARGET}-${TAG}.cdx.json"
 
-OUT="dist/ALBIS-${TARGET}-${TAG}.tar.gz"
+# xz rather than gzip: 34 MB instead of 50 MB for the arm64 bundle. Every
+# distribution ALBIS supports has xz, and GNU tar unpacks it with -xf alone.
+OUT="dist/ALBIS-${TARGET}-${TAG}.tar.xz"
 rm -f "$OUT"
-tar -czf "$OUT" -C dist ALBIS
+tar -cf - -C dist ALBIS | xz -9 -T0 >"$OUT"
 echo "Output: dist/ALBIS and ${OUT}"

@@ -100,7 +100,7 @@ else
       # defensive fallback for a bare onedir output, kept as it was.
       for attempt in 1 2 3; do
         hdi_log="$TEMP_DIR/hdiutil-create-${attempt}.log"
-        if hdiutil create -volname "ALBIS ${VERSION}" -srcfolder "$MAC_SRC" -ov -format UDZO "$DMG_OUT" >"$hdi_log" 2>&1; then
+        if hdiutil create -volname "ALBIS ${VERSION}" -srcfolder "$MAC_SRC" -ov -format ULMO "$DMG_OUT" >"$hdi_log" 2>&1; then
           break
         fi
         if grep -q "Resource busy" "$hdi_log" && [ "$attempt" -lt 3 ]; then

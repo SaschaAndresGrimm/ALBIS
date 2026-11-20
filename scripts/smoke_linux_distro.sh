@@ -14,7 +14,7 @@
 #
 # Usage: smoke_linux_distro.sh IMAGE TARBALL
 #   IMAGE    container image to run in (a dnf- or apt-based distribution)
-#   TARBALL  ALBIS-linux-<x64|arm64>-v<version>-<commit>.tar.gz; the container
+#   TARBALL  ALBIS-linux-<x64|arm64>-v<version>-<commit>.tar.xz; the container
 #            runs as that architecture, emulated if the host is another
 set -euo pipefail
 
@@ -34,7 +34,7 @@ TARBALL="$(cd "$(dirname "$2")" && pwd)/$(basename "$2")"
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
-tar -xzf "$TARBALL" -C "$work"
+tar -xJf "$TARBALL" -C "$work"
 if [ ! -x "$work/ALBIS/ALBIS" ]; then
   echo "Tarball has no ALBIS/ALBIS executable: $TARBALL" >&2
   exit 1

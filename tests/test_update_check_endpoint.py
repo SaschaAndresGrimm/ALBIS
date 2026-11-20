@@ -30,7 +30,7 @@ RELEASE_ASSET_NAMES = (
     "ALBIS-0.9.4-x86_64.AppImage",
     "ALBIS-0.9.4-x86_64.AppImage.sig",
     "ALBIS-0.9.4-x86_64-appimage-bundle.tar.gz",
-    "ALBIS-linux-x64-v0.9.4-abc1234.tar.gz",
+    "ALBIS-linux-x64-v0.9.4-abc1234.tar.xz",
     "ALBIS-Setup-windows-x64-v0.9.4-abc1234.exe",
     "ALBIS-windows-x64-v0.9.4-abc1234.zip",
     "ALBIS-macos-arm64-v0.9.4-abc1234.dmg",

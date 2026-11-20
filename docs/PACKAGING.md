@@ -13,6 +13,12 @@ ALBIS can be bundled into a **platform‑native app** (no Python required) using
 
 Build scripts for Linux/Windows now use an **isolated build venv by default** (`.build-venv-linux` / `.build-venv-windows`) to keep artifacts reproducible and avoid accidental dependency bloat from the host Python environment.
 
+`ALBIS.spec` takes the frontend file by file, not as one folder: the Vitest suite,
+the agent notes, a local `node_modules` and the pictures only the README and the
+build scripts use stay out. `scripts/bundle_contents.py` lists what stays out and
+which `albis_assets/` files are served; `tests/test_bundle_contents.py` fails if
+the page refers to a file the bundle no longer has.
+
 ### Build (macOS)
 
 ```bash
@@ -42,6 +48,8 @@ both this script and `scripts/sign_macos.sh` call so a local dev build and a sig
 release look the same. See `docs/RELEASE_CHECKLIST.md`'s "macOS DMG Layout" section
 to change the background or verify it looks right; the geometry itself lives in
 `scripts/dmg_layout.py`.
+The DMG is compressed with lzma (`ULMO`) rather than zlib (`UDZO`): 34 MB instead
+of 43 MB for the arm64 app. It opens on macOS 10.15 and later.
 
 To sign on build, set your Developer ID certificate and password before running the build:
 
@@ -71,7 +79,7 @@ Public tag releases require both signing and notarization secrets. CI rejects in
 
 Example output:
 
-- `ALBIS-linux-<arch>-v<version>-<commit>.tar.gz`
+- `ALBIS-linux-<arch>-v<version>-<commit>.tar.xz`
 - `ALBIS-<version>-<appimage-arch>.AppImage`
 - `install_linux_appimage.sh` and `uninstall_linux.sh` (kept in `scripts/`; release workflow bundles them with the AppImage)
 
@@ -121,7 +129,7 @@ Public GitHub Releases publish a Linux bundle:
 
 - `ALBIS-<version>-<appimage-arch>-appimage-bundle.tar.gz`
   - includes `.AppImage`, `install_linux_appimage.sh`, and `uninstall_linux.sh`
-  - release also includes standalone `ALBIS-<version>-<appimage-arch>.AppImage` and `ALBIS-linux-<arch>-v<version>-<commit>.tar.gz`
+  - release also includes standalone `ALBIS-<version>-<appimage-arch>.AppImage` and `ALBIS-linux-<arch>-v<version>-<commit>.tar.xz`
 
 Recommended local desktop integration (user scope, AppImage):
 
@@ -226,7 +234,7 @@ Public GitHub Releases publish architecture-specific install + portable assets:
 
 - macOS: `ALBIS-macos-arm64-*` and `ALBIS-macos-x64-*` (`.dmg` + `.zip`)
 - Windows: `ALBIS-Setup-windows-x64-*` + `ALBIS-windows-x64-*.zip`
-- Linux: `ALBIS-linux-x64-*.tar.gz`, `ALBIS-*-x86_64.AppImage`, and `ALBIS-*-x86_64-appimage-bundle.tar.gz`, and the same three for arm64 (`ALBIS-linux-arm64-*`, `*-aarch64*`)
+- Linux: `ALBIS-linux-x64-*.tar.xz`, `ALBIS-*-x86_64.AppImage`, and `ALBIS-*-x86_64-appimage-bundle.tar.gz`, and the same three for arm64 (`ALBIS-linux-arm64-*`, `*-aarch64*`)
 - every target: `ALBIS-<target>-*.cdx.json`, the CycloneDX bill of materials for that bundle
 
 The bill of materials is written by `scripts/generate_sbom.py`, which each build

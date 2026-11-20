@@ -172,7 +172,7 @@ jobs:
           set -euo pipefail
           VERSION_INFO="$(python scripts/version_info.py --shell)"
           eval "$VERSION_INFO"
-          tarball="dist/ALBIS-${TARGET}-${TAG}.tar.gz"
+          tarball="dist/ALBIS-${TARGET}-${TAG}.tar.xz"
           appimage="dist/ALBIS-${VERSION}-${APPIMAGE_ARCH}.AppImage"
           bundle="dist/ALBIS-${VERSION}-${APPIMAGE_ARCH}-appimage-bundle.tar.gz"
 
@@ -180,7 +180,7 @@ jobs:
           [ -f "$appimage" ] || { echo "Missing Linux AppImage"; exit 1; }
           [ -f "$bundle" ] || { echo "Missing Linux AppImage bundle"; exit 1; }
 
-          tar -tzf "$tarball" >/dev/null
+          tar -tJf "$tarball" >/dev/null
           tar -tzf "$bundle" >/dev/null
           test -x "$appimage"
           file "$appimage"
@@ -190,7 +190,7 @@ jobs:
           set -euo pipefail
           VERSION_INFO="$(python scripts/version_info.py --shell)"
           eval "$VERSION_INFO"
-          tarball="dist/ALBIS-${TARGET}-${TAG}.tar.gz"
+          tarball="dist/ALBIS-${TARGET}-${TAG}.tar.xz"
           appimage="dist/ALBIS-${VERSION}-${APPIMAGE_ARCH}.AppImage"
           bundle="dist/ALBIS-${VERSION}-${APPIMAGE_ARCH}-appimage-bundle.tar.gz"
           ./scripts/sign_linux.sh "$tarball" "$appimage" "$bundle"
@@ -198,7 +198,7 @@ jobs:
       - name: Generate checksums
         run: |
           cd dist
-          find . -maxdepth 1 -type f \( -name "ALBIS-${{ matrix.target }}-*.tar.gz" -o -name "ALBIS-*.AppImage" -o -name "ALBIS-*-appimage-bundle.tar.gz" -o -name "install_linux_appimage.sh" -o -name "uninstall_linux.sh" \) \
+          find . -maxdepth 1 -type f \( -name "ALBIS-${{ matrix.target }}-*.tar.xz" -o -name "ALBIS-*.AppImage" -o -name "ALBIS-*-appimage-bundle.tar.gz" -o -name "install_linux_appimage.sh" -o -name "uninstall_linux.sh" \) \
             -exec sha256sum {} + | sort > SHA256SUMS.txt
 
       - name: Upload build artifacts
@@ -206,8 +206,8 @@ jobs:
         with:
           name: artifacts-${{ matrix.target }}-${{ github.run_id }}
           path: |
-            dist/ALBIS-${{ matrix.target }}-*.tar.gz
-            dist/ALBIS-${{ matrix.target }}-*.tar.gz.sig
+            dist/ALBIS-${{ matrix.target }}-*.tar.xz
+            dist/ALBIS-${{ matrix.target }}-*.tar.xz.sig
             dist/ALBIS-*.AppImage
             dist/ALBIS-*.AppImage.sig
             dist/ALBIS-*-appimage-bundle.tar.gz
@@ -257,7 +257,7 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          tarballs=(dist/ALBIS-${{ matrix.target }}-v*.tar.gz)
+          tarballs=(dist/ALBIS-${{ matrix.target }}-v*.tar.xz)
           if [ "${#tarballs[@]}" -ne 1 ]; then
             echo "Expected one Linux tarball, found ${#tarballs[@]}: ${tarballs[*]}"
             exit 1

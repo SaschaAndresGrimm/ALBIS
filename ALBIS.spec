@@ -41,7 +41,16 @@ if not icon_path:
 if icon_path and not os.path.exists(icon_path):
     icon_path = ""
 
-datas = [("frontend", "frontend"), ("VERSION", ".")]
+# The frontend, file by file rather than as one folder: the folder also holds
+# the Vitest suite (1.7 MB), the agent notes, a local node_modules when there
+# is one, and pictures used only by the README and the build scripts (1.6 MB),
+# none of which the running program serves. scripts/bundle_contents.py says
+# what stays out and why; tests/test_bundle_contents.py checks the page still
+# finds every file it asks for.
+sys.path.insert(0, os.path.abspath("scripts"))
+from bundle_contents import ALBIS_ASSETS, frontend_datas  # noqa: E402
+
+datas = frontend_datas(os.path.abspath("frontend")) + [("VERSION", ".")]
 # The commit this build came from, written by scripts/stamp_build.py before
 # packaging. Bundled only when present: an unstamped build reports no commit
 # and shows its version alone, which is better than failing to package.
@@ -63,23 +72,7 @@ for license_file in (
     license_path = os.path.abspath(license_file)
     if os.path.exists(license_path):
         datas.append((license_path, os.path.dirname(license_file) or "."))
-for asset_name in (
-    "albis_splash_1920x1080.png",
-    "albis_splash_3840x2160.png",
-    "icon.ico",
-    "icon.icns",
-    "icon_16x16.png",
-    "icon_16x16@2x.png",
-    "icon_32x32.png",
-    "icon_32x32@2x.png",
-    "icon_64x64.png",
-    "icon_128x128.png",
-    "icon_256x256.png",
-    "icon_512x512.png",
-    "icon_1024x1024.png",
-    # Shown in Help -> About; without it the installed app shows a broken image.
-    "dectris_logo.svg",
-):
+for asset_name in ALBIS_ASSETS:
     asset_path = os.path.abspath(os.path.join("albis_assets", asset_name))
     if os.path.exists(asset_path):
         datas.append((asset_path, "albis_assets"))

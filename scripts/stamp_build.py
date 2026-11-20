@@ -2,7 +2,7 @@
 """Write the commit a build came from, so the running program can name it.
 
 `scripts/version_info.py` already resolves the commit to build artifact names
-like `ALBIS-linux-x64-v0.11.0-a1b2c3d.tar.gz`. That answer was used for the
+like `ALBIS-linux-x64-v0.11.0-a1b2c3d.tar.xz`. That answer was used for the
 filename and discarded, leaving the program itself unable to say which build it
 was -- a version number cannot separate two builds of the same release, which is
 exactly what a bug report needs.

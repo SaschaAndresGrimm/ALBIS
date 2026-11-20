@@ -146,4 +146,7 @@ def test_the_dectris_logo_ships_with_the_app() -> None:
     assert logo.is_file()
     text = logo.read_text(encoding="utf-8")
     assert "<script" not in text and "href=" not in text, "the logo must be a plain image"
-    assert '"dectris_logo.svg"' in (ROOT / "ALBIS.spec").read_text(encoding="utf-8")
+    assert '"dectris_logo.svg"' in (ROOT / "scripts" / "bundle_contents.py").read_text(
+        encoding="utf-8"
+    )
+    assert "ALBIS_ASSETS" in (ROOT / "ALBIS.spec").read_text(encoding="utf-8")

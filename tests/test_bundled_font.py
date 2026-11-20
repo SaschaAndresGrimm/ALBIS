@@ -68,13 +68,18 @@ def test_the_licence_travels_with_the_font() -> None:
     ), "THIRD_PARTY_LICENSES.md has no row for the bundled font"
 
 
-def test_the_build_carries_the_frontend_directory() -> None:
-    """The font ships only because the whole frontend tree is a data dir."""
-    spec = next(ROOT.glob("*.spec"), None)
-    assert spec is not None, "no PyInstaller spec found"
-    assert '("frontend", "frontend")' in spec.read_text(
-        encoding="utf-8"
-    ), "the spec no longer bundles frontend/ wholesale; the font needs its own rule"
+def test_the_build_carries_the_font_and_its_licence() -> None:
+    """The spec bundles frontend/ file by file; the font and its OFL must be in it."""
+    import importlib.util
+
+    spec_file = ROOT / "scripts" / "bundle_contents.py"
+    spec = importlib.util.spec_from_file_location("bundle_contents", spec_file)
+    contents = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(contents)
+    kept = set(contents.frontend_files(str(ROOT / "frontend")))
+    assert "vendor/InterVariable.woff2" in kept
+    assert "vendor/InterVariable-OFL.txt" in kept
+    assert "frontend_datas(" in (ROOT / "ALBIS.spec").read_text(encoding="utf-8")
 
 
 # -- The wordmark face -------------------------------------------------------

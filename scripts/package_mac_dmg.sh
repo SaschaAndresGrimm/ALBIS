@@ -33,5 +33,5 @@ if [[ "$SRC" == *.app ]]; then
   DMG_SRC="$DMG_STAGE"
 fi
 
-hdiutil create -volname "ALBIS ${VERSION}" -srcfolder "$DMG_SRC" -ov -format UDZO "$OUT"
+hdiutil create -volname "ALBIS ${VERSION}" -srcfolder "$DMG_SRC" -ov -format ULMO "$OUT"
 echo "Output: $OUT"
