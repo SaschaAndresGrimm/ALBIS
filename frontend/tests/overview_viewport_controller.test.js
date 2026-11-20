@@ -601,8 +601,11 @@ describe("zoom in screen pixels", () => {
     controller.panToImageCenter(1000.37, 999.81);
 
     const [, tx, ty] = canvas.style.transform.match(/translate\(([-\d.e]+)px, ([-\d.e]+)px\)/).map(Number);
-    expect(Math.abs(tx * 1.5 - Math.round(tx * 1.5))).toBeLessThan(1e-6);
-    expect(Math.abs(ty * 1.5 - Math.round(ty * 1.5))).toBeLessThan(1e-6);
+    // The style string may carry only three decimals (257.333px, as Chrome
+    // and jsdom on CI write it), so allow a hundredth of a screen pixel; an
+    // unsnapped position is off by up to half of one.
+    expect(Math.abs(tx * 1.5 - Math.round(tx * 1.5))).toBeLessThan(0.01);
+    expect(Math.abs(ty * 1.5 - Math.round(ty * 1.5))).toBeLessThan(0.01);
   });
 
   it("keeps the zoom the user sees when the pixel ratio changes", async () => {
