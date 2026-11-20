@@ -260,7 +260,7 @@ Public release inputs are pinned:
 - PyInstaller via the build scripts
 - Docker base image by digest
 - Linux build images (`manylinux_2_28`, x86_64 and aarch64 of the same date) and the distribution images `smoke_linux` runs on, by digest
-- the Python bundled on Linux, macOS and Windows (python-build-standalone) by release + checksum per platform in `scripts/install_python_standalone.sh`
+- the Python bundled on Linux, macOS and Windows (python-build-standalone) by release + checksum per platform in `scripts/install_python_standalone.sh`; the weekly `python-standalone-bump` workflow pushes a branch and opens an issue when a newer release is two weeks old
 - AppImage tooling by explicit version + checksum in CI
 
 ### Output

@@ -19,10 +19,12 @@
 # Windows: setup-python's build carried an older SQLite and expat than the
 # other platforms; same reasoning. Run it from Git Bash (`shell: bash`).
 #
-# Releases are normally pinned once at least two weeks old. 20261110 was pinned
-# at eight days, for expat 2.10.0, which fixes advisories the release scan
-# reports; its checksums come from the release's asset digests, as it has no
-# SHA256SUMS file.
+# Releases are pinned once at least two weeks old, by the weekly
+# python-standalone-bump workflow (scripts/bump_python_standalone.py), which
+# rewrites the two versions and the checksums below. The checksums are the
+# release assets' sha256 digests from GitHub's API: not every release has a
+# SHA256SUMS file. (20261110 was pinned by hand at eight days old, for expat
+# 2.10.0.)
 #
 # Usage: install_python_standalone.sh [DEST]
 #   DEST  install prefix (default: /opt/albis-python); the interpreter lands at
