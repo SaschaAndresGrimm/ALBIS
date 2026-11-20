@@ -574,6 +574,16 @@ describe("zoom in screen pixels", () => {
     expect(state.zoom * 1.5).toBeCloseTo(1);
   });
 
+  it("reaches 1:1 on a small image that fits many times over", async () => {
+    setDpr(2);
+    const { controller, state } = await createController({ imageWidth: 20, imageHeight: 20 });
+
+    controller.zoomToScreenPixels();
+
+    expect(state.zoom).toBe(0.5);
+    expect(controller.getScreenZoom()).toBe(1);
+  });
+
   it("sets the zoom the slider and the field ask for in screen pixels", async () => {
     setDpr(2);
     const { controller, state } = await createController({ imageWidth: 2000, imageHeight: 2000 });

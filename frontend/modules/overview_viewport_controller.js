@@ -109,8 +109,10 @@ export function createOverviewViewportController({
     if (!Number.isFinite(fitScale) || fitScale <= 0) {
       return MIN_ZOOM;
     }
-    // Allow zooming out beyond fit-to-window for better context.
-    return Math.max(MIN_ZOOM, Math.min(1, fitScale * 0.1));
+    // Allow zooming out beyond fit-to-window for better context, and always
+    // down to one image pixel per screen pixel (1:1): a floor of 1 in CSS
+    // pixels left a small image at 2x on a Retina screen when 1:1 was pressed.
+    return Math.max(MIN_ZOOM, Math.min(fromScreenZoom(1, currentDpr()), fitScale * 0.1));
   }
 
   /**
