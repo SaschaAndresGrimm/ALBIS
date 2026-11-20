@@ -40,6 +40,7 @@ def test_fabio_reads_xsd_without_lxml(monkeypatch) -> None:
 # Left out of the bundle to cut what ships (and its CVEs): see the comments in
 # ALBIS.spec. Each one must stay something ALBIS can run without.
 UNUSED = [
+    "PIL",
     "sqlite3",
     "_sqlite3",
     "watchfiles",
@@ -83,3 +84,23 @@ def test_albis_starts_its_server_without_the_excluded_modules() -> None:
     )
     assert result.returncode == 0, result.stderr[-2000:]
     assert result.stdout.strip().endswith("ok")
+
+
+def test_a_tiff_without_a_description_keeps_its_header_without_pillow(monkeypatch) -> None:
+    """The EIGER2 monitor TIFF has no ImageDescription and fabio's own reader
+    fails on it; its header (detector model, DAQ software) came through
+    Pillow, which the bundle leaves out. It now comes from tifffile."""
+    import fabio.tifimage
+    from fastapi.testclient import TestClient
+
+    from backend.app import app
+
+    monkeypatch.setattr(fabio.tifimage, "PIL", None)
+    response = TestClient(app).get(
+        "/api/image/header", params={"file": str(ROOT / "testdata" / "monitor.tiff")}
+    )
+    assert response.status_code == 200, response.text
+    header = response.json()["header"]
+    assert "model Dectris EIGER2 Si 4M" in header
+    assert "software DECTRIS-DAQ" in header
+    assert re.search(r"numberOfColumns\s+2068", header)
