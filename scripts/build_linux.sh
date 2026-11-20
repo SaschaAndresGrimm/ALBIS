@@ -46,6 +46,10 @@ fi
 # Non-interactive build: never prompt to remove existing output directories.
 "$PYTHON_BIN" -m PyInstaller --noconfirm --clean ALBIS.spec
 
+# Drop the debug info the Linux wheels and the standalone Python carry; it was
+# two thirds of the download. See the script for what it leaves alone and why.
+./scripts/strip_linux_bundle.sh dist/ALBIS
+
 # The bill of materials for this bundle, from the interpreter that built it:
 # the runtime closure of the pins on this platform, not the repository.
 "$PYTHON_BIN" scripts/generate_sbom.py --target "$TARGET" --output "dist/ALBIS-${TARGET}-${TAG}.cdx.json"

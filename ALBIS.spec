@@ -261,7 +261,8 @@ exe = EXE(
     # Do not strip/UPX on Linux: stripping the numpy-vendored OpenBLAS .so with
     # older binutils (e.g. Ubuntu 22.04) corrupts its PT_LOAD page alignment,
     # yielding "ELF load command address/offset not page-aligned" at import on
-    # glibc 2.35. Costs some size but keeps the payload loadable everywhere.
+    # glibc 2.35. scripts/strip_linux_bundle.sh strips the debug info
+    # afterwards instead, leaving the vendored `*.libs/` folders alone.
     strip=False,
     upx=not is_linux,
     console=False,
