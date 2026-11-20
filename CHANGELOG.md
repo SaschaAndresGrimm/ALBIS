@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.47.0] - 2026-11-20
+
 ### Added
 
 - **1:1 in the View tab shows each detector pixel on exactly one pixel of the screen.** Nothing is enlarged, shrunk or blended, so you see the data as it is, at the sharpest the screen can show it. It is also in the command palette as **View: Zoom 1:1**.
@@ -2049,7 +2051,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.46.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.47.0...HEAD
+[0.47.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.46.0...v0.47.0
 [0.46.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.45.1...v0.46.0
 [0.45.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.45.0...v0.45.1
 [0.45.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.44.0...v0.45.0
