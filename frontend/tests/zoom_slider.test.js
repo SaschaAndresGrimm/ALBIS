@@ -28,20 +28,25 @@ describe("zoom slider scale", () => {
 function bindSlider() {
   document.body.innerHTML = `
     <input id="auto" type="checkbox" /><input id="min" /><input id="max" />
-    <input id="invert" type="checkbox" /><input id="zoom" type="range" min="-5" max="5" step="any" value="0" /><button id="reset"></button>`;
+    <input id="invert" type="checkbox" /><input id="zoom" type="range" min="-5" max="5" step="any" value="0" /><button id="reset"></button><button id="one-to-one"></button>`;
   const $ = (id) => document.getElementById(id);
+  // The slider counts screen pixels per image pixel, so it calls setScreenZoom.
   const setZoom = vi.fn();
+  const zoomToScreenPixels = vi.fn();
   bindViewerControls({
     state: { stats: null },
     elements: {
       autoScaleToggle: $("auto"), minInput: $("min"), maxInput: $("max"),
       invertToggle: $("invert"), zoomRange: $("zoom"), resetView: $("reset"),
+      zoomScreenPixels: $("one-to-one"),
     },
     callbacks: {
       registerChromeActivity: () => {}, updateFullscreenUi: () => {},
     },
     core: {
-      overviewViewport: { setZoom, scheduleOverview: vi.fn(), deferViewportInteraction: vi.fn() },
+      overviewViewport: {
+        setScreenZoom: setZoom, zoomToScreenPixels, scheduleOverview: vi.fn(), deferViewportInteraction: vi.fn(),
+      },
     },
   });
   const press = (key, init = {}) => {
@@ -49,8 +54,16 @@ function bindSlider() {
     $("zoom").dispatchEvent(event);
     return event;
   };
-  return { slider: $("zoom"), setZoom, press };
+  return { slider: $("zoom"), setZoom, press, oneToOne: $("one-to-one"), zoomToScreenPixels };
 }
+
+describe("the 1:1 button", () => {
+  it("puts one image pixel on one screen pixel", () => {
+    const { oneToOne, zoomToScreenPixels } = bindSlider();
+    oneToOne.click();
+    expect(zoomToScreenPixels).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe("dragging the zoom slider", () => {
   it("zooms to 2 to the power of its value", () => {

@@ -17,8 +17,10 @@ export function bindWindowUiInteractions({
     scheduleRoiOverlay,
   } = callbacks;
 
-  window.addEventListener("resize", () => {
-    if (state.hasFrame) {
+  function handleViewportResize() {
+    // First, so a new pixel ratio keeps the zoom the user sees.
+    const ratioChanged = core.overviewViewport?.syncDevicePixelRatio?.();
+    if (state.hasFrame && !ratioChanged) {
       core.overviewViewport?.setZoom(state.zoom);
     }
     core.chromeToolbar?.updateToolbar();
@@ -34,7 +36,21 @@ export function bindWindowUiInteractions({
     core.roiInteraction.scheduleRoiUpdate();
     core.overlayRender.scheduleResolutionOverlay();
     core.overlayRender.schedulePeakOverlay();
-  });
+  }
+
+  window.addEventListener("resize", handleViewportResize);
+
+  // Moving the window to a screen with another pixel ratio need not resize
+  // it; a media query on the current ratio says when it changes.
+  function watchDevicePixelRatio() {
+    if (typeof window.matchMedia !== "function") return;
+    const query = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+    query?.addEventListener?.("change", () => {
+      handleViewportResize();
+      watchDevicePixelRatio();
+    }, { once: true });
+  }
+  watchDevicePixelRatio();
 
   // The plots are drawn on canvas in the theme's colours: draw them again.
   window.addEventListener(THEME_CHANGE_EVENT, () => {

@@ -325,7 +325,15 @@ familiar from ALBULA. **Invert Color** flips any of them.
   left in the window, so it cannot get lost.
 - Double-click zooms in a step.
 - **Fit to Window** in the View tab returns to the whole frame.
-- The zoom slider beside it gives each doubling of the zoom the same length,
+- **1:1** beside it shows each detector pixel on exactly one pixel of the
+  screen: nothing is enlarged, shrunk or blended, so what you see is the data.
+- The zoom counts screen pixels per detector pixel, on any display: 1x is
+  the same as **1:1**, 2x puts each detector pixel on 2 × 2 screen pixels. On a
+  Retina or other high-resolution screen this shows more of the image at 1x
+  than before, when 1x meant one pixel of the page, which such a screen draws
+  with 2 × 2 or 1.5 × 1.5 of its own. At a whole-number zoom every detector
+  pixel is drawn exactly as wide as the next.
+- The zoom slider beside them gives each doubling of the zoom the same length,
   so the zooms around 1x have room. Clicked, its arrow keys zoom by about a
   fifth per press — four presses double — and `Page Up` / `Page Down` double
   or halve. The slider and a typed zoom zoom about the middle of the view.
@@ -571,7 +579,8 @@ detector pixel into a sharp square; the default is the smallest size at least
 2000 pixels wide. Without that, a small image is enlarged by whichever program
 shows it, and looks blurry. Sizes too large for a browser to create are greyed
 out. **As on screen** uses the viewer's zoom instead: zoom in, choose
-**Visible area** and **As on screen**, and the PNG is what you see. Non-square
+**Visible area** and **As on screen**, and the PNG is what you see, pixel for
+pixel of the screen. Non-square
 detector pixels are drawn at their true proportions. **Print resolution** (300
 dpi by default) is stored in the file, so a layout program gives it the right
 printed size; the dialog shows that size. **Include overlays** draws the

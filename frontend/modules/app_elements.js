@@ -62,6 +62,7 @@ export function queryAppElements(doc = document) {
     zoomRange: byId("zoom-range"),
     zoomValue: byId("zoom-value"),
     resetView: byId("reset-view"),
+    zoomScreenPixels: byId("zoom-screen-pixels"),
     statusEl: byId("status"),
     loadingEl: byId("loading"),
 

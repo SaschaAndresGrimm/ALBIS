@@ -7,7 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **1:1 in the View tab shows each detector pixel on exactly one pixel of the screen.** Nothing is enlarged, shrunk or blended, so you see the data as it is, at the sharpest the screen can show it. It is also in the command palette as **View: Zoom 1:1**.
+
 ### Changed
+
+- **The zoom now counts screen pixels, so 1x means one detector pixel on one screen pixel on every display.** It counted pixels of the page, which a Retina screen draws with 2 × 2 of its own and Windows at 150 % scaling with 1.5: there, 1x showed a quarter of what the screen could, and at 1.5 the browser had to draw some detector pixels one screen pixel wide and the next two, which put stripes into fine structure that were not in the data. The zoom slider, the zoom field, the footer and **As on screen** in the export dialogs all use the new count, so on a Retina screen the same view now reads 2x where it read 1x, and **As on screen** exports at the screen's full resolution. The image is also placed on whole screen pixels, so at a whole-number zoom every detector pixel is equally wide. When the window moves to a screen with another resolution, or the page is zoomed, the zoom you see stays where it was.
 
 - **Each download now comes with its own bill of materials, listing what is actually inside it.** A release carried one SBOM made by scanning the source repository. It named only the sixteen packages ALBIS asks for directly, missed the packages those pull in, the Python interpreter and the PyInstaller starter that every download contains, and listed development tools that never ship. Each build now writes `ALBIS-<platform>-<version>.cdx.json` (CycloneDX) from what PyInstaller actually packed, so the Windows, macOS and Linux files each describe their own download, and a security review or a vulnerability scanner can check exactly what a facility installed. They also name the C libraries inside the packages and the interpreter, with their versions (HDF5, OpenBLAS, libzmq, OpenSSL and others), which is where many security advisories land. The build stops if a package is installed at another version than the one pinned. The files are covered by the signed `SHA256SUMS.txt`, as before. The Docker image now carries a bill of materials and a build provenance record in the registry, too.
 

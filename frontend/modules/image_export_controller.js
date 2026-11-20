@@ -10,6 +10,7 @@
  */
 
 import { t } from "./i18n.js";
+import { toScreenZoom } from "./screen_zoom.js";
 import { canSaveImage } from "./command_availability.js";
 import {
   DEFAULT_EXPORT_DPI,
@@ -85,7 +86,7 @@ export function createImageExportController({ state, elements, callbacks }) {
   }
 
   function screenZoom() {
-    return Number(state.zoom) > 0 ? Number(state.zoom) : 1;
+    return toScreenZoom(Number(state.zoom) > 0 ? Number(state.zoom) : 1, window.devicePixelRatio);
   }
 
   function selectedScale() {

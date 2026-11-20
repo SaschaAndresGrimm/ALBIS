@@ -33,6 +33,8 @@ const EXACT_KEY_ALLOWLIST = new Set([
   "view.colormap.inferno",
   "view.colormap.magma",
   "view.colormap.turbo",
+  // A ratio, written the same in every language.
+  "view.zoom_one_to_one",
 ]);
 
 const VALUE_ALLOWLIST = [

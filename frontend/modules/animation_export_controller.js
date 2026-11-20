@@ -10,6 +10,7 @@
  */
 
 import { t } from "./i18n.js";
+import { toScreenZoom } from "./screen_zoom.js";
 import { canExportAnimation } from "./command_availability.js";
 import { GifWriter } from "./gif_encoder.js";
 import {
@@ -167,7 +168,7 @@ export function createAnimationExportController({
   }
 
   function screenZoom() {
-    return Number(state.zoom) > 0 ? Number(state.zoom) : 1;
+    return toScreenZoom(Number(state.zoom) > 0 ? Number(state.zoom) : 1, window.devicePixelRatio);
   }
 
   function selectedScale() {

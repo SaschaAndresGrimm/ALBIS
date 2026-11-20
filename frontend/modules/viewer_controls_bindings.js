@@ -33,6 +33,7 @@ export function bindViewerControls({
     zoomRange,
     zoomValue,
     resetView,
+    zoomScreenPixels,
     prevBtn,
     nextBtn,
     playBtn,
@@ -158,8 +159,9 @@ export function bindViewerControls({
 
   zoomRange.addEventListener("input", () => {
     core.overviewViewport?.deferViewportInteraction();
-    // About the middle of the visible area, which setZoom keeps in place.
-    core.overviewViewport?.setZoom(sliderToZoom(zoomRange.value));
+    // About the middle of the visible area, which setZoom keeps in place;
+    // the slider counts screen pixels per image pixel.
+    core.overviewViewport?.setScreenZoom(sliderToZoom(zoomRange.value));
   });
 
   // The slider has no step, so a drag zooms smoothly; the keys get steps of
@@ -200,7 +202,7 @@ export function bindViewerControls({
       return;
     }
     core.overviewViewport?.deferViewportInteraction();
-    core.overviewViewport?.setZoom(parsedZoom);
+    core.overviewViewport?.setScreenZoom(parsedZoom);
   };
 
   zoomValue?.addEventListener("change", applyManualZoom);
@@ -209,6 +211,10 @@ export function bindViewerControls({
     event.preventDefault();
     applyManualZoom();
     zoomValue.blur();
+  });
+
+  zoomScreenPixels?.addEventListener("click", () => {
+    core.overviewViewport?.zoomToScreenPixels();
   });
 
   resetView.addEventListener("click", () => {

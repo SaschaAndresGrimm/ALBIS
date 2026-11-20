@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { toScreenZoom } from "./screen_zoom.js";
 import { copyText } from "./clipboard_copy.js";
 import { anchorToastsAbove, refreshToastPlacement } from "./toast.js";
 
@@ -251,7 +252,9 @@ export function createChromeToolbarController({
       footerFileEl.classList.toggle("is-empty", !hasFile);
     }
     if (footerZoomEl) {
-      footerZoomEl.textContent = t("toolbar.footer.zoom", { zoom: (state.zoom || 1).toFixed(1) });
+      footerZoomEl.textContent = t("toolbar.footer.zoom", {
+        zoom: toScreenZoom(state.zoom || 1, window.devicePixelRatio).toFixed(1),
+      });
     }
     updateFooterVersions();
     scheduleChromeIdle();

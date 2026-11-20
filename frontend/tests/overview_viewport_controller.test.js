@@ -52,6 +52,8 @@ async function createController({
   footerTop = null,
   panelRect = null,
   chromeBottom = 0,
+  zoomRange = null,
+  zoomValue = null,
   onViewportChanged = vi.fn(),
 } = {}) {
   const { createOverviewViewportController } = await import("../modules/overview_viewport_controller.js");
@@ -101,8 +103,8 @@ async function createController({
       canvas,
       overviewCanvas: null,
       overviewCtx: null,
-      zoomRange: null,
-      zoomValue: null,
+      zoomRange,
+      zoomValue,
       viewerFooterEl,
       toolsPanel,
       appChrome,
@@ -530,5 +532,80 @@ describe("overview_viewport_controller", () => {
     expect(controller.getAnchorForHandle(view, "e", false)).toEqual({ x: 100, y: 110 });
     expect(controller.getAnchorForHandle(view, "w", false)).toEqual({ x: 300, y: 110 });
     expect(controller.getAnchorForHandle(view, "e", true)).toEqual({ x: 200, y: 110 });
+  });
+});
+
+// The slider and the field count screen pixels per image pixel; state.zoom
+// stays in CSS pixels for the transform and the overlays.
+describe("zoom in screen pixels", () => {
+  const originalDpr = window.devicePixelRatio;
+  function setDpr(value) {
+    Object.defineProperty(window, "devicePixelRatio", { configurable: true, value });
+  }
+  afterEach(() => setDpr(originalDpr));
+
+  function zoomControls() {
+    const zoomRange = document.createElement("input");
+    zoomRange.type = "range";
+    const zoomValue = document.createElement("input");
+    return { zoomRange, zoomValue };
+  }
+
+  it("shows a CSS zoom of 0.5 as 1x on a Retina screen", async () => {
+    setDpr(2);
+    const controls = zoomControls();
+    const { controller, state } = await createController({ imageWidth: 2000, imageHeight: 2000, ...controls });
+
+    controller.setZoom(0.5);
+
+    expect(state.zoom).toBe(0.5);
+    expect(controls.zoomValue.value).toBe("1.0x");
+    expect(Number(controls.zoomRange.value)).toBeCloseTo(0);
+    expect(Number(controls.zoomRange.max)).toBeCloseTo(Math.log2(40));
+    expect(controller.getScreenZoom()).toBe(1);
+  });
+
+  it("puts one image pixel on one screen pixel with 1:1", async () => {
+    setDpr(1.5);
+    const { controller, state } = await createController({ imageWidth: 2000, imageHeight: 2000 });
+
+    controller.zoomToScreenPixels();
+
+    expect(state.zoom * 1.5).toBeCloseTo(1);
+  });
+
+  it("sets the zoom the slider and the field ask for in screen pixels", async () => {
+    setDpr(2);
+    const { controller, state } = await createController({ imageWidth: 2000, imageHeight: 2000 });
+
+    controller.setScreenZoom(4);
+
+    expect(state.zoom).toBe(2);
+  });
+
+  it("places the image on whole screen pixels", async () => {
+    setDpr(1.5);
+    const { controller, canvas } = await createController({ imageWidth: 2000, imageHeight: 2000 });
+
+    controller.setZoom(1 / 1.5);
+    controller.panToImageCenter(1000.37, 999.81);
+
+    const [, tx, ty] = canvas.style.transform.match(/translate\(([-\d.e]+)px, ([-\d.e]+)px\)/).map(Number);
+    expect(Math.abs(tx * 1.5 - Math.round(tx * 1.5))).toBeLessThan(1e-6);
+    expect(Math.abs(ty * 1.5 - Math.round(ty * 1.5))).toBeLessThan(1e-6);
+  });
+
+  it("keeps the zoom the user sees when the pixel ratio changes", async () => {
+    setDpr(2);
+    const controls = zoomControls();
+    const { controller, state } = await createController({ imageWidth: 2000, imageHeight: 2000, ...controls });
+    controller.setScreenZoom(3);
+
+    setDpr(1);
+    expect(controller.syncDevicePixelRatio()).toBe(true);
+
+    expect(state.zoom).toBe(3);
+    expect(controls.zoomValue.value).toBe("3.0x");
+    expect(controller.syncDevicePixelRatio()).toBe(false);
   });
 });

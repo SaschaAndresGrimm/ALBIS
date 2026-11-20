@@ -187,6 +187,14 @@ export function buildCommandPaletteCommands({
       run: () => core.overviewViewport?.fitImageToView(),
     },
     {
+      id: "zoom-one-to-one",
+      label: t("command.label.view_one_to_one"),
+      shortcut: "",
+      search: "zoom 1:1 actual pixels screen pixel 100%",
+      when: hasFrame,
+      run: () => core.overviewViewport?.zoomToScreenPixels(),
+    },
+    {
       id: "export-full",
       label: t("command.label.export_full"),
       shortcut: platformShortcutLabel("save-full"),

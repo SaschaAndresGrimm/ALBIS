@@ -5,6 +5,7 @@
 import { canvasFont } from "./canvas_fonts.js";
 import { syncRangeFill } from "./range_fill.js";
 import { zoomToSlider } from "./zoom_slider.js";
+import { fromScreenZoom, snapToScreenPixel, toScreenZoom } from "./screen_zoom.js";
 import {
   axisScroll,
   centerFromScroll,
@@ -89,6 +90,13 @@ export function createOverviewViewportController({
   let touchGestureMid = null;
   let viewportChangeSuppressCount = 0;
 
+  function currentDpr() {
+    return window.devicePixelRatio || 1;
+  }
+
+  // The ratio the zoom was last shown for; see syncDevicePixelRatio.
+  let lastDpr = currentDpr();
+
   function getMinZoom() {
     if (!canvasWrap || !state.width || !state.height) {
       return MIN_ZOOM;
@@ -114,6 +122,8 @@ export function createOverviewViewportController({
    * kept, because the overlays ask for the scroll position many times a frame.
    */
   let viewArea = null;
+  // Where the canvas area sits on the page, to put the image on whole screen pixels.
+  let wrapOrigin = { left: 0, top: 0 };
 
   /** Room left between the image and a control floating over the canvas. */
   const FIT_GAP_PX = 8;
@@ -124,6 +134,8 @@ export function createOverviewViewportController({
     const height = canvasWrap.clientHeight || 0;
     const insets = panelInsets();
     const footerInset = footerTopInset();
+    const wrapRect = canvasWrap.getBoundingClientRect();
+    wrapOrigin = { left: wrapRect.left || 0, top: wrapRect.top || 0 };
     viewArea = {
       x: { start: insets.left, end: Math.max(insets.left, width - insets.right) },
       y: { start: 0, end: height, edgeEnd: Math.max(0, height - footerInset) },
@@ -200,8 +212,11 @@ export function createOverviewViewportController({
       canvasWrap.scrollLeft = 0;
       canvasWrap.scrollTop = 0;
     }
-    const tx = -getEffectiveScrollLeft();
-    const ty = -getEffectiveScrollTop();
+    // On whole screen pixels, so at a whole zoom every image pixel is equally
+    // wide; the overlays keep the exact position, at most half a screen pixel off.
+    const dpr = currentDpr();
+    const tx = snapToScreenPixel(wrapOrigin.left - getEffectiveScrollLeft(), dpr) - wrapOrigin.left;
+    const ty = snapToScreenPixel(wrapOrigin.top - getEffectiveScrollTop(), dpr) - wrapOrigin.top;
     // Non-uniform scale stretches each data pixel to its physical aspect ratio
     // (X is the reference axis; Y is scaled by pixelAspect).
     canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${zoom}, ${zoom * aspect})`;
@@ -679,14 +694,17 @@ export function createOverviewViewportController({
     });
     applyCanvasTransform();
     updatePanCapability();
+    // The slider and the field count screen pixels per image pixel.
+    const dpr = currentDpr();
+    lastDpr = dpr;
     if (zoomRange) {
-      zoomRange.max = String(zoomToSlider(MAX_ZOOM));
-      zoomRange.min = String(zoomToSlider(minZoom));
-      zoomRange.value = String(zoomToSlider(clamped));
+      zoomRange.max = String(zoomToSlider(toScreenZoom(MAX_ZOOM, dpr)));
+      zoomRange.min = String(zoomToSlider(toScreenZoom(minZoom, dpr)));
+      zoomRange.value = String(zoomToSlider(toScreenZoom(clamped, dpr)));
       syncRangeFill(zoomRange);
     }
     if (zoomValue) {
-      const zoomLabel = `${clamped.toFixed(1)}x`;
+      const zoomLabel = `${toScreenZoom(clamped, dpr).toFixed(1)}x`;
       if ("value" in zoomValue) {
         zoomValue.value = zoomLabel;
       } else {
@@ -860,6 +878,36 @@ export function createOverviewViewportController({
     notifyViewportChanged("fit");
   }
 
+  /** The zoom as shown: screen pixels per image pixel. */
+  function getScreenZoom() {
+    return toScreenZoom(state.zoom || 1, currentDpr());
+  }
+
+  /** Set the zoom in screen pixels per image pixel, about the middle of the view. */
+  function setScreenZoom(screenZoom) {
+    setZoom(fromScreenZoom(screenZoom, currentDpr()));
+  }
+
+  /** One image pixel on one screen pixel. */
+  function zoomToScreenPixels() {
+    if (!state.width || !state.height) return;
+    setScreenZoom(1);
+  }
+
+  /**
+   * The window moved to a screen with another pixel ratio, or the page was
+   * zoomed: keep the zoom the user sees, in screen pixels, where it was.
+   * Returns whether the ratio changed.
+   */
+  function syncDevicePixelRatio() {
+    const dpr = currentDpr();
+    if (dpr === lastDpr) return false;
+    const screenZoom = toScreenZoom(state.zoom || 1, lastDpr);
+    lastDpr = dpr;
+    if (state.hasFrame) setZoom(fromScreenZoom(screenZoom, dpr));
+    return true;
+  }
+
   function getViewCenter() {
     if (!state.width || !state.height) return null;
     const center = currentCenter();
@@ -892,6 +940,10 @@ export function createOverviewViewportController({
     stopTouchGesture,
     isTouchGestureActive,
     fitImageToView,
+    getScreenZoom,
+    setScreenZoom,
+    zoomToScreenPixels,
+    syncDevicePixelRatio,
     getViewCenter,
     setViewCenter,
     scheduleOverview,

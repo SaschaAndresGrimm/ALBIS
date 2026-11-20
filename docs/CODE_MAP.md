@@ -109,6 +109,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - The bounded LRU cache of decoded frames, a hash for telling live frames apart, and the shared in-flight frame-load state.
 - `frontend/modules/canvas_fonts.js`, `frontend/modules/range_fill.js`, `frontend/modules/number_stepper.js`, `frontend/modules/zoom_slider.js`, `frontend/modules/control_availability.js`:
   - Drawn-control helpers: the canvas font stack, the filled part of a slider track, the number field's up/down buttons, the logarithmic zoom slider scale, and marking a control unavailable while keeping its reason reachable.
+- `frontend/modules/screen_zoom.js`:
+  - The zoom as the user sees it, in screen pixels per image pixel: converting to and from the CSS zoom the viewport keeps, and snapping the image's position to whole screen pixels.
 - `frontend/modules/client_log.js`:
   - The page's half of the log: entries queued and posted to `/api/client-log` one at a time; `client_logging_bindings.js` routes `console.warn`/`error` and uncaught errors to it.
 - `frontend/modules/handoff_controller.js`:
