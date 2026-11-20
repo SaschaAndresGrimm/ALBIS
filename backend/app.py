@@ -101,6 +101,7 @@ from .services.directory_scan import (
     scan_image_files,
 )
 from .services.handoff_queue import HandoffQueueService
+from .services.hdf5_filters import load_hdf5plugin
 from .services.hdf5_stack import HDF5StackService
 from .services.jungfraujoch_preview import JungfraujochPreviewBridge
 from .services.jungfraujoch_preview import (
@@ -262,8 +263,7 @@ def _ensure_hdf5_stack() -> None:
     """Lazy-load HDF5 modules and compression plugins on first use."""
     global h5py, _hdf5_stack_ready
     if not _hdf5_stack_ready:
-        import hdf5plugin as _hdf5plugin  # noqa: F401
-
+        load_hdf5plugin()
         _hdf5_stack_ready = True
     if h5py is None:
         import h5py as _h5py  # type: ignore[import-not-found]

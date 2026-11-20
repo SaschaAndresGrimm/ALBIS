@@ -49,6 +49,8 @@ UNUSED = [
     "setuptools",
     "pkg_resources",
     "packaging",
+    "uvloop",
+    "httptools",
 ]
 
 _RUN_WITHOUT = """
@@ -64,6 +66,10 @@ import uvicorn
 assert filelock.FileLock is not None
 config = uvicorn.Config(backend.app.app, log_config={{"version": 1}}, ws_ping_interval=None)
 config.load()
+# Without uvloop and httptools uvicorn serves HTTP with h11 on asyncio; the
+# presence WebSocket still has its library.
+assert config.http_protocol_class.__module__ == "uvicorn.protocols.http.h11_impl"
+assert config.ws_protocol_class.__module__.startswith("uvicorn.protocols.websockets.websockets")
 print("ok")
 """
 

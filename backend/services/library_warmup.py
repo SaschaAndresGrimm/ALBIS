@@ -25,6 +25,8 @@ import threading
 import time
 from collections.abc import Iterable
 
+from .hdf5_filters import quiet_omitted_filters
+
 _log = logging.getLogger("albis.warmup")
 _started = False
 _start_lock = threading.Lock()
@@ -48,6 +50,7 @@ def warm_up(modules: Iterable[str] = LIBRARIES) -> list[str]:
     A module that fails is skipped and logged: the request that really needs
     it will raise the same error where the user can see it.
     """
+    quiet_omitted_filters()
     started = time.perf_counter()
     imported = []
     for name in modules:

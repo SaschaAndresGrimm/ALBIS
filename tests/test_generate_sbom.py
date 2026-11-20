@@ -377,6 +377,17 @@ def test_hdf5plugin_lists_its_filters_and_the_libraries_in_them() -> None:
     assert list(dict(bundle_mod._hdf5plugin())) == sorted(found)
 
 
+def test_the_hdf5plugin_filters_the_bundle_leaves_out_are_not_listed() -> None:
+    found = dict(bundle_mod._hdf5plugin())
+    for library in ("SZ", "SZ3", "SPERR", "H5Z-SPERR", "H5Z-ZFP", "OpenJPH", "h5z-htj2k"):
+        assert library not in found, library
+    for library in ("FCIDECOMP", "CharLS", "PyTables bzip2 filter", "bzip2"):
+        assert library not in found, library
+    # ZFP stays: Blosc2, which is kept, has it built in.
+    assert found["ZFP"] == "1.0.1"
+    assert found["c-blosc"] == "1.21.6"
+
+
 def test_an_unlisted_hdf5plugin_version_is_reported_not_guessed(monkeypatch) -> None:
     import hdf5plugin
 

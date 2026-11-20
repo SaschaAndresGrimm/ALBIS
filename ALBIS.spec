@@ -6,6 +6,9 @@ import os
 import sys
 from PyInstaller.utils.hooks import collect_all
 
+sys.path.insert(0, os.path.abspath("."))
+from backend.services.hdf5_filters import is_omitted_plugin  # noqa: E402
+
 block_cipher = None
 bundle_version = (os.environ.get("ALBIS_BUNDLE_VERSION", "").strip() or "0.0.0")
 bundle_build = (os.environ.get("ALBIS_BUNDLE_BUILD", "").strip() or bundle_version)
@@ -204,6 +207,13 @@ a = Analysis(
         "watchfiles",
         "dotenv",
         "yaml",
+        # Also from uvicorn[standard]: a faster event loop (uvloop, with libuv
+        # built in) and HTTP parser (httptools, with llhttp), which uvicorn
+        # takes when it finds them. A server for one user on one machine does
+        # not need them; without them uvicorn uses asyncio and h11. The C
+        # libraries inside them were also invisible to the SBOM.
+        "uvloop",
+        "httptools",
         # Build tooling PyInstaller's hooks pick up from the build environment;
         # nothing ALBIS runs imports them.
         "setuptools",
@@ -219,6 +229,11 @@ a = Analysis(
     ],
     noarchive=False,
 )
+
+# hdf5plugin's filters that no detector file ALBIS is for uses, each with its
+# own compression libraries: see backend/services/hdf5_filters.py.
+a.binaries = [entry for entry in a.binaries if not is_omitted_plugin(entry[0])]
+a.datas = [entry for entry in a.datas if not is_omitted_plugin(entry[0])]
 
 if is_linux:
     # Use the host's C++ runtime rather than bundling the build image's. The

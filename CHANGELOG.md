@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **The downloads no longer include HDF5 compression filters that detector data does not use, nor two optional web-server speed-ups.** Of the twelve compression filters ALBIS carried for HDF5 files, seven are for other kinds of data: the lossy compressors ZFP, SZ, SZ3, SPERR and HTJ2K (JPEG 2000), which store simulation and climate data approximately and are not used for photon counts, JPEG-LS for satellite imagery (FCIDECOMP), and bzip2. Each carried compression libraries of its own, so leaving them out takes eleven entries off the bill of materials and about 13 MB off the download. Everything DECTRIS detectors and Jungfraujoch write still opens (bitshuffle with LZ4 or Zstd, and LZ4), as do files repacked with Zstd, Blosc or Blosc2, and gzip. A file compressed with one of the filters left out lists its datasets but cannot show a frame; ALBIS run from the source code still reads it. The built-in web server also no longer takes uvloop and httptools, faster replacements for parts of Python that a server for one person does not need, and whose built-in C libraries the bill of materials could not see.
+
 ## [0.47.0] - 2026-11-20
 
 ### Added

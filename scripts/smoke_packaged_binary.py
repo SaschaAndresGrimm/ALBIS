@@ -76,6 +76,33 @@ def _assert_zstd_bundled(payload: dict[str, object]) -> None:
         )
 
 
+def _assert_presence_websocket(port: int, timeout_sec: float) -> None:
+    """Open the /api/presence WebSocket every tab holds, as far as the handshake.
+
+    uvicorn needs a WebSocket library for it, and answers a plain HTTP error
+    when the bundle has none; the page then never counts as open.
+    """
+    import base64
+
+    key = base64.b64encode(os.urandom(16)).decode("ascii")
+    request = (
+        "GET /api/presence HTTP/1.1\r\n"
+        f"Host: 127.0.0.1:{port}\r\n"
+        "Upgrade: websocket\r\n"
+        "Connection: Upgrade\r\n"
+        f"Sec-WebSocket-Key: {key}\r\n"
+        "Sec-WebSocket-Version: 13\r\n\r\n"
+    )
+    with socket.create_connection(("127.0.0.1", port), timeout=timeout_sec) as sock:
+        sock.sendall(request.encode("ascii"))
+        status = sock.recv(1024).split(b"\r\n", 1)[0].decode("latin-1")
+    if " 101 " not in f"{status} ":
+        raise RuntimeError(
+            f"/api/presence WebSocket handshake answered {status!r}, expected 101;"
+            " the bundle is likely missing uvicorn's WebSocket library"
+        )
+
+
 def _terminate_process(proc: subprocess.Popen[str], timeout_sec: float) -> None:
     if proc.poll() is not None:
         return
@@ -270,6 +297,8 @@ def run_smoke(
                 expected_content_type_substring="javascript",
                 timeout_sec=1.5,
             )
+
+            _assert_presence_websocket(port, timeout_sec=5.0)
 
             base_url = f"http://127.0.0.1:{port}"
             for name in staged_fixtures:

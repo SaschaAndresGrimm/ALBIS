@@ -30,6 +30,9 @@ from dataclasses import dataclass, field
 from importlib.metadata import Distribution
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from backend.services.hdf5_filters import OMITTED_FILTERS  # noqa: E402
+
 _MODULE_TYPES = {"PYMODULE", "EXTENSION", "PYSOURCE"}
 
 
@@ -276,7 +279,9 @@ def _hdf5plugin() -> list[tuple[str, str]]:
     if config.ipp:
         raise LookupError("hdf5plugin was built with Intel IPP")
     found: dict[str, str] = {}
-    for name in config.embedded_filters:
+    # ALBIS.spec leaves these filters' libraries out. The TOC files cannot
+    # show that: PyInstaller writes the Analysis one before the spec drops them.
+    for name in sorted(set(config.embedded_filters) - OMITTED_FILTERS):
         for library, version in table.get(name, ()):
             found.setdefault(library, version)
     return sorted(found.items())

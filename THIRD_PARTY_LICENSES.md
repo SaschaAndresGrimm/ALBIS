@@ -39,7 +39,8 @@ here.
 
 Transitive dependencies pulled in by `uvicorn[standard]` (h11, httptools,
 websockets, uvloop, watchfiles, python-dotenv) are all under MIT or BSD-3-Clause
-licenses.
+licenses. The downloads carry only h11 and websockets of them; the others are
+installed with a source install but left out of the packaged app (`ALBIS.spec`).
 
 ---
 
@@ -82,7 +83,11 @@ The hdf5plugin wrapper code is MIT-licensed (above). The compiled HDF5
 compression filter plugins it bundles carry their own copyrights and licenses,
 all permissive (BSD-, MIT-, or Apache-2.0-style). These include, among others:
 Bitshuffle, Blosc / Blosc2, LZ4, Zstandard, FCIDECOMP (CharLS), SZ / SZ3,
-SPERR, and Zfp. The authoritative per-plugin license listing is shipped inside
+SPERR, and Zfp. The downloads carry the Bitshuffle, Blosc, Blosc2, LZ4 and
+Zstandard filters (with the Snappy, zlib and ZFP code built into Blosc and
+Blosc2); the FCIDECOMP, SZ, SZ3, SPERR, H5Z-ZFP, HTJ2K (OpenJPH) and bzip2
+filters are installed with a source install but left out of the packaged app
+(`backend/services/hdf5_filters.py`). The authoritative per-plugin license listing is shipped inside
 the hdf5plugin package at `hdf5plugin/doc/information.rst`. The aggregate notice
 distributed with hdf5plugin reads:
 

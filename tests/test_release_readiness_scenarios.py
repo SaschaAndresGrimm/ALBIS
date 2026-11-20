@@ -390,6 +390,13 @@ def _main():
                 self.end_headers()
                 self.wfile.write(b"console.log('dummy albis');")
                 return
+            if self.path == "/api/presence":
+                # The harness checks the WebSocket handshake only.
+                self.send_response(101, "Switching Protocols")
+                self.send_header("Upgrade", "websocket")
+                self.send_header("Connection", "Upgrade")
+                self.end_headers()
+                return
             # The harness decodes a frame of each format it stages, so the dummy
             # has to answer those too -- otherwise this test would stop covering
             # the decode assertions the moment they were added.
