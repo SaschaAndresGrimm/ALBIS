@@ -333,6 +333,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - The private DECTRIS TIFF tag: reading its IFD into SIMPLON metadata, packing it for an export, rebasing its offsets.
 - `backend/services/pilatus_header.py`:
   - Parsing a PILATUS mini-CBF text header.
+- `backend/services/tiff_tag_text.py`:
+  - A TIFF's baseline tags as `name value` header text, for a TIFF with no description of its own (what fabio read through Pillow).
 - `backend/services/export_header.py`:
   - The mini-CBF header and provenance lines written into an exported CBF or TIFF.
 - `backend/services/image_values.py`:
