@@ -210,6 +210,12 @@ a = Analysis(
         "pkg_resources",
         "_distutils_hack",
         "packaging",
+        # Pillow, with libjpeg-turbo, openjpeg, libtiff, libwebp, freetype and
+        # lcms2: fabio requires it but treats it as optional, and ALBIS opens no
+        # JPEG, JPEG 2000 or WebP. The one thing it supplied, the tag header of
+        # a TIFF fabio's own reader cannot parse, now comes from tifffile
+        # (backend/services/tiff_tag_text.py).
+        "PIL",
     ],
     noarchive=False,
 )

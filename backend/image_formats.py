@@ -27,6 +27,7 @@ from .services.dectris_tiff_tag import (
 )
 from .services.export_header import _mini_cbf_header_text, producer_string
 from .services.pilatus_header import _parse_pilatus_header_text
+from .services.tiff_tag_text import tiff_tag_header_text
 
 # Lazy-loaded optional dependencies
 _tifffile = None
@@ -135,6 +136,7 @@ def _pilatus_meta_from_fabio(path: Path) -> dict[str, Any]:
 def _pilatus_meta_from_tiff(path: Path) -> dict[str, Any]:
     _ensure_tifffile()
     simplon_meta: dict[str, Any] = {}
+    tag_text = ""
     try:
         with _tifffile.TiffFile(path) as tiff:
             desc = ""
@@ -143,6 +145,7 @@ def _pilatus_meta_from_tiff(path: Path) -> dict[str, Any]:
             except Exception:
                 desc = ""
             simplon_meta = _simplon_meta_from_tiff(tiff)
+            tag_text = _tag_text_quietly(tiff)
     except Exception:
         desc = ""
     # Both, not one or the other. The private tag is typed and detector-written
@@ -156,9 +159,26 @@ def _pilatus_meta_from_tiff(path: Path) -> dict[str, Any]:
     if merged:
         return merged
     try:
-        return _pilatus_meta_from_fabio(path)
+        return _pilatus_meta_from_fabio(path) or _parse_header_quietly(tag_text)
     except Exception:
-        return {}
+        return _parse_header_quietly(tag_text)
+
+
+def _tag_text_quietly(tiff: Any) -> str:
+    """The first page's tags as header text, or nothing."""
+    try:
+        return tiff_tag_header_text(tiff.pages[0])
+    except Exception:
+        return ""
+
+
+def _fabio_tiff_header_text(path: Path, tag_text: str) -> str:
+    """fabio's header for a TIFF without a description, else its tags.
+
+    fabio read some TIFFs (an EIGER2 monitor TIFF) only through Pillow, which
+    the bundle leaves out; the tags tifffile read give the same text.
+    """
+    return _fabio_header_text(_open_fabio_image(path)) or tag_text
 
 
 def _pilatus_meta_from_image(path: Path) -> dict[str, Any]:
@@ -172,6 +192,7 @@ def _pilatus_header_text(path: Path) -> str:
     ext = _image_ext_name(path.name)
     if ext in {".tif", ".tiff"}:
         _ensure_tifffile()
+        tag_text = ""
         try:
             with _tifffile.TiffFile(path) as tiff:
                 desc = ""
@@ -179,10 +200,12 @@ def _pilatus_header_text(path: Path) -> str:
                     desc = tiff.pages[0].description or ""
                 except Exception:
                     desc = ""
+                tag_text = _tag_text_quietly(tiff)
             if desc:
                 return str(desc)
         except Exception:
             pass
+        return _fabio_tiff_header_text(path, tag_text)
     return _fabio_header_text(_open_fabio_image(path))
 
 
@@ -207,6 +230,7 @@ def _read_image_with_header(path: Path) -> tuple[np.ndarray, dict[str, Any], str
                 simplon_meta: dict[str, Any] = {}
                 with contextlib.suppress(Exception):
                     simplon_meta = _simplon_meta_from_tiff(tiff)
+                tag_text = _tag_text_quietly(tiff)
                 arr = _normalize_image_array(np.asarray(tiff.asarray()))
         except HTTPException:
             raise
@@ -215,7 +239,7 @@ def _read_image_with_header(path: Path) -> tuple[np.ndarray, dict[str, Any], str
         meta = {**_parse_header_quietly(desc), **simplon_meta}
         if meta and desc:
             return arr, meta, desc
-        fabio_text = _fabio_header_text(_open_fabio_image(path))
+        fabio_text = _fabio_tiff_header_text(path, tag_text)
         return arr, meta or _parse_header_quietly(fabio_text), desc or fabio_text
     if ext in {".cbf", ".cbf.gz"}:
         opener = _open_fabio_cbf_image
