@@ -9,6 +9,11 @@ import { createHoverTips } from "../modules/hover_tips.js";
 
 let tip;
 let tips;
+// The controller remembers when it last hid the tip (Date.now()), and each
+// vi.useFakeTimers() starts again from the real time, so a fresh clock can
+// land inside the previous test's warm window. One clock that only moves
+// forward, a minute per test, keeps every test past it whatever ran before.
+let clock = Date.UTC(2026, 0, 1);
 
 beforeAll(() => {
   tips = createHoverTips({ delayMs: 500, warmMs: 400 });
@@ -18,9 +23,11 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
-  vi.useFakeTimers();
-  // Past the warm window of whatever the previous test showed.
-  vi.advanceTimersByTime(5000);
+  clock += 60_000;
+  vi.useFakeTimers({ now: clock });
+  // Back to pointer input: a test that pressed a key left focus opening the
+  // tip at once.
+  document.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
   document.body.querySelectorAll(":scope > :not(#help-tooltip)").forEach((el) => el.remove());
 });
 
