@@ -35,7 +35,7 @@ gate() {
 gate "ruff" "$PY" -m ruff check "${PY_PATHS[@]}"
 gate "black" "$PY" -m black --check --quiet "${PY_PATHS[@]}"
 if [[ "${1:-}" != "--fast" ]]; then
-  gate "pytest" env PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 "$PY" -m pytest -q -p pytest_cov --cov=backend --cov-report= --cov-fail-under=77
+  gate "pytest" env PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 "$PY" -m pytest -q -p pytest_cov -p xdist -n auto --cov=backend --cov-report= --cov-fail-under=77
 fi
 gate "eslint" npm run --silent lint:js
 gate "vitest" npm run --silent test:js

@@ -63,6 +63,30 @@ def test_the_ci_pytest_step_still_enables_the_coverage_plugin(ci_steps) -> None:
 
 
 @pytest.mark.parametrize(
+    "path",
+    [
+        ".github/workflows/ci.yml",
+        ".github/workflows/release.yml",
+        ".github/workflows/artifacts.yml",
+        ".github/PULL_REQUEST_TEMPLATE.md",
+        "scripts/check.sh",
+        "CONTRIBUTING.md",
+        "docs/DEVELOPER_GUIDE.md",
+        "docs/RELEASE_CHECKLIST.md",
+    ],
+)
+def test_every_parallel_pytest_command_loads_xdist(path: str) -> None:
+    """The same trap as `-p pytest_cov`: with plugin autoloading disabled,
+    `-n auto` is an unrecognized argument unless xdist is loaded by name."""
+    lines = (REPO_ROOT / path).read_text(encoding="utf-8").splitlines()
+    pytest_lines = [line for line in lines if "pytest" in line and "--cov=backend" in line]
+
+    assert pytest_lines, f"{path} no longer runs pytest with coverage"
+    for line in pytest_lines:
+        assert "-p xdist -n auto" in line, f"{path} runs pytest without xdist: {line.strip()}"
+
+
+@pytest.mark.parametrize(
     ("doc", "marker"),
     [
         (REPO_ROOT / "CONTRIBUTING.md", "## Local checks before PR"),

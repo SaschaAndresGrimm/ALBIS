@@ -88,6 +88,15 @@ document: since jsdom 31 a detached one has an empty computed style
 (`position` reads `""`), so a fake panel built but never appended read as
 docked (`overview_viewport_controller.test.js`).
 
+The tests run in Vitest's `vmThreads` pool: each file gets its own VM context
+(fresh modules, fresh document) inside a reused worker, which is four times
+faster than a process per file. Two things differ there. `vi.useFakeTimers()`
+with no options can leave `performance.now` unfaked for the module under test,
+so fake only what the test needs (`vi.useFakeTimers({ toFake: ["setTimeout",
+"clearTimeout"] })`, `roi_interaction_controller.test.js`). And a test that
+creates its own `JSDOM` finds no `ReadableStream` in the jsdom environment;
+start it with `// @vitest-environment node` (`i18n_review_audit.test.js`).
+
 ## Copy these
 
 - **Pure helper**: `modules/zoom_slider.js` and `modules/file_type_utils.js`,

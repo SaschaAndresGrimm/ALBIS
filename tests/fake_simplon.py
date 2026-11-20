@@ -587,7 +587,11 @@ class FakeDCUServer:
     def __init__(self, port: int = 0, **kwargs: Any) -> None:
         self.dcu = FakeDCU(**kwargs)
         self.server = ThreadingHTTPServer(("127.0.0.1", port), _handler(self.dcu))
-        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        # serve_forever checks for shutdown() every poll_interval, 0.5 s by
+        # default, so every test using this server waited that long to stop.
+        self.thread = threading.Thread(
+            target=self.server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True
+        )
 
     @property
     def url(self) -> str:

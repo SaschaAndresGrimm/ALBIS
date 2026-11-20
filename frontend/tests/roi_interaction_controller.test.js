@@ -185,7 +185,7 @@ describe("roi_interaction_controller", () => {
   });
 
   it("updates slow statistics less often during a drag, and always for the last change", () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     let clock = 1000;
     vi.spyOn(performance, "now").mockImplementation(() => clock);
     const seen = [];

@@ -40,7 +40,7 @@ jobs:
         run: black --check backend albis_launcher.py tests scripts test_scripts
 
       - name: Pytest
-        run: pytest -p pytest_cov --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=77
+        run: pytest -p pytest_cov -p xdist -n auto --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=77
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
 

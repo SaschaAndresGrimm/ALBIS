@@ -70,7 +70,10 @@ class _SimplonExoticHandler(_FakeSimplonHandler):
 
 def _serve(handler: type[BaseHTTPRequestHandler]) -> Iterator[str]:
     server = HTTPServer(("127.0.0.1", 0), handler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    # A short poll so shutdown() returns at once rather than after the default 0.5 s.
+    thread = threading.Thread(
+        target=server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True
+    )
     thread.start()
     try:
         yield f"127.0.0.1:{server.server_port}"
@@ -92,15 +95,7 @@ def fake_simplon_exotic() -> Iterator[str]:
 
 @pytest.fixture
 def fake_simplon() -> Iterator[str]:
-    server = HTTPServer(("127.0.0.1", 0), _FakeSimplonHandler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
-        yield f"127.0.0.1:{server.server_port}"
-    finally:
-        server.shutdown()
-        server.server_close()
-        thread.join(timeout=5)
+    yield from _serve(_FakeSimplonHandler)
 
 
 def _closed_port() -> int:
