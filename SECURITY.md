@@ -76,4 +76,6 @@ These are checked for known vulnerabilities with [grype](https://github.com/anch
   again, so a vulnerability published after the release is noticed too.
 
 The pinned Python dependencies are audited with `pip-audit`, and the web interface's with
-`npm audit`, on every pull request.
+`npm audit`, on every pull request. Dependabot proposes updates to both every week, and a
+weekly workflow does the same for the bundled Python interpreter, which carries OpenSSL,
+SQLite and expat.

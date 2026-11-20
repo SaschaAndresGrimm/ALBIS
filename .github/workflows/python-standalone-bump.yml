@@ -1,0 +1,81 @@
+name: Python Standalone Bump
+
+# The interpreter bundled into every download comes from python-build-standalone,
+# pinned in scripts/install_python_standalone.sh, and carries OpenSSL, SQLite and
+# expat with it. Dependabot does not track it; this does. Once a week it looks
+# for a release at least two weeks old (scripts/bump_python_standalone.py) and,
+# if there is one, pushes a branch with the new pin and checksums and opens an
+# issue linking to the pull request to make from it.
+#
+# An issue and a link rather than the pull request itself: the repository does
+# not let workflows open pull requests, and one opened with this workflow's
+# token would not start CI. Opened from the link, it runs CI like any other.
+
+on:
+  schedule:
+    - cron: "0 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: python-standalone-bump
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    name: Look for a newer python-build-standalone
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Look for a newer release
+        id: bump
+        run: python scripts/bump_python_standalone.py --write
+
+      - name: Push a branch and open an issue
+        if: steps.bump.outputs.release != ''
+        env:
+          RELEASE: ${{ steps.bump.outputs.release }}
+          VERSION: ${{ steps.bump.outputs.version }}
+          PREVIOUS: ${{ steps.bump.outputs.previous }}
+        run: |
+          set -euo pipefail
+          branch="deps/python-build-standalone-${RELEASE}"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            echo "Branch $branch already exists; nothing to do."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git commit -am "chore(deps): bundle python-build-standalone ${RELEASE} (Python ${VERSION})" \
+            -m "Moves the interpreter bundled on Linux, macOS and Windows from ${PREVIOUS}. Release notes: https://github.com/astral-sh/python-build-standalone/releases/tag/${RELEASE}"
+          git push origin "$branch"
+
+          title="Bundle python-build-standalone ${RELEASE} (Python ${VERSION})"
+          if gh issue list --state open --search "in:title \"${title}\"" --json number --jq '.[0].number' | grep -q .; then
+            exit 0
+          fi
+          gh issue create --label dependencies --title "$title" --body "$(cat <<EOF
+          python-build-standalone **${RELEASE}** (Python ${VERSION}) is at least two weeks old and newer than the bundled ${PREVIOUS}.
+
+          The branch \`${branch}\` has the new pin and checksums in \`scripts/install_python_standalone.sh\`.
+
+          1. **[Open the pull request](https://github.com/${GITHUB_REPOSITORY}/compare/main...${branch}?expand=1)**. CI runs on it.
+          2. Run a release dry run on the branch (\`gh workflow run release.yml --ref ${branch} -f run_publish_validation=true\`). It builds every platform on the new interpreter, and its vulnerability scan shows what the bump fixes.
+          3. Merge, then close this issue.
+
+          Release notes: https://github.com/astral-sh/python-build-standalone/releases/tag/${RELEASE}
+          EOF
+          )"
