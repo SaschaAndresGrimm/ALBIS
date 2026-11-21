@@ -52,7 +52,35 @@ Endpoint-specific headers are documented in OpenAPI for each route:
   opened on its own, whose `.nxs`, `_master.h5` or `_meta.h5` holds it).
 - `X-Simplon-*` for SIMPLON metadata.
 - `X-Remote-*` for remote stream metadata and sequence control.
+- `X-Frame-Count` and `X-Frame-Op` for `GET /api/frame` and `GET /api/image` with
+  `count` above 1.
 - `X-Scan-Truncated` for a directory scan that stopped at its budget (see Directory Scans).
+
+### Several frames as one
+
+`GET /api/frame` takes `count` (1 to 1000, default 1) and `op` (`sum`, the
+default, or `mean`). With `count` above 1 the payload is frames `index` to
+`index + count - 1` combined into one frame; at the end of the series the
+window holds the frames left, and `X-Frame-Count` says how many it holds.
+`X-Frame` stays the first frame's index.
+
+- A sum of integer frames comes in the smallest integer type that holds it, at
+  least the source's width (ten `uint32` frames usually stay `<u4`).
+- A pixel that holds the type's maximum (gap, defective) in any of the frames
+  is not added: it holds the result type's maximum in a sum, NaN in a mean.
+- A pixel with a negative value in signed data (a PILATUS CBF marks gaps -1 and
+  defective pixels -2) in any of the frames is not added either: it holds the most
+  negative value it had, so -2 wins over -1.
+- A mean is `<f4`. A 2D dataset ignores `count`.
+- A `count` outside 1-1000 or another `op` is a 422; an `index` past the last
+  frame is a 416, as without `count`.
+
+`GET /api/image` takes the same `count` and `op` for a series of one file per
+frame (TIFF, CBF, CBF.GZ, EDF): `file` and the next files of its numbered
+series, in the order `GET /api/series` lists them, combined the same way, with
+the first file's `X-Image-*` headers. Symbolic links in the series are skipped,
+as the listing skips them. A file that belongs to no series, and a MYTHEN
+acquisition, ignore `count`.
 
 ### Transfer encoding
 
@@ -102,6 +130,18 @@ the file, which is how a client knows whether asking again is worthwhile.
 
 The interface uses exactly this: it re-reads the count about once a second while
 the flag is set, updates the frame slider, and stops when the writer lets go.
+
+## Converting Frames
+
+`POST /api/export/data/start` takes `combine_count` (1 to 1000, default 1) and
+`combine_op` (`sum` or `mean`), the viewer's Sum. Above 1, each image written is a
+window of frames combined as `GET /api/frame?count=` combines them: with
+`frame_mode: "current"`, the window from `frame_start` (to the end of the series at
+most), and with `all` or `range`, consecutive windows inside the frames chosen, the
+last one holding the frames left. A file series is combined file by file. File names
+carry `_sum10` (`_mean10`) after the prefix, named after each window's first frame,
+and the header states `Combined: sum of 10 frames 121-130` without the per-exposure
+fields and without the count cutoff, which a sum exceeds without being saturated.
 
 ## Combining Frames
 

@@ -115,6 +115,24 @@ slider in the timeline under the image. As the crystal turns, some
 reflections fade and others appear. **▶** plays the series; **Playback** sets
 how fast.
 
+A weak signal shows better over several frames. The button next to the frame
+number, **1 frame** at first, shows that many consecutive frames as one: click
+it and type a count, or pick **2**, **5**, **10**, **20**, **50** or **100**.
+With **10** at frame 121 you see frames 121 to 130 added together, the button
+reads **Sum 10** and the timeline **121–130 / 3600**. `[` and `]` take fewer or
+more frames (1, 2, 5, 10, 20 … 1000). **Mean** instead of **Sum** averages
+them, which keeps counts per frame, so the contrast stays comparable with a
+single frame; **Single frame** goes back. The step goes along, so `←` `→`,
+**◀** **▶** and playback move ten frames at a time and show each frame once; set **Step**
+under **Playback** to something else, such as 1, for a sliding window. While
+frames are combined, the footer says so (**Sum of 10 frames**; click it to
+change), and every statistic, profile and pixel value is that of the combined
+image. Gaps and defective pixels stay masked, also the -1 and -2 of a PILATUS
+CBF. At the end of the series the last window holds the frames left. This
+works for frames in one HDF5 file and for a series of one file per frame (CBF,
+TIFF, EDF), not for a live detector. To write a sum to a file, use
+[Combine frames](#combine-frames).
+
 ### 5. Make the spots easier to see
 
 ![The Histogram section with the BG and FG markers](images/user-guide/histogram.webp)
@@ -589,7 +607,7 @@ values** draws each pixel's value into it, as the viewer does when zoomed in.
 It needs the pixel values switched on in the viewer, and a size at which each
 pixel is at least as large as the viewer's minimum for them (18 px unless
 changed in Settings) — in practice **As on screen** while zoomed in. An option
-that cannot be used right now says why underneath it.
+that cannot be used right now is greyed out; hold the mouse over it to see why.
 
 The quick exports under **Save As** need no dialog. **Full Image** writes one
 image pixel per detector pixel: the exact data, for analysis or another
@@ -608,6 +626,15 @@ Data that is already floating point, such as an image corrected elsewhere, keeps
 its values in a TIFF: it is written as 32-bit floats (64-bit if it was 64-bit),
 with the same `-1` and `-2`. A CBF holds whole numbers only, so there it is
 rounded, and the dialog says so.
+
+With the **Sum** menu next to the frame number set to more than one frame,
+**Convert Dataset** writes what you see: **Current view** is the frames on
+screen added up, in one file, and **All frames** or a **Range** is one file
+per window, each frame in exactly one file. The dialog says so above the
+choices, the file names carry `_sum10` (or `_mean10`), and each file's header
+says what it is made of (`sum of 10 frames 121-130`). Inpaint, Flatfield and
+the data types apply to the summed image as to a frame. For single frames, set
+the menu back to **1 frame**.
 
 <details>
 <summary><b>Unsigned data types</b></summary>
@@ -698,7 +725,11 @@ keep their proportions. Choose the frame range and step, the full image or just
 the visible area, a size, and the frame rate. Sizes above 1× (2×, 4×) enlarge
 each detector pixel into a sharp block; **As on screen** uses the viewer's
 zoom. The default is the largest size up to 1600 pixels on its longer side —
-enough for a slide without an outsized file. A live summary estimates the file
+enough for a slide without an outsized file. With the **Sum** menu on, each
+frame of the animation is a sum, as on screen: **Use every** gives way to
+**Each frame**, showing **Sum of 20 frames**, and the animation goes through
+the series 20 frames at a time (1–20, 21–40, …). To change it, close the
+dialog and choose another sum. A live summary estimates the file
 size before you commit; frame count, region and size are the levers that
 control it.
 
@@ -976,6 +1007,10 @@ streak across, and where a horizontal and a vertical gap cross, both are used.
 2. In the **Analysis** tab's **Combine Frames** section, choose the frames,
    **Sum**, **Mean** or **Median**, and how many images to make.
 3. Press **Start**, and open the result from the section when it is done.
+
+To only look at several frames added together, without writing a file, use
+the **Sum** button next to the frame number (see
+[Step through the series](#4-step-through-the-series)).
 
 **Combine Frames**, in the **Analysis** tab, reduces many frames to fewer:
 **Sum**, **Mean** or **Median**. It answers two questions separately:
@@ -1352,7 +1387,8 @@ appears and `Alt` where `⌥` appears.
 | --- | --- |
 | `⌘K` | Command palette — reaches everything below by name |
 | `⌘O` / `⌘W` / `⌘N` | Open… / Close file / New window |
-| `←` `→` | Previous / next frame |
+| `←` `→` | Previous / next frame (with Sum on: the next window) |
+| `[` `]` | Fewer / more frames shown as one (Sum) |
 | Arrows / `Page Up` `Page Down` on the zoom slider | Zoom by about a fifth / double or halve |
 | `⌘S` / `⇧⌘S` / `⌥⌘S` | Save full image / visible area / viewer window |
 | `⇧⌘E` / `⌘G` / `⇧⌘X` | Export image… / Export animation… / Convert dataset… |

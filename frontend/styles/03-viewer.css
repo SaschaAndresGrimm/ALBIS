@@ -481,6 +481,15 @@
   justify-content: center;
 }
 
+/* The Sum pill opens the Sum control: what changed the image is changed here. */
+.viewer-footer-frame-sum {
+  cursor: pointer;
+}
+
+.viewer-footer-frame-sum:hover {
+  background: var(--control-hover);
+}
+
 .viewer-footer-version-toggle[aria-expanded="true"] {
   border-color: var(--accent);
   background: var(--control-hover);

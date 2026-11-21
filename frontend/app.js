@@ -112,6 +112,7 @@ import { createExportSplashController } from "./modules/export_splash_controller
 import { createChromeToolbarController } from "./modules/chrome_toolbar_controller.js";
 import { createPanelLayoutController } from "./modules/panel_layout_controller.js";
 import { createThresholdPlaybackController } from "./modules/threshold_playback_controller.js";
+import { createFrameSumController } from "./modules/frame_sum_controller.js";
 import { createFileSessionController } from "./modules/file_session_controller.js";
 import { createLiveHistoryController } from "./modules/live_history_controller.js";
 import {
@@ -189,13 +190,13 @@ const {
   seriesSumStepHint, dropdown, recentFilesSubmenu, recentFilesParent, saveAsParent, aboutModal, aboutClose,
   updateCheckModal, logViewerModal, imageExportModal, imageExportClose, imageExportSource, imageExportRegion,
   imageExportScale, imageExportDpi, imageExportOverlays, imageExportOverlaysField, imageExportPixelValues,
-  imageExportPixelValuesField, imageExportOverlaysHint, imageExportPixelValuesHint, imageExportSummary,
+  imageExportPixelValuesField, imageExportSummary,
   imageExportStart, animationExportModal, animationExportClose, animationExportSource,
   animationExportFrameMode, animationExportFrameStep, animationExportRangeStartField,
   animationExportRangeEndField, animationExportRangeStart, animationExportRangeEnd, animationExportRegion,
   animationExportScale, animationExportFps, animationExportLoop, animationExportOverlays,
   animationExportOverlaysField, animationExportPixelValues, animationExportPixelValuesField,
-  animationExportOverlaysHint, animationExportPixelValuesHint, animationExportSummary,
+  animationExportSummary,
   animationExportProgress, animationExportProgressFill, animationExportProgressText, animationExportStart,
   animationExportCancel, settingsModal, settingsLanguage, fileInput, uploadBar,
   uploadBarFill, uploadBarText, commandModal, browseModal, maskEditBar,
@@ -342,7 +343,6 @@ const core = {};
 const MIN_ZOOM = 0.02;
 const MAX_ZOOM = 50;
 const MOBILE_PANEL_SNAP_POINTS = [0.6, 1];
-const FRAME_STEP_OPTIONS = [1, 10, 100, 1000];
 const PIXEL_LABEL_DEFAULT_MIN_CELL_PX = PIXEL_LABEL_MIN_CELL_PX;
 const PIXEL_LABEL_DEFAULT_MAX_LABELS = 4000;
 const PIXEL_LABEL_DENSE_ZOOM_PX = 24;
@@ -867,8 +867,6 @@ const animationExportController = createAnimationExportController({
     overlaysField: animationExportOverlaysField,
     pixelValuesCheckbox: animationExportPixelValues,
     pixelValuesField: animationExportPixelValuesField,
-    overlaysHint: animationExportOverlaysHint,
-    pixelValuesHint: animationExportPixelValuesHint,
     scaleSelect: animationExportScale,
     summary: animationExportSummary,
     progress: animationExportProgress,
@@ -926,8 +924,6 @@ const imageExportController = createImageExportController({
     overlaysField: imageExportOverlaysField,
     pixelValuesCheckbox: imageExportPixelValues,
     pixelValuesField: imageExportPixelValuesField,
-    overlaysHint: imageExportOverlaysHint,
-    pixelValuesHint: imageExportPixelValuesHint,
     summary: imageExportSummary,
     startBtn: imageExportStart,
   },
@@ -1075,6 +1071,7 @@ function refreshLocalizedUi() {
   pixelMaskController?.render();
   pixelMaskEditController?.localize();
   localizePlaybackOptionLabels();
+  core.frameSum.localizeOptions();
   hoverTips.refresh();
   updateRoiModeUI();
   core.roiInteraction.scheduleRoiUpdate();
@@ -1550,7 +1547,6 @@ core.panelLayout = panelLayoutController;
 chromeToolbarController = createChromeToolbarController({
   state,
   constants: {
-    frameStepOptions: FRAME_STEP_OPTIONS,
     chromeIdleDelayMs: CHROME_IDLE_DELAY_MS,
   },
   elements: {
@@ -1594,9 +1590,6 @@ core.chromeToolbar = chromeToolbarController;
 thresholdPlaybackController = createThresholdPlaybackController({
   core,
   state,
-  constants: {
-    frameStepOptions: FRAME_STEP_OPTIONS,
-  },
   elements: {
     ...appElements,
   },
@@ -1611,6 +1604,7 @@ thresholdPlaybackController = createThresholdPlaybackController({
 });
 const { setFps, setFrameStep, updatePlayButtons, updateThresholdOptions } = thresholdPlaybackController;
 core.thresholdPlayback = thresholdPlaybackController;
+core.frameSum = createFrameSumController({ state, elements: appElements, callbacks: { setFrameStep }, core });
 
 exportSplashController = createExportSplashController({
   state,

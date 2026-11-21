@@ -7,11 +7,14 @@ import { getGeometryScopeKey } from "./geometry_override_utils.js";
 import { createFrameCache } from "./frame_cache.js";
 import { createTransientFrameLoadState } from "./transient_frame_load_state.js";
 import { failureDetail, fetchResponse } from "./http.js";
+import { activeFrameSum, frameSumCacheSuffix, frameSumQuery } from "./frame_sum_utils.js";
 
 // Generous ceiling for a single binary frame/image transfer. Long enough not to
 // trip on large frames over a slow link, short enough that a hung connection no
 // longer leaves the loading spinner up forever.
 const FRAME_LOAD_TIMEOUT_MS = 120000;
+// A summed frame reads every frame it adds: a second more for each.
+const FRAME_SUM_TIMEOUT_PER_FRAME_MS = 1000;
 
 // Parse the comma-separated X-Image-Bad-Channels header (strip-detector dead
 // channels) into a list of column indices to mask.
@@ -119,7 +122,8 @@ export function createFileDataPipelineController({
     if (!state.file || !state.dataset) return "";
     if (state.autoload?.watchEnabled || state.autoload?.running) return "";
     const threshold = state.thresholdCount > 1 ? state.thresholdIndex : 0;
-    return `${state.file}\u0000${state.dataset}\u0000${threshold}\u0000${index}`;
+    const sum = frameSumCacheSuffix(activeFrameSum(state), state.frameSumOp);
+    return `${state.file}\u0000${state.dataset}\u0000${threshold}\u0000${index}${sum}`;
   }
 
   // Shared by the cache and network paths so the two cannot drift apart.
@@ -382,11 +386,12 @@ export function createFileDataPipelineController({
     const loadTimer = setTimeout(() => {
       timedOut = true;
       requestController.abort();
-    }, FRAME_LOAD_TIMEOUT_MS);
+    }, FRAME_LOAD_TIMEOUT_MS + FRAME_SUM_TIMEOUT_PER_FRAME_MS * (activeFrameSum(state) - 1));
     const geometryScopeKey = getGeometryScopeKey(state, file);
     const geometryPromise = loadImageGeometry(state.file || file, geometryScopeKey);
     try {
-      const res = await fetchResponse(`${apiBase}/image?file=${encodeURIComponent(file)}`, {
+      const sum = frameSumQuery(activeFrameSum(state), state.frameSumOp);
+      const res = await fetchResponse(`${apiBase}/image?file=${encodeURIComponent(file)}${sum}`, {
         signal: requestController.signal,
         cache: "no-store",
       });
@@ -462,7 +467,7 @@ export function createFileDataPipelineController({
       state.dataset
     )}&index=${state.frameIndex}${
       state.thresholdCount > 1 ? `&threshold=${state.thresholdIndex}` : ""
-    }`;
+    }${frameSumQuery(activeFrameSum(state), state.frameSumOp)}`;
     let appliedFrame = false;
     let timedOut = false;
     const requestController = new AbortController();
@@ -470,7 +475,7 @@ export function createFileDataPipelineController({
     const loadTimer = setTimeout(() => {
       timedOut = true;
       requestController.abort();
-    }, FRAME_LOAD_TIMEOUT_MS);
+    }, FRAME_LOAD_TIMEOUT_MS + FRAME_SUM_TIMEOUT_PER_FRAME_MS * (activeFrameSum(state) - 1));
     try {
       const res = await fetchResponse(url, {
         signal: requestController.signal,

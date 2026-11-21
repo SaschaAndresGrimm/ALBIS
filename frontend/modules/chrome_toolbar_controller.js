@@ -6,6 +6,7 @@ import { t } from "./i18n.js";
 import { toScreenZoom } from "./screen_zoom.js";
 import { copyText } from "./clipboard_copy.js";
 import { anchorToastsAbove, refreshToastPlacement } from "./toast.js";
+import { FRAME_STEP_OPTIONS, activeFrameSum, framePositionLabel } from "./frame_sum_utils.js";
 
 export function createChromeToolbarController({
   state,
@@ -13,10 +14,8 @@ export function createChromeToolbarController({
   elements,
   callbacks,
 }) {
-  const {
-    frameStepOptions,
-    chromeIdleDelayMs,
-  } = constants;
+  const { chromeIdleDelayMs } = constants;
+  const frameStepOptions = constants.frameStepOptions || FRAME_STEP_OPTIONS;
 
   const {
     fpsSelect,
@@ -159,7 +158,7 @@ export function createChromeToolbarController({
     const fileName = fileLabel(state.file);
     let frameLabel = "";
     if (state.frameCount > 1) {
-      frameLabel = `${state.frameIndex + 1} / ${state.frameCount}`;
+      frameLabel = framePositionLabel(state.frameIndex, state.frameCount, activeFrameSum(state));
     } else if (state.autoload.mode !== "file" && state.autoload.lastUpdate) {
       frameLabel = formatTimeStamp(state.autoload.lastUpdate);
     }

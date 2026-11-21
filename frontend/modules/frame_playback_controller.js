@@ -4,6 +4,7 @@
 
 import { t } from "./i18n.js";
 import { syncRangeFill } from "./range_fill.js";
+import { activeFrameSum, frameSumWindow } from "./frame_sum_utils.js";
 
 // The fastest playback offered. A 1 Mpx frame takes about 10 ms from file to
 // screen, a 4M one about four times that; playback waits for a frame still
@@ -69,6 +70,15 @@ export function createFramePlaybackController({
   function currentFrameStatusText() {
     const total = Math.max(1, Number(state.frameCount) || 1);
     const index = Math.max(0, Math.min(total - 1, Number(state.frameIndex) || 0));
+    const window = frameSumWindow(index, activeFrameSum(state), total);
+    if (window.count > 1) {
+      return t("status.frame.position_sum", {
+        start: window.start + 1,
+        end: window.end + 1,
+        total,
+        what: core.frameSum?.describe() || "",
+      });
+    }
     return t("status.frame.position", { current: index + 1, total });
   }
 
@@ -90,6 +100,7 @@ export function createFramePlaybackController({
       // As wide as the largest frame number: "2000" was cut to "200".
       frameIndex.style.setProperty("--frame-digits", String(String(total).length));
     }
+    core.frameSum?.sync();
   }
 
   // The frame this window is going to because a linked window asked. Its

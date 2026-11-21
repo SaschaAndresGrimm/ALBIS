@@ -14,6 +14,7 @@ from collections.abc import Callable, Iterator
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import partial
+from itertools import chain
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +26,7 @@ from .data_export_live import DataExportLiveMixin
 from .data_export_metadata import DataExportMetadataMixin
 from .data_export_names import DataExportNamesMixin
 from .flatfield import Flat, prepare_flat
+from .frame_window import FrameCombine, reduce_frames
 from .hdf5_open import HDF5_EXTS
 
 
@@ -169,6 +171,8 @@ class DataExportService(
         flatfield: str = "",
         flatfield_scale: str = "counts",
         data_type: str = "auto",
+        combine_count: int = 1,
+        combine_op: str = "sum",
     ) -> str:
         job_id = uuid.uuid4().hex
         job_data = {
@@ -204,6 +208,8 @@ class DataExportService(
                 "flatfield": flatfield,
                 "flatfield_scale": flatfield_scale,
                 "data_type": data_type,
+                "combine_count": combine_count,
+                "combine_op": combine_op,
             },
         }
         with self._lock:
@@ -233,6 +239,7 @@ class DataExportService(
                 "flatfield": flatfield,
                 "flatfield_scale": flatfield_scale,
                 "data_type": data_type,
+                "combine": FrameCombine(combine_count, combine_op),
             },
             daemon=True,
         )
@@ -603,6 +610,7 @@ class DataExportService(
         flatfield: str = "",
         flatfield_scale: str = "counts",
         data_type: str = "auto",
+        combine: FrameCombine = FrameCombine(),
     ) -> list[str]:
         if not dataset:
             raise HTTPException(status_code=400, detail="Missing dataset")
@@ -626,10 +634,11 @@ class DataExportService(
                 else:
                     raise HTTPException(status_code=400, detail="Dataset is not 2D, 3D, or 4D")
                 frames = self._frame_indices(frame_count, frame_mode, frame_start, frame_end)
+                windows = combine.windows(frames, frame_count, frame_mode)
                 thresholds = self._threshold_indices(
                     threshold_count, threshold_mode, threshold_index
                 )
-                total = max(1, len(frames) * len(thresholds))
+                total = max(1, len(windows) * len(thresholds))
                 mask_bits_by_thr: dict[int, np.ndarray | None] = {}
                 for thr_idx in thresholds:
                     mask_dset = self._deps.find_pixel_mask(
@@ -642,7 +651,7 @@ class DataExportService(
                     self._safe_name(output_prefix)
                     if output_prefix
                     else self.default_export_base(source_path, dataset)
-                )
+                ) + combine.name_tag()
                 base_metadata = self._hdf5_base_export_metadata(h5, source_path, dataset)
 
                 # The frame's number in the dataset, 1-based; the threshold
@@ -651,7 +660,7 @@ class DataExportService(
                 def thr_tag(index: int) -> int | None:
                     return index + 1 if threshold_count > 1 else None
 
-                planned = [(f + 1, thr_tag(t)) for f in frames for t in thresholds]
+                planned = [(f + 1, thr_tag(t)) for f, _n in windows for t in thresholds]
                 suffix = ".cbf" if output_format == "cbf" else ".tiff"
                 base = self._free_base(out_dir, base, planned, suffix, overwrite)
                 self._check_room(out_dir, len(planned), shape, output_format, data_type)
@@ -672,9 +681,13 @@ class DataExportService(
                 # Read here, one frame after the other: h5py reads one at a
                 # time anyway. The conversion and writing run on the workers.
                 def tasks() -> Iterator[Callable[[], tuple[Path, int]]]:
-                    for frame_idx in frames:
+                    for frame_idx, n in windows:
                         for thr_idx in thresholds:
-                            arr = self._deps.extract_frame(view, frame_idx, thr_idx)
+                            arr = combine.read(
+                                lambda i, t=thr_idx: self._deps.extract_frame(view, i, t),
+                                frame_idx,
+                                n,
+                            )
                             metadata = self._hdf5_frame_export_metadata(
                                 h5,
                                 base_metadata,
@@ -682,6 +695,9 @@ class DataExportService(
                                 threshold_index=thr_idx,
                                 frame_count=frame_count,
                                 threshold_count=threshold_count,
+                            )
+                            metadata = combine.header(
+                                metadata, frame_idx, n, self.COMBINED_FRAME_DROPS
                             )
                             yield partial(
                                 self._write_frame,
@@ -720,6 +736,7 @@ class DataExportService(
         flatfield: str = "",
         flatfield_scale: str = "counts",
         data_type: str = "auto",
+        combine: FrameCombine = FrameCombine(),
     ) -> list[str]:
         series_files, current_index = self._deps.resolve_series_files(source_path)
         if not series_files:
@@ -727,12 +744,14 @@ class DataExportService(
         frames = self._frame_indices(
             len(series_files), frame_mode, frame_start, frame_end, current_index=current_index
         )
+        windows = dict(combine.windows(frames, len(series_files), frame_mode))
+        frames = list(windows)
         total = max(1, len(frames))
         base = (
             self._safe_name(output_prefix)
             if output_prefix
             else self.default_export_base(source_path)
-        )
+        ) + combine.name_tag()
         # Each frame keeps its source's own number: image_00007.cbf -> _00007.
         numbers = {idx: self.source_frame_number(series_files[idx], idx + 1) for idx in frames}
         suffix = ".cbf" if output_format == "cbf" else ".tiff"
@@ -761,6 +780,11 @@ class DataExportService(
             metadata = self._image_source_export_metadata(
                 src, frame_idx, len(series_files), header=(parsed, text)
             )
+            n = windows[frame_idx]
+            if combine.active:
+                rest = (self._read_non_h5_image(series_files[frame_idx + i]) for i in range(1, n))
+                arr = reduce_frames(chain([arr], rest), combine.operation)
+                metadata = combine.header(metadata, frame_idx, n, self.COMBINED_FRAME_DROPS)
             return self._write_frame(
                 name=self.frame_name(base, numbers[frame_idx]),
                 arr=arr,
@@ -804,6 +828,7 @@ class DataExportService(
         flatfield: str = "",
         flatfield_scale: str = "counts",
         data_type: str = "auto",
+        combine: FrameCombine = FrameCombine(),
     ) -> None:
         started = time.perf_counter()
         try:
@@ -822,6 +847,8 @@ class DataExportService(
             elif frame_mode == "current":
                 frames = f"frame {frame_start}"
             options = [f"{normalized_format.upper()} {data_type}", frames]
+            if combine.active:
+                options.append(f"{combine.operation} of every {combine.count}")
             if threshold_mode == "all":
                 options.append("all thresholds")
             if flatfield:
@@ -861,6 +888,7 @@ class DataExportService(
                     flatfield=flatfield,
                     flatfield_scale=flatfield_scale,
                     data_type=data_type,
+                    combine=combine,
                 )
             else:
                 outputs = self._run_image_series_export(
@@ -881,6 +909,7 @@ class DataExportService(
                     flatfield=flatfield,
                     flatfield_scale=flatfield_scale,
                     data_type=data_type,
+                    combine=combine,
                 )
             self._deps.logger.info(
                 "Export done: %d file(s) in %.1f s -> %s%s",

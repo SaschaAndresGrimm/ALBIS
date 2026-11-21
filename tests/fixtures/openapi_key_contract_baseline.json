@@ -78,6 +78,32 @@
           "default": 0,
           "title": "Threshold"
         }
+      },
+      {
+        "name": "count",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "maximum": 1000,
+          "minimum": 1,
+          "default": 1,
+          "title": "Count"
+        }
+      },
+      {
+        "name": "op",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "enum": [
+            "sum",
+            "mean"
+          ],
+          "type": "string",
+          "default": "sum",
+          "title": "Op"
+        }
       }
     ],
     "responses": {
@@ -90,6 +116,8 @@
         "header_names": [
           "X-Dtype",
           "X-Frame",
+          "X-Frame-Count",
+          "X-Frame-Op",
           "X-Shape"
         ]
       },
@@ -176,6 +204,32 @@
           "default": 0,
           "title": "Index"
         }
+      },
+      {
+        "name": "count",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "maximum": 1000,
+          "minimum": 1,
+          "default": 1,
+          "title": "Count"
+        }
+      },
+      {
+        "name": "op",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "enum": [
+            "sum",
+            "mean"
+          ],
+          "type": "string",
+          "default": "sum",
+          "title": "Op"
+        }
       }
     ],
     "responses": {
@@ -188,6 +242,8 @@
         "header_names": [
           "X-Dtype",
           "X-Frame",
+          "X-Frame-Count",
+          "X-Frame-Op",
           "X-Image-BeamCenter-X",
           "X-Image-BeamCenter-Y",
           "X-Image-DetectorDistance-MM",

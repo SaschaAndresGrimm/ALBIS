@@ -111,17 +111,6 @@
   min-width: 0;
 }
 
-.data-export-option-hint {
-  margin: 4px 0 0 24px;
-  color: var(--muted);
-  font-size: var(--font-size-sm);
-  line-height: 1.35;
-}
-
-.data-export-option-hint:empty {
-  display: none;
-}
-
 /* Data type: the select as wide as the column above it, and beside it what
    the type does to the values. */
 .data-export-type-row {

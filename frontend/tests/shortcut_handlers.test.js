@@ -186,3 +186,45 @@ describe("Tab must not swallow keyboard focus traversal", () => {
     expect(startPlayback).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("the keys with the view's Sum on", () => {
+  function handlersWith(stateOverrides) {
+    const requestFrame = vi.fn();
+    const stepFrameSum = vi.fn(() => true);
+    const noop = vi.fn();
+    const handlers = createShortcutHandlers({
+      state: { playing: false, thresholdCount: 1, autoload: { mode: "file" }, step: 10, frameIndex: 20, frameCount: 100, frameSum: 10, ...stateOverrides },
+      elements: {},
+      callbacks: { requestFrame, startPlayback: noop, getThresholdIndexAtOffset: () => 0, toggleFullscreen: noop, togglePanel: noop },
+      core: { framePlayback: { stopPlayback: noop }, frameSum: { stepFrameSum } },
+    });
+    const press = (key) => {
+      const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+      document.body.dispatchEvent(event);
+      handlers.handleNavShortcut({ ...event, key, target: document.body, preventDefault: () => {} });
+    };
+    return { press, requestFrame, stepFrameSum };
+  }
+
+  it("moves ← → a window at a time, as ◀ ▶ do, so no frame is skipped or shown twice", () => {
+    const { press, requestFrame } = handlersWith({});
+    press("ArrowRight");
+    expect(requestFrame).toHaveBeenLastCalledWith(30);
+    press("ArrowLeft");
+    expect(requestFrame).toHaveBeenLastCalledWith(10);
+  });
+
+  it("moves ← → one frame without the Sum", () => {
+    const { press, requestFrame } = handlersWith({ frameSum: 1, step: 10 });
+    press("ArrowRight");
+    expect(requestFrame).toHaveBeenLastCalledWith(21);
+  });
+
+  it("takes fewer or more frames with [ and ]", () => {
+    const { press, stepFrameSum } = handlersWith({});
+    press("]");
+    expect(stepFrameSum).toHaveBeenLastCalledWith(1);
+    press("[");
+    expect(stepFrameSum).toHaveBeenLastCalledWith(-1);
+  });
+});

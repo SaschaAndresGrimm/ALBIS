@@ -37,7 +37,7 @@ const LINE_BASELINE = {
   // body, now formatLevelValue in format_utils.js; -1 for the Min/Max
   // Finder's beta note; -5 for the ring list's elements, now in app_elements.js.
   // +3 for the Find bad pixels "by value" rule: three element lookups.
-  "frontend/app.js": 3462,
+  "frontend/app.js": 3456,
   // +17 in the stylesheet split: one <link> per part in frontend/styles/.
   // +45 for the Min/Max Finder section and its opt-in: markup lives here.
   // +3 for the Below BG / BG to FG / Above FG rows of the statistics.
@@ -48,7 +48,7 @@ const LINE_BASELINE = {
   // +5 for the Find bad pixels "by value" row.
   // +3 for Convert Dataset's Corrections and Output titles and the planned
   // file names under its prefix.
-  "frontend/index.html": 2614,
+  "frontend/index.html": 2596,
 };
 
 // The only modules that call fetch() themselves: http.js, which every other

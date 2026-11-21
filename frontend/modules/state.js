@@ -143,6 +143,9 @@ function createTransientFrameLoadState() {
     playTimer: null,
     fps: 5,
     step: 1,
+    // Frames shown as one (the toolbar's Sum control): 1 is a single frame.
+    frameSum: 1,
+    frameSumOp: "sum",
   };
 }
 

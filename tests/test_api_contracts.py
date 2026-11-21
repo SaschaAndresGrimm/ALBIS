@@ -68,9 +68,9 @@ def test_openapi_documents_binary_payload_headers() -> None:
     spec = client.get("/openapi.json").json()
 
     endpoint_contracts = [
-        ("/api/frame", {"X-Dtype", "X-Shape", "X-Frame"}, False),
+        ("/api/frame", {"X-Dtype", "X-Shape", "X-Frame", "X-Frame-Count", "X-Frame-Op"}, False),
         ("/api/mask", {"X-Dtype", "X-Shape", "X-Mask-Path"}, False),
-        ("/api/image", {"X-Dtype", "X-Shape", "X-Frame"}, False),
+        ("/api/image", {"X-Dtype", "X-Shape", "X-Frame", "X-Frame-Count", "X-Frame-Op"}, False),
         ("/api/simplon/monitor", {"X-Dtype", "X-Shape", "X-Frame"}, True),
         ("/api/simplon/mask", {"X-Dtype", "X-Shape"}, True),
         (

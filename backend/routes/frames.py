@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 from fastapi import FastAPI, HTTPException, Query
@@ -11,6 +11,11 @@ from fastapi.responses import Response
 
 from ..api_models import FrameMetadataResponse
 from ..image_formats import _to_little_endian
+from ..services.frame_window import (
+    MAX_FRAME_WINDOW,
+    frame_window_count,
+    reduce_frame_window,
+)
 from ..services.hdf5_open import (
     open_hdf5_for_read,
     open_hdf5_for_read_reporting_writer,
@@ -28,6 +33,11 @@ FRAME_RESPONSE_DOCS = octet_stream_responses(
         "X-Dtype": "NumPy dtype string for decoding the payload.",
         "X-Shape": "Comma-separated array dimensions (rows,cols).",
         "X-Frame": "0-based frame index returned by this request.",
+        "X-Frame-Count": (
+            "How many frames the payload combines: `count`, or fewer at the end of "
+            "the series. Sent only when `count` is above 1."
+        ),
+        "X-Frame-Op": "`sum` or `mean`; sent with `X-Frame-Count`.",
     },
 )
 
@@ -102,8 +112,16 @@ def register_frame_routes(app: FastAPI, deps: FrameRouteDeps) -> None:
         dataset: str = Query(..., min_length=1),
         index: int = Query(0, ge=0),
         threshold: int = Query(0, ge=0),
+        count: int = Query(1, ge=1, le=MAX_FRAME_WINDOW),
+        op: Literal["sum", "mean"] = Query("sum"),
     ) -> Response:
-        """Return one threshold-selected frame as raw little-endian bytes."""
+        """Return one threshold-selected frame as raw little-endian bytes.
+
+        With `count` above 1, the frames `index` to `index + count - 1` come
+        back added together (`op=sum`) or averaged (`op=mean`), as one frame;
+        at the end of the series the window holds fewer. Gap and defective
+        pixels stay marked: the type's maximum in a sum, NaN in a mean.
+        """
         deps.ensure_hdf5_stack()
         h5py = deps.get_h5py()
         path = deps.resolve_file(file)
@@ -113,16 +131,36 @@ def register_frame_routes(app: FastAPI, deps: FrameRouteDeps) -> None:
             except KeyError as exc:
                 raise HTTPException(status_code=404, detail="Dataset not found") from exc
             try:
-                frame_data = read_hdf5_array(
-                    path, lambda: deps.extract_frame(view, index=index, threshold=threshold)
-                )
+                window = 1
+                if count > 1 and int(view["ndim"]) >= 3:
+                    total = int(view["shape"][0])
+                    if index >= total:
+                        raise HTTPException(status_code=416, detail="Frame index out of range")
+                    window = frame_window_count(total, index, count)
+                if window > 1:
+                    frame_data = read_hdf5_array(
+                        path,
+                        lambda: reduce_frame_window(
+                            lambda i: deps.extract_frame(view, index=i, threshold=threshold),
+                            start=index,
+                            count=window,
+                            operation=op,
+                        ),
+                    )
+                else:
+                    frame_data = read_hdf5_array(
+                        path, lambda: deps.extract_frame(view, index=index, threshold=threshold)
+                    )
             finally:
                 for handle in extra_files:
                     handle.close()
 
             arr = _to_little_endian(np.asarray(frame_data))
             data = arr.tobytes(order="C")
-            headers = build_binary_headers(dtype=arr.dtype.str, shape=arr.shape, frame=index)
+            extra = {"X-Frame-Count": window, "X-Frame-Op": op} if count > 1 else None
+            headers = build_binary_headers(
+                dtype=arr.dtype.str, shape=arr.shape, frame=index, extra=extra
+            )
             return Response(content=data, media_type="application/octet-stream", headers=headers)
 
     @app.get("/api/mask", responses=MASK_RESPONSE_DOCS)

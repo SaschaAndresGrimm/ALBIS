@@ -13,6 +13,8 @@ import { t } from "./i18n.js";
 import { toScreenZoom } from "./screen_zoom.js";
 import { canExportAnimation } from "./command_availability.js";
 import { GifWriter } from "./gif_encoder.js";
+import { activeFrameSum, frameSumQuery } from "./frame_sum_utils.js";
+import { setControlAvailability } from "./control_availability.js";
 import {
   SCREEN_SCALE,
   exportScaleOptions,
@@ -90,8 +92,6 @@ export function createAnimationExportController({
     overlaysField,
     pixelValuesCheckbox,
     pixelValuesField,
-    overlaysHint,
-    pixelValuesHint,
     scaleSelect,
     summary,
     progress,
@@ -299,6 +299,27 @@ export function createAnimationExportController({
     });
   }
 
+  // With the view's Sum on, each animation frame is one window of it, and the
+  // windows follow each other: frames 1-20, 21-40, ... "Use every" next to
+  // the Sum made two settings that combined unseen (Use every 1 over Sum 20
+  // gave 1750 frames of 20 overlapping ones), so it gives way to what each
+  // frame is; the Sum menu changes it, as the tooltip says.
+  let stepOptions = null;
+  function followFrameSum() {
+    if (!frameStep) return;
+    const sum = activeFrameSum(state);
+    const label = frameStep.closest("label")?.querySelector("[data-i18n]");
+    stepOptions ??= Array.from(frameStep.options).map((opt) => opt.cloneNode(true));
+    const fixed = document.createElement("option");
+    fixed.value = String(sum);
+    fixed.textContent = t(state.frameSumOp === "mean" ? "frame_sum.footer.mean" : "frame_sum.footer.sum", { count: sum });
+    frameStep.replaceChildren(...(sum > 1 ? [fixed] : stepOptions));
+    frameStep.value = sum > 1 ? String(sum) : stepOptions.find((opt) => opt.selected)?.value || "1";
+    if (label) label.dataset.i18n = sum > 1 ? "animation_export.each_frame" : "animation_export.frame_step";
+    if (label) label.textContent = t(label.dataset.i18n);
+    setControlAvailability(frameStep, sum > 1 ? t("animation_export.each_frame_reason") : "");
+  }
+
   function setProgress(value, text) {
     const clamped = Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
     if (progress) progress.classList.toggle("is-loading", Boolean(state.animationExport.running));
@@ -312,14 +333,6 @@ export function createAnimationExportController({
 
   // Why an option is unavailable, written under it rather than left to a
   // hover nobody tries on a greyed-out box.
-  function showReason(field, hint, reason) {
-    if (hint) {
-      hint.textContent = reason;
-      if (field) field.title = "";
-    } else if (field) {
-      field.title = reason;
-    }
-  }
 
   function updateUi() {
     const ready = isReady();
@@ -352,8 +365,7 @@ export function createAnimationExportController({
       pixelValuesCheckbox.disabled = running || !ready || !pixelValues.available;
       pixelValuesCheckbox.checked = pixelValues.available && pixelValuesWanted;
     }
-    pixelValuesField?.classList.toggle("is-disabled", !pixelValues.available);
-    showReason(pixelValuesField, pixelValuesHint, pixelValues.reason);
+    setControlAvailability(pixelValuesField, pixelValues.reason);
     // Nothing to draw means nothing to offer: the checkbox greys out and says
     // why, rather than exporting a GIF that looks identical when ticked.
     const overlaysAvailable = Boolean(overlaySources());
@@ -361,8 +373,7 @@ export function createAnimationExportController({
       overlaysCheckbox.disabled = running || !ready || !overlaysAvailable;
       if (!overlaysAvailable) overlaysCheckbox.checked = false;
     }
-    overlaysField?.classList.toggle("is-disabled", !overlaysAvailable);
-    showReason(overlaysField, overlaysHint, overlaysAvailable ? "" : t("animation_export.overlays.unavailable"));
+    setControlAvailability(overlaysField, overlaysAvailable ? "" : t("animation_export.overlays.unavailable"));
     if (rangeStart) rangeStart.disabled = running || !ready || !showRange;
     if (rangeEnd) rangeEnd.disabled = running || !ready || !showRange;
     if (startBtn) {
@@ -454,17 +465,19 @@ export function createAnimationExportController({
     }
   }
 
+  // Each animation frame is what the view shows: with the Sum on, a window.
   function frameUrl(frameNumber) {
+    const sum = frameSumQuery(activeFrameSum(state), state.frameSumOp);
     const hasSeries = Array.isArray(state.seriesFiles) && state.seriesFiles.length > 0;
     if (hasSeries) {
       const file = state.seriesFiles[frameNumber];
-      return file ? `${apiBase}/image?file=${encodeURIComponent(file)}` : null;
+      return file ? `${apiBase}/image?file=${encodeURIComponent(file)}${sum}` : null;
     }
     if (!state.dataset) return null;
     const threshold = Number(state.thresholdCount) > 1 ? `&threshold=${state.thresholdIndex}` : "";
     return `${apiBase}/frame?file=${encodeURIComponent(state.file)}&dataset=${encodeURIComponent(
       state.dataset
-    )}&index=${frameNumber}${threshold}`;
+    )}&index=${frameNumber}${threshold}${sum}`;
   }
 
   async function fetchFrame(frameNumber, signal) {
@@ -750,6 +763,7 @@ export function createAnimationExportController({
     if (!state.animationExport.running) {
       setProgress(0, t("animation_export.progress.idle"));
       populateScales({ resetToDefault: true });
+      followFrameSum();
     }
     updateUi();
     openModal(modal, { focusTarget: startBtn });

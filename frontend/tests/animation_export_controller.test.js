@@ -447,3 +447,54 @@ describe("GIF export with pixel values", () => {
     expect(pixelValuesCheckbox.disabled).toBe(true);
   });
 });
+
+describe("animation_export_controller with the view's Sum on", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.doUnmock("../modules/gif_encoder.js");
+    delete global.fetch;
+  });
+
+  it("makes each animation frame the window the view shows", async () => {
+    await runExport({ stateOverrides: { frameSum: 2, frameSumOp: "mean", autoload: { mode: "file" } } });
+    const frameUrls = global.fetch.mock.calls.map(([url]) => String(url)).filter((url) => url.includes("/image?"));
+    expect(frameUrls.length).toBeGreaterThan(0);
+    frameUrls.forEach((url) => expect(url).toContain("&count=2&op=mean"));
+  });
+
+  it("shows what each frame is instead of Use every, and steps window by window", async () => {
+    vi.resetModules();
+    global.fetch = vi.fn(async () => ({ ok: true, json: async () => EN }));
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createAnimationExportController } = await import("../modules/animation_export_controller.js");
+    document.body.innerHTML = `<label class="field"><span data-i18n="animation_export.frame_step">Use every</span>
+      <select id="step"><option value="1" selected>1</option><option value="10">10</option><option value="25">25</option></select></label>
+      <div id="summary"></div>`;
+    const frameStep = document.getElementById("step");
+    const label = document.querySelector("label span");
+    const state = makeState({ file: "/data/s_0001.cbf", seriesFiles: Array.from({ length: 1750 }, (_, i) => `s_${i}.cbf`), frameCount: 1750, frameSum: 20, frameSumOp: "sum", autoload: { mode: "file" } });
+    const controller = createAnimationExportController({
+      apiBase: "/api",
+      state,
+      elements: { frameStep, summary: document.getElementById("summary") },
+      callbacks: { setStatus: vi.fn(), openModal: vi.fn(), closeModal: vi.fn() },
+    });
+    controller.openDialog();
+    // One fixed entry: no step that could make the windows overlap.
+    expect(label.textContent).toBe("Each frame");
+    expect([...frameStep.options].map((o) => o.textContent)).toEqual(["Sum of 20 frames"]);
+    expect(frameStep.dataset.helpReason).toBe(EN["animation_export.each_frame_reason"]);
+    // 1750 frames in windows of 20: 88 animation frames, not 1750.
+    expect(document.getElementById("summary").textContent).toMatch(/^88 frames/);
+
+    // Back to single frames: Use every and its choices return.
+    state.frameSum = 1;
+    controller.closeDialog();
+    controller.openDialog();
+    expect(label.textContent).toBe("Use every");
+    expect([...frameStep.options].map((o) => o.value)).toEqual(["1", "10", "25"]);
+    expect(frameStep.value).toBe("1");
+    expect(frameStep.dataset.helpReason).toBeUndefined();
+  });
+});

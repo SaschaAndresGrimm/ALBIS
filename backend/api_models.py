@@ -265,6 +265,10 @@ class DataExportStartRequest(_StrictModel):
     # those pixels become the type's highest value, counts that do not fit
     # are clipped one below it.
     data_type: Literal["auto", "uint16", "uint32"] = "auto"
+    # What the viewer's Sum shows: each window of `combine_count` frames written
+    # as one image, its sum or mean. 1 writes the frames themselves.
+    combine_count: int = Field(1, ge=1, le=1000)
+    combine_op: Literal["sum", "mean"] = "sum"
 
 
 class DataExportStartResponse(_StrictModel):

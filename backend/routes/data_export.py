@@ -87,6 +87,8 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
             flatfield=payload.flatfield.strip(),
             flatfield_scale=payload.flatfield_scale,
             data_type=payload.data_type,
+            combine_count=payload.combine_count,
+            combine_op=payload.combine_op,
         )
         return DataExportStartResponse(job_id=job_id, status="queued")
 

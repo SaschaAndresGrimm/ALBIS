@@ -461,6 +461,53 @@ input[type="range"]:disabled::-moz-range-thumb {
   min-height: var(--toolbar-control-h);
 }
 
+/* The Sum control while it is on: the image is not a single frame, which
+   must not be missed. */
+.frame-sum-btn.is-on {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+/* Its popover: the count with its stepper, the presets, Sum | Mean, and the
+   way back to a single frame, one row each. */
+.frame-sum-popover {
+  gap: 8px;
+  min-width: 196px;
+}
+
+.frame-sum-count {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted-strong);
+  font-size: var(--font-size-md);
+}
+
+.frame-sum-count input {
+  width: 6ch;
+}
+
+.frame-sum-presets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.frame-sum-ops {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.frame-sum-popover .tool-btn {
+  justify-content: center;
+}
+
+.toolbar-step select:disabled {
+  opacity: 0.6;
+}
+
 .toolbar-fps {
   display: flex;
   align-items: center;

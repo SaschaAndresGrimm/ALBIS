@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse, Response
@@ -22,6 +22,8 @@ from ..api_models import (
     SimplonProbeResponse,
 )
 from ..detector_profiles import ring_meta
+from ..image_formats import _resolve_series_files
+from ..services.frame_window import MAX_FRAME_WINDOW, reduce_frames, series_window_files
 from ..services.hdf5_open import HDF5_EXTS
 from .binary_response_utils import (
     add_optional_header,
@@ -35,6 +37,11 @@ IMAGE_RESPONSE_DOCS = octet_stream_responses(
         "X-Dtype": "NumPy dtype string for decoding the payload.",
         "X-Shape": "Comma-separated image dimensions.",
         "X-Frame": "0-based frame index returned by this request.",
+        "X-Frame-Count": (
+            "How many files of the series the payload combines: `count`, or fewer at "
+            "the end of the series. Sent only when `count` is above 1."
+        ),
+        "X-Frame-Op": "`sum` or `mean`; sent with `X-Frame-Count`.",
         "X-Image-DetectorDistance-MM": (
             "Optional detector distance in millimeters. For the DLS I23 PILATUS 12M"
             " (S/N 120-0100), whose header states an offset from the detector's"
@@ -137,39 +144,67 @@ class StreamRouteDeps:
     # The metadata files next to a data file, vetted against the data root, best
     # first: a data file's detector geometry may be in its collection's master.
     companion_files: Callable[[Path], list[Path]] = lambda _path: []
+    # The numbered files of the series a file belongs to, sorted, and its place
+    # in them: what `count` adds up. A default, so the tests' deps need not
+    # name it.
+    resolve_series_files: Callable[[Path], tuple[list[Path], int]] = _resolve_series_files
 
 
 def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
+    def _read_pixels(path: Path, ext: str, index: int) -> Any:
+        if ext in {".tif", ".tiff"}:
+            return deps.read_tiff(path, index=index)
+        if ext == ".cbf":
+            return deps.read_cbf(path)
+        if ext == ".cbf.gz":
+            return deps.read_cbf_gz(path)
+        if ext == ".edf":
+            return deps.read_edf(path)
+        raise HTTPException(status_code=400, detail="Unsupported image format")
+
+    def _read_meta(path: Path, ext: str) -> dict[str, Any]:
+        if ext in {".tif", ".tiff"}:
+            return deps.pilatus_meta_from_tiff(path)
+        return deps.pilatus_meta_from_fabio(path)
+
     @app.get("/api/image", responses=IMAGE_RESPONSE_DOCS)
     def image(
         file: str = Query(..., min_length=1),
         index: int = Query(0, ge=0),
+        count: int = Query(1, ge=1, le=MAX_FRAME_WINDOW),
+        op: Literal["sum", "mean"] = Query("sum"),
     ) -> Response:
-        """Read one detector image and return raw bytes plus acquisition headers."""
+        """Read one detector image and return raw bytes plus acquisition headers.
+
+        With `count` above 1, `file` and the next files of its numbered series
+        (one file per frame, as `GET /api/series` lists them) come back added
+        together (`op=sum`) or averaged (`op=mean`), as one image, with the
+        first file's acquisition headers. Gap and defective pixels stay
+        marked, as in `GET /api/frame`.
+        """
         path = deps.resolve_image_file(file)
         ext = deps.image_ext_name(path.name)
         meta: dict[str, Any] = {}
+        window = 1
         if ext in HDF5_EXTS:
             raise HTTPException(status_code=400, detail="Use /api/frame for HDF5 datasets")
         if ext in {".cfg", ".dat"}:
             arr, meta = deps.read_mythen_acquisition(path)
-        elif ext in {".tif", ".tiff"}:
-            arr = deps.read_tiff(path, index=index)
-            meta = deps.pilatus_meta_from_tiff(path)
-        elif ext == ".cbf":
-            arr = deps.read_cbf(path)
-            meta = deps.pilatus_meta_from_fabio(path)
-        elif ext == ".cbf.gz":
-            arr = deps.read_cbf_gz(path)
-            meta = deps.pilatus_meta_from_fabio(path)
-        elif ext == ".edf":
-            arr = deps.read_edf(path)
-            meta = deps.pilatus_meta_from_fabio(path)
         else:
-            raise HTTPException(status_code=400, detail="Unsupported image format")
+            files = [path]
+            if count > 1:
+                series, position = deps.resolve_series_files(path)
+                files = series_window_files(series, position, count) or [path]
+            window = len(files)
+            if window > 1:
+                arr = reduce_frames((_read_pixels(f, ext, index) for f in files), op)
+            else:
+                arr = _read_pixels(path, ext, index)
+            meta = _read_meta(path, ext)
 
         data = arr.tobytes(order="C")
-        headers = build_binary_headers(dtype=arr.dtype.str, shape=arr.shape, frame=0)
+        extra = {"X-Frame-Count": window, "X-Frame-Op": op} if count > 1 else None
+        headers = build_binary_headers(dtype=arr.dtype.str, shape=arr.shape, frame=0, extra=extra)
         if meta:
             deps.logger.debug("Image meta (%s): %s", path.name, meta)
             meta = ring_meta(meta)

@@ -178,6 +178,14 @@
   cursor: not-allowed;
 }
 
+/* A choice fixed by a setting elsewhere (Export Animation's "Each frame",
+   set by the Sum menu): dimmed less than an unavailable one, since what it
+   shows is worth reading, and hoverable for the tooltip that says where. */
+select.is-disabled {
+  opacity: 0.75;
+  cursor: default;
+}
+
 /* ALBIS draws its own checkbox: the browsers' dark native ones differ, and in
    some (Safari, several Chromium builds) an unticked box all but disappears
    on the dark panels. The hidden inputs behind switches and toggles are left

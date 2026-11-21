@@ -35,6 +35,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Session teardown and frame application flow.
 - `frontend/modules/frame_playback_controller.js`:
   - Frame status, controls, request queueing, and playback timing.
+- `frontend/modules/frame_sum_controller.js` + `frontend/modules/frame_sum_utils.js`:
+  - The toolbar's Sum control (several consecutive frames shown as one): its state, the step that follows it, the footer pill; the window, query and labels as pure helpers.
 - `frontend/modules/frame_metadata_controller.js`:
   - Autoload folders/files/metadata fetch orchestration.
 - `frontend/modules/render_engine_controller.js` + `frontend/modules/intensity_scale_utils.js`:
@@ -275,6 +277,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - The data-root-relative names `/api/series` returns, resolving the folder once rather than every file.
 - `backend/services/series_summing.py`:
   - Background job manager for series aggregation operations.
+- `backend/services/frame_window.py`:
+  - Consecutive frames summed or averaged per request for `GET /api/frame?count=N` and `GET /api/image?count=N` (a series of one file per frame), with gap pixels kept as markers.
 - `backend/services/series_output_files.py`, `backend/services/series_reduction.py`:
   - The two halves of the series job it inherits: where an output file goes and what metadata and geometry it carries; reducing a group of frames and the type the result is written in.
 - `backend/services/series_ops.py`:

@@ -2,6 +2,8 @@
  * Keyboard shortcut handlers.
  */
 
+import { activeFrameSum } from "./frame_sum_utils.js";
+
 function isFormElement(target) {
   if (!target) return false;
   if (target.isContentEditable) return true;
@@ -170,20 +172,27 @@ export function createShortcutHandlers({
     }
 
     switch (event.key) {
+      // Fewer or more frames in the Sum, along 1, 2, 5, 10, 20 ... 1000.
+      case "[":
+      case "]":
+        if (!core.frameSum?.stepFrameSum(event.key === "]" ? 1 : -1)) return false;
+        event.preventDefault();
+        return true;
       case "m":
       case "M":
         event.preventDefault();
         togglePanel();
         return true;
+      // One frame, or with the Sum on one step: the next window, as ◀ ▶ go.
       case "ArrowLeft":
         event.preventDefault();
         core.framePlayback?.stopPlayback();
-        requestFrame(state.frameIndex - 1);
+        requestFrame(state.frameIndex - (activeFrameSum(state) > 1 ? Math.max(1, state.step || 1) : 1));
         return true;
       case "ArrowRight":
         event.preventDefault();
         core.framePlayback?.stopPlayback();
-        requestFrame(state.frameIndex + 1);
+        requestFrame(state.frameIndex + (activeFrameSum(state) > 1 ? Math.max(1, state.step || 1) : 1));
         return true;
       case "ArrowUp": {
         event.preventDefault();

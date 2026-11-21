@@ -10,6 +10,7 @@
  */
 
 import { t } from "./i18n.js";
+import { setControlAvailability } from "./control_availability.js";
 import { toScreenZoom } from "./screen_zoom.js";
 import { canSaveImage } from "./command_availability.js";
 import {
@@ -47,8 +48,6 @@ export function createImageExportController({ state, elements, callbacks }) {
     overlaysField,
     pixelValuesCheckbox,
     pixelValuesField,
-    overlaysHint,
-    pixelValuesHint,
     summary,
     startBtn,
   } = elements;
@@ -170,14 +169,6 @@ export function createImageExportController({ state, elements, callbacks }) {
 
   // Why an option is unavailable, written under it rather than left to a
   // hover nobody tries on a greyed-out box.
-  function showReason(field, hint, reason) {
-    if (hint) {
-      hint.textContent = reason;
-      if (field) field.title = "";
-    } else if (field) {
-      field.title = reason;
-    }
-  }
 
   function updateUi() {
     const ready = canSaveImage(state);
@@ -194,15 +185,13 @@ export function createImageExportController({ state, elements, callbacks }) {
       overlaysCheckbox.disabled = !ready || !overlaysAvailable;
       if (!overlaysAvailable) overlaysCheckbox.checked = false;
     }
-    overlaysField?.classList.toggle("is-disabled", !overlaysAvailable);
-    showReason(overlaysField, overlaysHint, overlaysAvailable ? "" : t("image_export.overlays.unavailable"));
+    setControlAvailability(overlaysField, overlaysAvailable ? "" : t("image_export.overlays.unavailable"));
     const pixelValues = pixelValuesState();
     if (pixelValuesCheckbox) {
       pixelValuesCheckbox.disabled = !ready || !pixelValues.available;
       pixelValuesCheckbox.checked = pixelValues.available && pixelValuesWanted;
     }
-    pixelValuesField?.classList.toggle("is-disabled", !pixelValues.available);
-    showReason(pixelValuesField, pixelValuesHint, pixelValues.reason);
+    setControlAvailability(pixelValuesField, pixelValues.reason);
     if (startBtn) startBtn.disabled = !ready;
     updateSummary();
   }

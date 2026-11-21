@@ -4,6 +4,7 @@
 
 import { t } from "./i18n.js";
 import { MAX_PLAYBACK_FPS } from "./frame_playback_controller.js";
+import { FRAME_STEP_OPTIONS, MAX_FRAME_SUM } from "./frame_sum_utils.js";
 
 export function createThresholdPlaybackController({
   state,
@@ -12,7 +13,7 @@ export function createThresholdPlaybackController({
   callbacks,
   core,
 }) {
-  const { frameStepOptions } = constants;
+  const frameStepOptions = constants?.frameStepOptions || FRAME_STEP_OPTIONS;
 
   const {
     thresholdSelect,
@@ -153,7 +154,9 @@ export function createThresholdPlaybackController({
 
   function setFrameStep(value) {
     const parsed = Math.round(Number(value || 1));
-    const next = frameStepOptions.includes(parsed) ? parsed : frameStepOptions[0];
+    // Any whole step up to the largest sum, so the step can follow a sum of 3;
+    // the Sum control adds such a step to the lists before setting it.
+    const next = Number.isFinite(parsed) && parsed >= 1 && parsed <= MAX_FRAME_SUM ? parsed : frameStepOptions[0];
     state.step = next;
     if (frameStep) {
       frameStep.value = String(next);

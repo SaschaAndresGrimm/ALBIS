@@ -12,6 +12,7 @@ import { failureDetail } from "./http.js";
 import { setControlAvailability } from "./control_availability.js";
 import { autoExportType, dtypeBits, liveFrameDtype } from "./data_export_type_utils.js";
 import { fitMiddle, showEnd } from "./field_text_fit.js";
+import { activeFrameSum, frameSumExportCount, frameSumNameTag, frameSumWindow } from "./frame_sum_utils.js";
 
 function fileStem(path) {
   const normalized = String(path || "").replace(/\\/g, "/");
@@ -242,23 +243,35 @@ export function createDataExportController({
     for (const option of dataExportFrameMode.options || []) {
       if (!fileFrameLabels.has(option.value)) fileFrameLabels.set(option.value, option.textContent);
       if (option.value === "range") option.hidden = live;
-      if (option.value === "all") option.textContent = live ? t("data_export.frames.live_all", { count }) : fileFrameLabels.get("all");
-      if (option.value === "current") option.textContent = live ? t("data_export.frames.live_current") : fileFrameLabels.get("current");
+      if (option.value === "all") option.textContent = live ? t("data_export.frames.live_all", { count }) : sumLabel("all");
+      if (option.value === "current") option.textContent = live ? t("data_export.frames.live_current") : sumLabel("current");
+      if (option.value === "range") option.textContent = sumLabel("range");
     }
     if (live && dataExportFrameMode.value === "range") dataExportFrameMode.value = "current";
   }
 
   // Under the source line, for a live source only: what these images are.
+  // With the view's Sum on, what is written is what is shown: windows of frames.
+  function sumLabel(mode) {
+    const sum = activeFrameSum(state);
+    if (sum <= 1) return fileFrameLabels.get(mode);
+    if (mode !== "current") return t(`data_export.frames.${mode}_sum`, { count: sum });
+    const { start, end } = frameSumWindow(state.frameIndex, sum, state.frameCount);
+    return t("data_export.frames.current_sum", { start: start + 1, end: end + 1 });
+  }
+
   function syncLiveNote(live) {
     if (!dataExportSource) return;
-    if (!liveNote && live) {
+    const sum = live ? 1 : activeFrameSum(state);
+    const sumNote = sum > 1 ? t(`data_export.sum_note.${state.frameSumOp === "mean" ? "mean" : "sum"}`, { count: sum }) : "";
+    if (!liveNote && (live || sumNote)) {
       liveNote = document.createElement("p");
       liveNote.className = "data-export-live-note";
       dataExportSource.after?.(liveNote);
     }
     if (liveNote) {
-      liveNote.hidden = !live;
-      liveNote.textContent = live ? t("data_export.live_note") : "";
+      liveNote.hidden = !live && !sumNote;
+      liveNote.textContent = live ? t("data_export.live_note") : sumNote;
     }
   }
 
@@ -336,7 +349,10 @@ export function createDataExportController({
           : t("data_export.source.none");
       } else {
         const total = Math.round(Number(state.frameCount || 1));
-        const frame = total > 1 ? ` · ${t("data_export.source.frame", { n: Number(state.frameIndex || 0) + 1, total })}` : "";
+        // What is on screen, as the toolbar says it: with the Sum on, the window.
+        const { start, end, count } = frameSumWindow(state.frameIndex, activeFrameSum(state), total);
+        const shown = count > 1 ? t("data_export.source.frames", { start: start + 1, end: end + 1, total }) : t("data_export.source.frame", { n: start + 1, total });
+        const frame = total > 1 ? ` · ${shown}` : "";
         dataExportSource.textContent = state.file
           ? `${state.file}${state.dataset ? `  ${state.dataset}` : ""}${frame}`
           : t("data_export.source.none");
@@ -483,6 +499,8 @@ export function createDataExportController({
       inpaint_value: normalizeInpaintValue(state.inpaintValue),
       inpaint_noise: Boolean(state.inpaintNoise),
       ...flatfieldFields([state.height, state.width]),
+      combine_count: activeFrameSum(state),
+      combine_op: state.frameSumOp === "mean" ? "mean" : "sum",
       data_type: dataTypeChoice(),
     };
     if (!flatfieldWritable(payload)) return;
@@ -610,9 +628,10 @@ export function createDataExportController({
     const allThresholds = thresholds > 1 && String(dataExportThresholdMode?.value || "current").toLowerCase() === "all";
     const thr = thresholds > 1 ? `_thr${allThresholds ? "?" : Number(state.thresholdIndex || 0) + 1}` : "";
     const prefix = safeName(String(dataExportPrefix?.value || "").trim() || defaultOutputPrefix(state.file, state.dataset));
+    const sum = activeFrameSum(state);
     return {
-      count: frames * (allThresholds ? thresholds : 1),
-      names: `${prefix}${thr}_?????.${ext}`,
+      count: frameSumExportCount(mode, frames, sum) * (allThresholds ? thresholds : 1),
+      names: `${prefix}${frameSumNameTag(sum, state.frameSumOp)}${thr}_?????.${ext}`,
       pixels: Number(state.width || 0) * Number(state.height || 0),
       ext,
     };
