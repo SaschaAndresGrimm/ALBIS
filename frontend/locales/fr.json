@@ -11,6 +11,7 @@
   "about.title": "À propos d'ALBIS",
   "about.version": "Version {{version}}",
   "analysis.peaks.count_label": "Pics à détecter",
+  "analysis.peaks.d_title": "Calculé à partir de la géométrie du détecteur (Données → Géométrie du détecteur)",
   "analysis.peaks.enable_hint": "Activez « Recherche de pics » pour détecter les pics de diffraction.",
   "analysis.peaks.export_csv": "Exporter au format CSV",
   "analysis.peaks.load_frame": "Chargez une image pour détecter les pics.",

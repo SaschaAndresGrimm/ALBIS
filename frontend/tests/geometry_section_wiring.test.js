@@ -29,11 +29,14 @@ describe("Detector Geometry wiring", () => {
     expect(dataTab).toContain('id="detector-geometry-section"');
   });
 
-  it("shows the values in effect in both Resolution Rings and Peak Finder", () => {
+  it("shows the values in effect in Resolution Rings, not in Peak Finder", () => {
     const rings = html.slice(html.indexOf('data-section="resolution-rings"'), html.indexOf('data-section="peak-finder"'));
-    const peaks = html.slice(html.indexOf('data-section="peak-finder"'));
+    const peaks = html.slice(html.indexOf('data-section="peak-finder"'), html.indexOf('data-section="minmax-finder"'));
     expect(rings).toContain("data-geometry-inline");
-    expect(peaks).toContain("data-geometry-inline");
+    // Peak finding does not use the geometry; only the d column does, and its
+    // header's tooltip says where that comes from.
+    expect(peaks).not.toContain("data-geometry-inline");
+    expect(peaks).toContain('data-i18n-title="analysis.peaks.d_title"');
     // The old per-section fields must not come back beside the new ones.
     expect(html).not.toContain('id="rings-distance"');
     expect(html).not.toContain('id="rings-geometry-lock"');

@@ -11,6 +11,7 @@
   "about.title": "Davart ALBIS",
   "about.version": "Versiun {{version}}",
   "analysis.peaks.count_label": "Pizs da chattar",
+  "analysis.peaks.d_title": "Calculà a partir da la geometria dal detector (Datas → Geometria dal detector)",
   "analysis.peaks.enable_hint": "Activescha \"Tschertga pizs\" per detectar pizs da diffraziun.",
   "analysis.peaks.export_csv": "Exportar CSV",
   "analysis.peaks.load_frame": "Chargia in maletg per detectar pizs.",

@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **The Peak Finder no longer repeats the detector geometry.** Its section showed the same line as Resolution Rings (distance, pixel size, energy, beam centre, with **Edit**), although finding peaks does not use the geometry: only the table's **d (Å)** column does. With both sections open, the line appeared twice. Hold the mouse over the **d (Å)** header to see where the values come from (**Data → Detector Geometry**). The status line now says how many peaks were found "on this image" rather than "on this frame", which was wrong when several frames are shown added together.
+
 ## [0.48.0] - 2026-11-23
 
 ### Added

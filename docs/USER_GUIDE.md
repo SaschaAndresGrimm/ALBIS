@@ -831,8 +831,8 @@ the override on. What a geometry file has to contain, and how to make one, is
 in the [Power User Guide](POWER_USER_GUIDE.md#geometry-files).
 
 Because the override outlasts the image you set it for, the **Resolution Rings**
-and **Peak Finder** sections repeat the values in effect in one line, marked
-*manual* while the override is on. **Edit** there opens this section.
+section repeats the values in effect in one line, marked *manual* while the
+override is on. **Edit** there opens this section.
 
 The **PILATUS 12M at Diamond beamline I23** needs no geometry file. Its 24
 module rows sit on a half cylinder around the sample, which a file header cannot

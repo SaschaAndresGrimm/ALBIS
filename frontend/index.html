@@ -1389,20 +1389,6 @@
               <div class="section-state is-empty" id="peaks-state" role="status" aria-live="polite" data-i18n="peaks.state.enable_hint">
                 Enable Peak Finder to detect peaks.
               </div>
-              <div class="geometry-inline" data-geometry-inline>
-                <span class="geometry-inline-values" data-geometry-inline-values></span>
-                <span class="geometry-inline-manual is-hidden" data-geometry-inline-manual data-i18n="geometry.inline.manual">manual</span>
-                <button
-                  type="button"
-                  class="btn btn-secondary geometry-inline-edit"
-                  data-geometry-edit
-                  data-i18n="geometry.edit"
-                  data-i18n-title="geometry.edit_title"
-                  data-i18n-aria-label="geometry.edit_title"
-                >
-                  Edit
-                </button>
-              </div>
               <div class="peaks-controls">
                 <label class="field peaks-count-field">
                   <span data-i18n="analysis.peaks.count_label">Peaks to find</span>
@@ -1423,7 +1409,7 @@
                   <span>Y</span>
                   <span data-i18n="roi.plot.intensity">Intensity</span>
                   <span>SNR</span>
-                  <span data-i18n="roi.plot.d_axis">d (Å)</span>
+                  <span data-i18n="roi.plot.d_axis" data-i18n-title="analysis.peaks.d_title" title="Calculated from the detector geometry (Data → Detector Geometry)">d (Å)</span>
                 </div>
                 <div class="peaks-body" id="peaks-body">
                   <div class="peaks-empty" data-i18n="analysis.peaks.load_frame">Load a frame to detect peaks.</div>

@@ -11,6 +11,7 @@
   "about.title": "Über ALBIS",
   "about.version": "Version {{version}}",
   "analysis.peaks.count_label": "Aazahl Peaks",
+  "analysis.peaks.d_title": "Berächnet us de Detektorgeometrie (Date → Detektorgeometrie)",
   "analysis.peaks.enable_hint": "Aktivier „Peaks sueche“, zum Beugigspeaks z erkenne.",
   "analysis.peaks.export_csv": "CSV exportiere",
   "analysis.peaks.load_frame": "Lad es Bild, zum Peaks z erkenne.",
