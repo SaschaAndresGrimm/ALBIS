@@ -15,6 +15,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - **The Peak Finder no longer repeats the detector geometry.** Its section showed the same line as Resolution Rings (distance, pixel size, energy, beam centre, with **Edit**), although finding peaks does not use the geometry: only the table's **d (Å)** column does. With both sections open, the line appeared twice. Hold the mouse over the **d (Å)** header to see where the values come from (**Data → Detector Geometry**). The status line now says how many peaks were found "on this image" rather than "on this frame", which was wrong when several frames are shown added together.
 
+### Fixed
+
+- **The focus ring of the first and last field in a side-panel section is no longer cut off.** A section's content clips at its edges, for the fade when it opens and closes, and the fields in its first and last row reached those edges, so the blue ring of the focused field lost its top or bottom (the Data Source field, for one). The content now has room for the ring; nothing in the panel moves.
+
 ## [0.48.0] - 2026-11-23
 
 ### Added

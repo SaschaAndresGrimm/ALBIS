@@ -652,6 +652,16 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
     transform 90ms var(--motion-ease-standard);
 }
 
+/* The content clips (overflow: hidden, for the fade), so the 3px focus ring
+   of a field in its first or last row was cut off at the top and bottom.
+   Room for the ring inside, taken back outside: the layout does not move. */
+.panel-section:not(.is-collapsed) > .section-content {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  margin-top: -4px;
+  margin-bottom: -4px;
+}
+
 .panel-section.is-collapsed > .section-content {
   max-height: 0;
   opacity: 0;
