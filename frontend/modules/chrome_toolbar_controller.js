@@ -2,6 +2,7 @@
  * Toolbar, footer, and chrome-idle UI state controller.
  */
 
+import { sourceChipIsModeOnly } from "./data_source_utils.js";
 import { t } from "./i18n.js";
 import { toScreenZoom } from "./screen_zoom.js";
 import { copyText } from "./clipboard_copy.js";
@@ -346,9 +347,16 @@ export function createChromeToolbarController({
   function updateDataSourceSummary() {
     if (!dataSourceSummaryEl) return;
     const mode = (state.autoload.mode || "file").toLowerCase();
+    dataSourceSummaryEl.classList.toggle("is-mode-only", sourceChipIsModeOnly(state.autoload));
     if (mode === "file") {
-      // The mode only: the file's name is in the title bar, the Image File
-      // field and the File Inspector already.
+      // The mode, and whether a folder is watched: the file's name is in the
+      // title bar, the Image File field and the File Inspector already.
+      if (state.autoload.watchEnabled) {
+        const watching = Boolean(state.autoload.running);
+        const label = t(watching ? "toolbar.datasource.state.watching" : "toolbar.datasource.state.idle");
+        setSummaryChip(dataSourceSummaryEl, `${t("toolbar.datasource.file")} · ${label}`, watching ? "active" : "default");
+        return;
+      }
       setSummaryChip(dataSourceSummaryEl, t("toolbar.datasource.file"), state.file ? "active" : "default");
       return;
     }

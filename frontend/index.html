@@ -598,6 +598,13 @@
                   <option value="jungfraujoch" data-i18n="data_source.option.jungfraujoch_preview">JUNGFRAUJOCH Preview</option>
                 </select>
               </label>
+              <label class="field" id="filesystem-field">
+                <span data-i18n="data_source.field.file_system">File System</span>
+                <select id="filesystem-mode">
+                  <option value="remote" data-i18n="data_source.option.remote_server">Remote Server</option>
+                  <option value="local" selected data-i18n="data_source.option.local_machine">Local Machine</option>
+                </select>
+              </label>
               <div class="autoload-group" id="autoload-folder">
                 <label class="field">
                   <span data-i18n="data_source.field.folder">Folder</span>
@@ -632,6 +639,41 @@
                   </div>
                   <datalist id="autoload-dir-list"></datalist>
                 </label>
+              </div>
+              <div class="autoload-group" id="autoload-watch">
+                <div class="source-row">
+                  <label class="checkbox">
+                    <input id="autoload-watch-enabled" type="checkbox" />
+                    <span data-i18n="data_source.watch.folder">Watch folder</span>
+                  </label>
+                  <span class="field-hint" data-i18n="data_source.watch.hint">Opens the newest matching file as it appears.</span>
+                </div>
+                <div class="autoload-group" id="autoload-watch-options">
+                  <label class="field">
+                    <span data-i18n="data_source.field.filename_pattern">Filename pattern</span>
+                    <input id="autoload-pattern" type="text" placeholder="*.h5 or *master*" data-i18n-placeholder="data_source.placeholder.pattern" />
+                  </label>
+                  <div class="source-row">
+                    <div class="check-row" id="autoload-types">
+                      <label class="checkbox">
+                        <input id="autoload-type-hdf5" type="checkbox" checked />
+                        HDF5
+                      </label>
+                      <label class="checkbox">
+                        <input id="autoload-type-tiff" type="checkbox" checked />
+                        TIFF
+                      </label>
+                      <label class="checkbox">
+                        <input id="autoload-type-cbf" type="checkbox" checked />
+                        CBF
+                      </label>
+                    </div>
+                  </div>
+                  <label class="field">
+                    <span data-i18n="data_source.field.poll_ms">Poll (ms)</span>
+                    <input id="autoload-interval" type="number" min="200" step="100" value="1000" />
+                  </label>
+                </div>
               </div>
               <label class="field" id="file-field">
                 <span data-i18n="data_source.field.image_file">Image File</span>
@@ -678,116 +720,55 @@
               <div class="autoload-group is-hidden" id="autoload-simplon">
                 <label class="field">
                   <span class="field-label-row"><span data-i18n="data_source.field.base_url">Base URL</span><button type="button" class="info-tip" data-info-key="info.simplon.url" aria-label="More information" data-i18n-aria-label="info.button_label"></button></span>
-                  <div class="inline autoload-source-inline">
-                    <input
-                      id="simplon-url"
-                      type="text"
-                      placeholder="192.168.1.10 or detector.example.com"
-                      data-i18n-placeholder="data_source.placeholder.simplon_url"
-                    />
-                    <button
-                      class="btn btn-secondary simplon-test-btn"
-                      id="simplon-test"
-                      type="button"
-                      title="Test connection"
-                      data-i18n-title="data_source.action.test_connection"
-                      data-i18n="data_source.action.test"
-                    >
-                      Test
-                    </button>
-                  </div>
+                  <input
+                    id="simplon-url"
+                    type="text"
+                    placeholder="192.168.1.10 or detector.example.com"
+                    data-i18n-placeholder="data_source.placeholder.simplon_url"
+                  />
                 </label>
-                <p
-                  class="simplon-probe-message is-hidden"
-                  id="simplon-probe-message"
-                  role="status"
-                  aria-live="polite"
-                ></p>
-                <label class="checkbox">
-                  <input id="simplon-enable" type="checkbox" checked />
-                  <span data-i18n="data_source.monitor.enable">Enable monitor</span>
-                </label>
-              </div>
-              <div id="autoload-status-primary-slot">
-                <div class="autoload-group autoload-status-block is-hidden" id="autoload-status-block">
-                  <div class="autoload-meta">
-                    <div class="meta-row"><span data-i18n="data_source.meta.last_poll">Last poll</span><strong id="autoload-status">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.last_image">Last image</span><strong id="autoload-latest">-</strong></div>
-                  </div>
-                  <div class="simplon-meta is-hidden" id="simplon-meta">
-                    <div class="meta-row"><span data-i18n="data_source.meta.series">Series</span><strong id="simplon-series">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.image">Image</span><strong id="simplon-image">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.timestamp">Timestamp</span><strong id="simplon-time">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.energy_ev">Energy (eV)</span><strong id="simplon-energy">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.threshold_ev">Threshold (eV)</span><strong id="simplon-threshold">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.wavelength_a">Wavelength (Å)</span><strong id="simplon-wavelength">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.distance_mm">Distance (mm)</span><strong id="simplon-distance">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.beam_center_px">Beam center (px)</span><strong id="simplon-center">-</strong></div>
-                  </div>
-                  <div class="remote-meta is-hidden" id="remote-meta">
-                    <div class="meta-row"><span data-i18n="data_source.meta.source">Source</span><strong id="remote-source">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.sequence">Sequence</span><strong id="remote-seq">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.series">Series</span><strong id="remote-series">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.image">Image</span><strong id="remote-image">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.timestamp">Timestamp</span><strong id="remote-time">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.energy_ev">Energy (eV)</span><strong id="remote-energy">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.wavelength_a">Wavelength (Å)</span><strong id="remote-wavelength">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.distance_mm">Distance (mm)</span><strong id="remote-distance">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.beam_center_px">Beam center (px)</span><strong id="remote-center">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.peak_sets">Peak sets</span><strong id="remote-peak-sets">-</strong></div>
-                  </div>
-                  <div class="remote-meta is-hidden" id="jfjoch-meta">
-                    <div class="meta-row"><span data-i18n="data_source.meta.source">Source</span><strong id="jfjoch-source">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.sequence">Sequence</span><strong id="jfjoch-seq">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.series">Series</span><strong id="jfjoch-series">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.image">Image</span><strong id="jfjoch-image">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.timestamp">Timestamp</span><strong id="jfjoch-time">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.reflections">Reflections</span><strong id="jfjoch-reflections">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.channel">Channel</span><strong id="jfjoch-channel-meta">-</strong></div>
-                    <div class="meta-row"><span data-i18n="data_source.meta.bridge_status">Bridge status</span><strong id="jfjoch-bridge-status">-</strong></div>
-                  </div>
+                <div class="source-row source-test-row">
+                  <button
+                    class="btn btn-secondary simplon-test-btn"
+                    id="simplon-test"
+                    type="button"
+                    title="Test connection"
+                    data-i18n-title="data_source.action.test_connection"
+                    data-i18n="data_source.action.test"
+                  >
+                    Test
+                  </button>
+                  <p class="simplon-probe-message is-hidden" id="simplon-probe-message" role="status" aria-live="polite"></p>
+                </div>
+                <div class="source-row">
+                  <label class="checkbox">
+                    <input id="simplon-enable" type="checkbox" checked />
+                    <span data-i18n="data_source.monitor.enable">Enable monitor</span>
+                  </label>
                 </div>
               </div>
-              <details class="advanced-details">
-                <summary data-i18n="data_source.advanced.title">Advanced source settings</summary>
+              <div class="autoload-group is-hidden" id="autoload-jfjoch">
+                <label class="field">
+                  <span data-i18n="data_source.field.preview_endpoint">Preview Endpoint</span>
+                  <input id="jfjoch-preview-endpoint" type="text" placeholder="tcp://127.0.0.1:31003" />
+                </label>
+                <div class="source-row source-test-row">
+                  <button
+                    class="btn btn-secondary simplon-test-btn"
+                    id="jfjoch-test"
+                    type="button"
+                    title="Test connection"
+                    data-i18n-title="data_source.action.test_connection"
+                    data-i18n="data_source.action.test"
+                  >
+                    Test
+                  </button>
+                  <p class="simplon-probe-message is-hidden" id="jfjoch-probe-message" role="status" aria-live="polite"></p>
+                </div>
+              </div>
+              <details class="advanced-details is-hidden" id="source-options">
+                <summary data-i18n="data_source.options.title">Connection options</summary>
                 <div class="advanced-inner">
-                  <label class="field" id="filesystem-field">
-                    <span data-i18n="data_source.field.file_system">File System</span>
-                    <select id="filesystem-mode">
-                      <option value="remote" data-i18n="data_source.option.remote_server">Remote Server</option>
-                      <option value="local" selected data-i18n="data_source.option.local_machine">Local Machine</option>
-                    </select>
-                  </label>
-                  <div class="autoload-group" id="autoload-watch">
-                    <label class="checkbox">
-                      <input id="autoload-watch-enabled" type="checkbox" />
-                      <span data-i18n="data_source.watch.folder">Watch folder</span>
-                    </label>
-                    <div id="autoload-watch-options">
-                      <label class="field">
-                        <span data-i18n="data_source.field.poll_ms">Poll (ms)</span>
-                        <input id="autoload-interval" type="number" min="200" step="100" value="1000" />
-                      </label>
-                      <label class="field">
-                        <span data-i18n="data_source.field.filename_pattern">Filename pattern</span>
-                        <input id="autoload-pattern" type="text" placeholder="*.h5 or *master*" data-i18n-placeholder="data_source.placeholder.pattern" />
-                      </label>
-                      <div class="check-row" id="autoload-types">
-                        <label class="checkbox">
-                          <input id="autoload-type-hdf5" type="checkbox" checked />
-                          HDF5
-                        </label>
-                        <label class="checkbox">
-                          <input id="autoload-type-tiff" type="checkbox" checked />
-                          TIFF
-                        </label>
-                        <label class="checkbox">
-                          <input id="autoload-type-cbf" type="checkbox" checked />
-                          CBF
-                        </label>
-                      </div>
-                    </div>
-                  </div>
                   <div class="autoload-group is-hidden" id="autoload-simplon-advanced">
                     <label class="field">
                       <span data-i18n="data_source.field.api_version">API Version</span>
@@ -808,29 +789,7 @@
                       <input id="remote-interval" type="number" min="100" step="100" value="1000" />
                     </label>
                   </div>
-                  <div class="autoload-group is-hidden" id="autoload-jfjoch">
-                    <label class="field">
-                      <span data-i18n="data_source.field.preview_endpoint">Preview Endpoint</span>
-                      <div class="inline autoload-source-inline">
-                        <input id="jfjoch-preview-endpoint" type="text" placeholder="tcp://127.0.0.1:31003" />
-                        <button
-                          class="btn btn-secondary simplon-test-btn"
-                          id="jfjoch-test"
-                          type="button"
-                          title="Test connection"
-                          data-i18n-title="data_source.action.test_connection"
-                          data-i18n="data_source.action.test"
-                        >
-                          Test
-                        </button>
-                      </div>
-                    </label>
-                    <p
-                      class="simplon-probe-message is-hidden"
-                      id="jfjoch-probe-message"
-                      role="status"
-                      aria-live="polite"
-                    ></p>
+                  <div class="autoload-group is-hidden" id="autoload-jfjoch-advanced">
                     <label class="field">
                       <span data-i18n="data_source.field.source_id">Source ID</span>
                       <input id="jfjoch-source-id" type="text" value="jungfraujoch" placeholder="jungfraujoch" />
@@ -848,9 +807,46 @@
                       <input id="jfjoch-interval" type="number" min="100" step="100" value="250" />
                     </label>
                   </div>
-                  <div id="autoload-status-advanced-slot"></div>
                 </div>
               </details>
+              <div class="autoload-group autoload-status-block is-hidden" id="autoload-status-block">
+                <div class="autoload-meta">
+                  <div class="meta-row"><span data-i18n="data_source.meta.last_poll">Last poll</span><strong id="autoload-status">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.last_image">Last image</span><strong id="autoload-latest">-</strong></div>
+                </div>
+                <div class="simplon-meta is-hidden" id="simplon-meta">
+                  <div class="meta-row"><span data-i18n="data_source.meta.series">Series</span><strong id="simplon-series">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.image">Image</span><strong id="simplon-image">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.timestamp">Timestamp</span><strong id="simplon-time">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.energy_ev">Energy (eV)</span><strong id="simplon-energy">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.threshold_ev">Threshold (eV)</span><strong id="simplon-threshold">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.wavelength_a">Wavelength (Å)</span><strong id="simplon-wavelength">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.distance_mm">Distance (mm)</span><strong id="simplon-distance">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.beam_center_px">Beam center (px)</span><strong id="simplon-center">-</strong></div>
+                </div>
+                <div class="remote-meta is-hidden" id="remote-meta">
+                  <div class="meta-row"><span data-i18n="data_source.meta.source">Source</span><strong id="remote-source">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.sequence">Sequence</span><strong id="remote-seq">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.series">Series</span><strong id="remote-series">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.image">Image</span><strong id="remote-image">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.timestamp">Timestamp</span><strong id="remote-time">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.energy_ev">Energy (eV)</span><strong id="remote-energy">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.wavelength_a">Wavelength (Å)</span><strong id="remote-wavelength">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.distance_mm">Distance (mm)</span><strong id="remote-distance">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.beam_center_px">Beam center (px)</span><strong id="remote-center">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.peak_sets">Peak sets</span><strong id="remote-peak-sets">-</strong></div>
+                </div>
+                <div class="remote-meta is-hidden" id="jfjoch-meta">
+                  <div class="meta-row"><span data-i18n="data_source.meta.source">Source</span><strong id="jfjoch-source">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.sequence">Sequence</span><strong id="jfjoch-seq">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.series">Series</span><strong id="jfjoch-series">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.image">Image</span><strong id="jfjoch-image">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.timestamp">Timestamp</span><strong id="jfjoch-time">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.reflections">Reflections</span><strong id="jfjoch-reflections">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.channel">Channel</span><strong id="jfjoch-channel-meta">-</strong></div>
+                  <div class="meta-row"><span data-i18n="data_source.meta.bridge_status">Bridge status</span><strong id="jfjoch-bridge-status">-</strong></div>
+                </div>
+              </div>
             </section>
             <section class="panel-section is-collapsed" data-section="detector-geometry" id="detector-geometry-section">
               <button class="section-title" type="button" data-section-toggle>

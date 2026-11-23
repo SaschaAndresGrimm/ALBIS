@@ -110,14 +110,13 @@ describe("autoload_settings_controller", () => {
     expect(toolbarMoreFpsField.classList.contains("is-hidden")).toBe(true);
   });
 
-  it("keeps SIMPLON primary controls and live info outside advanced settings", async () => {
+  it("keeps SIMPLON primary controls and live info outside the connection options", async () => {
     const { createAutoloadSettingsController } = await import("../modules/autoload_settings_controller.js");
 
     const autoloadSimplon = document.createElement("div");
     const autoloadSimplonAdvanced = document.createElement("div");
     const autoloadStatusBlock = document.createElement("div");
-    const autoloadStatusPrimarySlot = document.createElement("div");
-    const autoloadStatusAdvancedSlot = document.createElement("div");
+    const sourceOptions = document.createElement("details");
     const autoloadStatus = document.createElement("div");
     const autoloadMeta = document.createElement("div");
     const simplonMetaPanel = document.createElement("div");
@@ -129,7 +128,6 @@ describe("autoload_settings_controller", () => {
     autoloadMeta.className = "autoload-meta";
     autoloadMeta.appendChild(autoloadStatus);
     autoloadStatusBlock.appendChild(autoloadMeta);
-    autoloadStatusPrimarySlot.appendChild(autoloadStatusBlock);
     simplonMetaPanel.className = "simplon-meta is-hidden";
 
     const state = {
@@ -155,8 +153,7 @@ describe("autoload_settings_controller", () => {
         autoloadSimplon,
         autoloadSimplonAdvanced,
         autoloadStatusBlock,
-        autoloadStatusPrimarySlot,
-        autoloadStatusAdvancedSlot,
+        sourceOptions,
         autoloadRemote: null,
         autoloadJfjoch: null,
         filesystemField,
@@ -203,7 +200,7 @@ describe("autoload_settings_controller", () => {
 
     expect(autoloadSimplon.classList.contains("is-hidden")).toBe(false);
     expect(autoloadSimplonAdvanced.classList.contains("is-hidden")).toBe(false);
-    expect(autoloadStatusBlock.parentElement).toBe(autoloadStatusPrimarySlot);
+    expect(sourceOptions.classList.contains("is-hidden")).toBe(false);
     expect(autoloadStatusBlock.classList.contains("is-hidden")).toBe(false);
     expect(autoloadMeta.classList.contains("is-hidden")).toBe(false);
     expect(simplonMetaPanel.classList.contains("is-hidden")).toBe(false);
@@ -214,7 +211,8 @@ describe("autoload_settings_controller", () => {
 
     expect(autoloadSimplon.classList.contains("is-hidden")).toBe(true);
     expect(autoloadSimplonAdvanced.classList.contains("is-hidden")).toBe(true);
-    expect(autoloadStatusBlock.parentElement).toBe(autoloadStatusAdvancedSlot);
+    // A file has no connection options: watching is set up beside the folder.
+    expect(sourceOptions.classList.contains("is-hidden")).toBe(true);
     expect(autoloadStatusBlock.classList.contains("is-hidden")).toBe(true);
   });
 });

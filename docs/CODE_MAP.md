@@ -65,6 +65,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Where the histogram's BG and FG captions go, so they never cover each other (pure).
 - `frontend/modules/autoload_mode_controller.js`, `autoload_orchestration_controller.js`, `autoload_settings_controller.js`, `autoload_status_controller.js`:
   - Autoload: the file-watch and SIMPLON runtime, the start/stop/tick state machine, settings persistence and UI sync, and the status/meta labels.
+- `frontend/modules/data_source_utils.js`:
+  - What the Data Source section's header says about the chosen source, and which address a live source still needs before it can start (pure).
 - `frontend/modules/file_browser.js` + `frontend/modules/file_browser_renderer.js` + `frontend/modules/file_browser_bindings.js` + `frontend/modules/file_browser_utils.js`:
   - File browser modal: state, browse requests and selection; the breadcrumb, folder and file lists (List and Details view); the modal's listeners and keyboard navigation; and the pure helpers (extension filters, natural sort, path splitting, local series grouping, size formatting).
 - `frontend/modules/flatfield.js` + `frontend/modules/flatfield_controller.js` + `backend/services/flatfield.py`:

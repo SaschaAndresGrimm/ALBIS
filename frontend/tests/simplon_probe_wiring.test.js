@@ -131,7 +131,7 @@ describe("SIMPLON connection test wiring", () => {
       analysisState: {},
       backendIsLocal: true,
       elements: { simplonUrl, simplonTest, simplonProbeMessage, simplonVersion },
-      callbacks: { persistAutoloadSettings, logClient: vi.fn() },
+      callbacks: { persistAutoloadSettings, updateAutoloadUI: vi.fn(), logClient: vi.fn() },
     });
 
     simplonTest.click();

@@ -2,6 +2,7 @@
  * Autoload settings persistence and UI synchronization.
  */
 
+import { dataSourceSectionState } from "./data_source_utils.js";
 import { t } from "./i18n.js";
 import { normalizeJfjochEndpoint } from "./jfjoch_endpoint_utils.js";
 import { normalizeSimplonBaseUrl } from "./simplon_url_utils.js";
@@ -22,10 +23,10 @@ export function createAutoloadSettingsController({
     autoloadSimplon,
     autoloadSimplonAdvanced,
     autoloadStatusBlock,
-    autoloadStatusPrimarySlot,
-    autoloadStatusAdvancedSlot,
     autoloadRemote,
     autoloadJfjoch,
+    autoloadJfjochAdvanced,
+    sourceOptions,
     filesystemField,
     fileField,
     datasetField,
@@ -73,14 +74,6 @@ export function createAutoloadSettingsController({
     isBackendLocal = () => false,
   } = callbacks;
 
-  function placeAutoloadStatusBlock() {
-    if (!autoloadStatusBlock) return;
-    const target = state.autoload.mode === "simplon" ? autoloadStatusPrimarySlot : autoloadStatusAdvancedSlot;
-    if (target && autoloadStatusBlock.parentElement !== target) {
-      target.appendChild(autoloadStatusBlock);
-    }
-  }
-
   function persistAutoloadSettings() {
     try {
       const payload = {
@@ -109,7 +102,6 @@ export function createAutoloadSettingsController({
   }
 
   function updateAutoloadUI() {
-    placeAutoloadStatusBlock();
     if (autoloadMode) autoloadMode.value = state.autoload.mode;
     if (autoloadFolder) {
       autoloadFolder.classList.toggle(
@@ -129,6 +121,12 @@ export function createAutoloadSettingsController({
     }
     if (autoloadRemote) autoloadRemote.classList.toggle("is-hidden", state.autoload.mode !== "remote");
     if (autoloadJfjoch) autoloadJfjoch.classList.toggle("is-hidden", state.autoload.mode !== "jungfraujoch");
+    if (autoloadJfjochAdvanced) {
+      autoloadJfjochAdvanced.classList.toggle("is-hidden", state.autoload.mode !== "jungfraujoch");
+    }
+    // A file has no connection options: watching a folder is set up beside
+    // the folder itself.
+    if (sourceOptions) sourceOptions.classList.toggle("is-hidden", state.autoload.mode === "file");
     if (filesystemField) {
       filesystemField.classList.toggle("is-hidden", Boolean(isBackendLocal()) || state.autoload.mode !== "file");
     }
@@ -183,28 +181,8 @@ export function createAutoloadSettingsController({
     updateThresholdOptions();
     updatePlayButtons();
     updateDataSourceSummary();
-    if (state.autoload.mode === "file") {
-      setDataSourceSectionState(
-        state.file ? "active" : "empty",
-        state.file ? { key: "data_source.state.file_mode_ready" } : { key: "data_source.state.select_file_to_begin" },
-      );
-    } else if (state.autoload.running) {
-      const label =
-        state.autoload.mode === "simplon"
-          ? { key: "data_source.state.simplon_active" }
-          : state.autoload.mode === "jungfraujoch"
-            ? { key: "data_source.state.jfjoch_active" }
-            : { key: "data_source.state.remote_active" };
-      setDataSourceSectionState("active", label);
-    } else {
-      const label =
-        state.autoload.mode === "simplon"
-          ? { key: "data_source.state.configure_simplon" }
-          : state.autoload.mode === "jungfraujoch"
-            ? { key: "data_source.state.configure_jfjoch" }
-            : { key: "data_source.state.configure_remote" };
-      setDataSourceSectionState("empty", label);
-    }
+    const sectionState = dataSourceSectionState(state.autoload, Boolean(state.file));
+    setDataSourceSectionState(sectionState.tone, { key: sectionState.key });
   }
 
   function loadAutoloadSettings() {

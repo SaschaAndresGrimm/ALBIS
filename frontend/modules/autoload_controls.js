@@ -4,6 +4,7 @@
  * This module keeps event wiring separate from app-level orchestration logic.
  */
 
+import { missingSourceAddress } from "./data_source_utils.js";
 import { attachDetectorPicker } from "./detector_picker.js";
 import { createJfjochProbeController } from "./jfjoch_probe_controller.js";
 import { normalizeJfjochEndpointInput } from "./jfjoch_endpoint_utils.js";
@@ -66,6 +67,11 @@ export function bindAutoloadControls({
     state.autoload.mode = nextMode;
     updateAutoloadUI();
     persistAutoloadSettings();
+    // A live source chosen without its address: the cursor goes where it is
+    // typed, which the section's state badge asks for too.
+    const missing = missingSourceAddress(state.autoload);
+    if (missing === "simplon_address") simplonUrl?.focus();
+    if (missing === "jfjoch_endpoint") jfjochEndpointInput?.focus();
     if (state.autoload.mode === "file") {
       core.frameMetadata?.loadFiles().catch((err) => console.error(err));
       if (state.autoload.watchEnabled) {
@@ -173,6 +179,8 @@ export function bindAutoloadControls({
     state.autoload.jfjochEndpoint = normalizeJfjochEndpointInput(jfjochEndpointInput);
     jfjochProbeController.clearJfjochProbeMessage();
     persistAutoloadSettings();
+    // The header asked for the endpoint while it was empty.
+    updateAutoloadUI();
     if (state.autoload.running && state.autoload.mode === "jungfraujoch") {
       core.autoloadOrchestration.startAutoload();
     }
@@ -261,6 +269,7 @@ export function bindAutoloadControls({
     onPick: () => {
       state.autoload.simplonUrl = normalizeSimplonUrlInput(simplonUrl);
       persistAutoloadSettings();
+      updateAutoloadUI();
       void simplonProbeController.probeSimplonConnection();
     },
   });
@@ -272,6 +281,8 @@ export function bindAutoloadControls({
     // A previous test result no longer describes the address on screen.
     simplonProbeController.clearSimplonProbeMessage();
     persistAutoloadSettings();
+    // The header asked for the address while it was empty.
+    updateAutoloadUI();
   });
 
   simplonTest?.addEventListener("click", () => {
@@ -284,6 +295,7 @@ export function bindAutoloadControls({
       event.preventDefault();
       state.autoload.simplonUrl = normalizeSimplonUrlInput(simplonUrl);
       persistAutoloadSettings();
+      updateAutoloadUI();
       void simplonProbeController.probeSimplonConnection();
     }
   });

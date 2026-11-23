@@ -1048,9 +1048,17 @@ is what **Flatfield** does, for any image, with its masking and scales.
 
 The **Data** tab's source selector switches between file and live modes.
 
-**Watch folder** polls a directory and loads the newest matching file. Choose
-which file types to watch and, if you need it, a filename pattern. Use this when
-another program is writing frames to disk.
+**Watch folder**, under **Folder** when the source is **File**, polls the folder
+and opens the newest matching file as it appears. Switched on, it shows a
+filename pattern, the file types to watch and the poll interval. Use this when
+another program is writing frames to disk; the section's header then says
+**File · watching**.
+
+A live source that needs an address (SIMPLON's **Base URL**, JUNGFRAUJOCH's
+**Preview Endpoint**) asks for it in the section's header, and the cursor goes
+into the field. Settings that can usually stay at their defaults are under
+**Connection options**: SIMPLON's API version and timeout, and the source ID,
+topic, channel and poll interval of the streams.
 
 **SIMPLON monitor** reads the live monitor image straight from a DECTRIS
 detector. Enter the hostname or IP — `http://` and port 80 are filled in for
@@ -1063,10 +1071,10 @@ listed under the field — see [Known detectors](#known-detectors).
 ![The Data Source section set to SIMPLON Monitor, after a successful Test naming the detector and its serial number](images/user-guide/simplon-test.webp)
 
 **JUNGFRAUJOCH Preview** subscribes to a JUNGFRAUJOCH ZeroMQ preview stream and
-draws its indexed and unindexed reflections over the image. Enter `host:port`;
-`tcp://` is filled in, but there is no default preview port so the port is
-required. **Test** checks the port accepts connections — frames confirm once the
-preview starts.
+draws its indexed and unindexed reflections over the image. Enter `host:port` in
+**Preview Endpoint**; `tcp://` is filled in, but there is no default preview
+port so the port is required. **Test** checks the port accepts connections —
+frames confirm once the preview starts.
 
 **Remote stream** displays frames pushed to ALBIS by your own script through the
 Remote Stream API, including any peak overlays the script supplies. See the

@@ -738,7 +738,20 @@ button.browse-details-header-cell[aria-sort="descending"] {
 }
 
 .panel-section[data-section="data-source"] {
+  /* Every row is label | control | action, so the controls share both
+     edges. The action column is one icon button wide and stays empty in a
+     row without one (Data Source, Dataset). */
+  --source-label-w: 104px;
+  --source-col-gap: 8px;
+  --source-action-w: var(--control-h);
   padding: 6px;
+}
+
+/* One gap between all rows, whatever group a row sits in. */
+.panel-section[data-section="data-source"] > .section-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .panel-section[data-section="data-source"] .section-title {
@@ -752,11 +765,59 @@ button.browse-details-header-cell[aria-sort="descending"] {
   row-gap: 4px;
 }
 
-.panel-section[data-section="data-source"] .field {
+.panel-section[data-section="data-source"] .field,
+.panel-section[data-section="data-source"] .source-row {
   display: grid;
-  grid-template-columns: 104px minmax(0, 1fr);
-  gap: 3px 8px;
+  grid-template-columns: var(--source-label-w) minmax(0, 1fr) var(--source-action-w);
+  gap: 4px var(--source-col-gap);
   align-items: center;
+}
+
+/* A control with its button: the button lands in the action column. */
+.panel-section[data-section="data-source"] .field > .inline {
+  grid-column: 2 / -1;
+  grid-template-columns: minmax(0, 1fr) var(--source-action-w);
+  column-gap: var(--source-col-gap);
+}
+
+/* A row without a label of its own (Watch folder, the file types, Test,
+   Enable monitor) starts where the controls do. */
+.panel-section[data-section="data-source"] .source-row > *,
+.panel-section[data-section="data-source"] .field > .detector-picker-field,
+.panel-section[data-section="data-source"] .field > .detector-picker-list {
+  grid-column: 2;
+}
+
+/* An explanation, not a warning: the field-hint amber is for those. */
+.panel-section[data-section="data-source"] .source-row > .field-hint {
+  color: var(--muted);
+}
+
+.panel-section[data-section="data-source"] .source-test-row > .btn {
+  justify-self: start;
+}
+
+.panel-section[data-section="data-source"] .source-test-row > .simplon-probe-message {
+  margin: 0;
+}
+
+/* Connection options: the box's padding and border are taken off the label
+   and action columns, so its controls line up with the ones above it. */
+.panel-section[data-section="data-source"] .advanced-inner {
+  --source-label-w: calc(104px - 11px);
+  --source-action-w: calc(var(--control-h) - 11px);
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+.panel-section[data-section="data-source"] .autoload-status-block {
+  margin-top: 0;
+}
+
+/* The source chip only names the source while the section is open, where
+   the Data Source field says it already. */
+.panel-section[data-section="data-source"]:not(.is-collapsed) .section-summary.is-mode-only {
+  display: none;
 }
 
 .panel-section[data-section="peak-finder"] .field,
@@ -775,7 +836,6 @@ button.browse-details-header-cell[aria-sort="descending"] {
 
 .panel-section[data-section="data-source"] .field > input,
 .panel-section[data-section="data-source"] .field > select,
-.panel-section[data-section="data-source"] .field > .inline,
 .panel-section[data-section="peak-finder"] .field > input,
 .panel-section[data-section="peak-finder"] .field > select,
 .panel-section[data-section="minmax-finder"] .field > input,
@@ -789,12 +849,13 @@ button.browse-details-header-cell[aria-sort="descending"] {
 }
 
 .panel-section[data-section="data-source"] .autoload-group {
-  gap: 4px;
-  margin-bottom: 4px;
+  gap: 6px;
+  margin-bottom: 0;
 }
 
 @media (max-width: 900px) {
   .panel-section[data-section="data-source"] .field,
+  .panel-section[data-section="data-source"] .source-row,
   .panel-section[data-section="peak-finder"] .field,
   .panel-section[data-section="minmax-finder"] .field {
     grid-template-columns: 1fr;
@@ -810,6 +871,9 @@ button.browse-details-header-cell[aria-sort="descending"] {
   .panel-section[data-section="minmax-finder"] .field > input,
   .panel-section[data-section="minmax-finder"] .field > select,
   .panel-section[data-section="data-source"] .field > .field-hint,
+  .panel-section[data-section="data-source"] .source-row > *,
+  .panel-section[data-section="data-source"] .field > .detector-picker-field,
+  .panel-section[data-section="data-source"] .field > .detector-picker-list,
   .panel-section[data-section="peak-finder"] .field > .field-hint {
     grid-column: 1;
   }

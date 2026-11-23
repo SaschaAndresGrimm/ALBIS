@@ -517,7 +517,9 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   }
 }
 
-.autoload-action-btn {
+/* Two classes: .btn comes later in this file and its 10px side padding
+   left the 14px icon 6px of a 28px button. */
+.btn.autoload-action-btn {
   width: var(--control-h);
   min-width: var(--control-h);
   padding: 0;
@@ -527,6 +529,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 }
 
 .autoload-action-icon {
+  flex: none;
   width: 14px;
   height: 14px;
   display: block;
