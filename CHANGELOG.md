@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.48.0] - 2026-11-23
+
 ### Added
 
 - **The image can show several consecutive frames added together, so a weak signal stands out.** The new button next to the frame number, **1 frame** at first, opens a small panel: type any count from 1 to 1000 or pick 2, 5, 10, 20, 50 or 100, choose **Sum** or **Mean**, or go back to a **Single frame**; `[` and `]` take fewer or more. At frame 121 with 10, the image is frames 121 to 130 added up, the button reads **Sum 10** (or **Mean 10**) and the timeline **121–130 / 3600**. The step follows the count, so the arrow keys and **▶** go through the series ten frames at a time without skipping or repeating any, which makes a long series quick to look through; a step set by hand stays, for a sliding window. The footer says **Sum of 10 frames** while it is on, and a click on it opens the panel; statistics, profiles and pixel values are those of the combined image. Gap and defective pixels stay masked rather than adding up to huge counts (an EIGER's 0xFFFFFFFF, a PILATUS CBF's -1 and -2), and a sum of 32-bit frames stays 32-bit when it fits, so it loads no slower than a frame. Ten frames of a 1M EIGER2 file take about 0.1 s. This works for frames in one HDF5 file and for a series of one file per frame (CBF, TIFF, EDF); not for a live detector.
@@ -2067,7 +2069,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.47.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.48.0...HEAD
+[0.48.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.47.0...v0.48.0
 [0.47.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.46.0...v0.47.0
 [0.46.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.45.1...v0.46.0
 [0.45.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.45.0...v0.45.1
