@@ -1,4 +1,4 @@
-# ALBIS (**AL**BULA-style **B**rowser-based **I**mage viewer for **S**cientific detectors)
+# ALBIS (**AL**BULA-style **B**rowser-based **I**mage viewer for **S**ynchrotron detectors and more)
 
 [![CI](https://github.com/SaschaAndresGrimm/ALBIS/actions/workflows/ci.yml/badge.svg)](https://github.com/SaschaAndresGrimm/ALBIS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
