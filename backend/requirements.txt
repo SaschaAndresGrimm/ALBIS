@@ -1,4 +1,4 @@
-fastapi==0.163.0
+fastapi==0.165.0
 # Pinned explicitly: fastapi allows starlette>=0.46.0 unbounded, and
 # backend/response_compression.py subclasses starlette's compression responder,
 # whose apply_compression hook became a coroutine in 1.6.
@@ -11,15 +11,15 @@ starlette==1.10.0
 # Pinning it is also what makes a local run and a CI run agree.
 anyio==4.16.0
 uvicorn[standard]==0.54.0
-python-multipart==0.0.33
+python-multipart==0.0.34
 hdf5plugin==7.1.0
 h5py==3.16.0
-numpy==2.5.4
-tifffile==2026.11.12
+numpy==2.5.5
+tifffile==2026.11.16
 fabio==2026.6.0
 cbor2==6.3.0
 pyzmq==27.3.0
 dectris-compression==0.4.0
 zstandard==0.25.0
-certifi==2026.10.23
+certifi==2026.11.20
 pyobjc==13.0; sys_platform == "darwin"
