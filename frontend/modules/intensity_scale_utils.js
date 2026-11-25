@@ -115,10 +115,6 @@ function trimScientificLabel(text) {
   return `${trimFixedLabel(mantissa)}e${exponent}`;
 }
 
-function getPixelLabelMaxChars(cellPx) {
-  const pixelWidth = Math.max(8, Number(cellPx) || 0);
-  return Math.max(1, Math.floor((pixelWidth - 2) / 5.6));
-}
 
 /**
  * The font size a pixel label is actually drawn at, for a given cell size.
@@ -133,6 +129,51 @@ export function pixelLabelFontPx(cellPx, { float: isFloat = false } = {}) {
   return isFloat
     ? Math.min(11.5, Math.max(6.5, cell * 0.44))
     : Math.min(13, Math.max(7, cell * 0.52));
+}
+
+// Share of a cell a pixel label may take, leaving room for its dark halo.
+export const PIXEL_LABEL_WIDTH_FRACTION = 0.82;
+
+// Advance of each glyph a float or scientific label is made of, in em, read
+// from the bundled Inter (frontend/vendor/InterVariable.woff2) and rounded up a
+// hundredth. A float label used to be cut to a flat 5.6px per character, which
+// only holds for a ~9px font: past a ~13px cell the glyphs outgrow it, and the
+// painter, finding a label wider than its cell, dropped every label on screen.
+// Whether one was too wide changed with each step of the zoom and with the
+// values in view, so the numbers came and went at random-looking zoom levels.
+const LABEL_GLYPH_EM = {
+  0: 0.64,
+  1: 0.42,
+  2: 0.62,
+  3: 0.63,
+  4: 0.66,
+  5: 0.61,
+  6: 0.63,
+  7: 0.58,
+  8: 0.63,
+  9: 0.63,
+  ".": 0.3,
+  "-": 0.47,
+  "+": 0.67,
+  e: 0.6,
+};
+const LABEL_GLYPH_FALLBACK_EM = 0.75;
+
+/** Estimated width of a pixel label, in em of its font. */
+export function pixelLabelWidthEm(text) {
+  let width = 0;
+  for (const ch of String(text)) width += LABEL_GLYPH_EM[ch] ?? LABEL_GLYPH_FALLBACK_EM;
+  return width;
+}
+
+/**
+ * Whether a label fits its cell when drawn at the size the painter uses: the
+ * float font for float labels, the integer font otherwise.
+ */
+export function pixelLabelFitsCell(text, cellPx, { float: isFloat = false } = {}) {
+  const cell = Math.max(8, Number(cellPx) || 0);
+  const fontPx = pixelLabelFontPx(cell, { float: isFloat });
+  return pixelLabelWidthEm(text) * fontPx <= cell * PIXEL_LABEL_WIDTH_FRACTION;
 }
 
 /**
@@ -172,23 +213,23 @@ function compactIntegerLabel(value) {
   return `${Math.round(value)}`;
 }
 
-function formatScientificPixelLabel(value, maxChars) {
+function formatScientificPixelLabel(value, fits) {
   for (let digits = 4; digits >= 0; digits -= 1) {
     const candidate = trimScientificLabel(Number(value).toExponential(digits));
-    if (candidate.length <= maxChars) {
+    if (fits(candidate)) {
       return candidate;
     }
   }
   return "";
 }
 
-function formatIntegerPixelLabel(value, maxChars, { allowScientificFallback = false } = {}) {
+function formatIntegerPixelLabel(value, maxChars, { scientificFits = null } = {}) {
   const rounded = Math.round(value);
   const integer = String(rounded);
   const compact = compactIntegerLabel(rounded);
   if (integer.length <= maxChars) return integer;
   if (compact.length <= maxChars) return compact;
-  return allowScientificFallback ? formatScientificPixelLabel(value, maxChars) : "";
+  return scientificFits ? formatScientificPixelLabel(value, scientificFits) : "";
 }
 
 function getFloatAutoDecimalBudget(cellPx) {
@@ -209,38 +250,40 @@ function getFloatAutoFixedDecimals(value, cellPx) {
   return base + 2;
 }
 
-function formatFloatAutoPixelLabel(value, cellPx, maxChars) {
+function formatFloatAutoPixelLabel(value, cellPx, fits) {
   const fixedDecimals = getFloatAutoFixedDecimals(value, cellPx);
   if (Number.isFinite(fixedDecimals)) {
     for (let digits = fixedDecimals; digits >= 0; digits -= 1) {
       const candidate = normalizeSignedZero(Number(value).toFixed(digits));
-      if (candidate.length <= maxChars) {
+      if (fits(candidate)) {
         return candidate;
       }
     }
   }
-  return formatScientificPixelLabel(value, maxChars);
+  return formatScientificPixelLabel(value, fits);
 }
 
 export function formatPixelLabelValue(value, cellPx, mode = "auto", dtype = "") {
   if (!Number.isFinite(value)) return "";
-  const maxChars = getPixelLabelMaxChars(cellPx);
   const info = getDtypeInfo(dtype);
   const isFloat = info?.kind === "f";
 
   if (mode === "integer") {
     return formatIntegerPixelLabel(value, getIntegerPixelLabelMaxChars(cellPx));
   }
+  // Float data is drawn in the float font unless shown as integers; every
+  // candidate is measured against the cell at the size it will be drawn.
+  const fits = (text) => pixelLabelFitsCell(text, cellPx, { float: isFloat });
   if (mode === "scientific") {
-    return formatScientificPixelLabel(value, maxChars);
+    return formatScientificPixelLabel(value, fits);
   }
 
   if (isFloat && !Number.isInteger(value)) {
-    return formatFloatAutoPixelLabel(value, cellPx, maxChars);
+    return formatFloatAutoPixelLabel(value, cellPx, fits);
   }
 
   return formatIntegerPixelLabel(value, getIntegerPixelLabelMaxChars(cellPx), {
-    allowScientificFallback: true,
+    scientificFits: fits,
   });
 }
 

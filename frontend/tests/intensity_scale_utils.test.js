@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeAutoLevels,
   formatPixelLabelValue,
+  PIXEL_LABEL_WIDTH_FRACTION,
   pixelLabelFontPx,
 } from "../modules/intensity_scale_utils.js";
 
@@ -20,13 +21,45 @@ describe("intensity_scale_utils", () => {
   });
 
   it("falls back to compact float representations as space gets tighter", () => {
-    expect(formatPixelLabelValue(123456.789, 40, "auto", "float32")).toBe("1.23e5");
-    expect(formatPixelLabelValue(1.2345, 18, "auto", "float32")).toBe("1");
+    // "1.23e5" is 35.6px in the 11.5px float font, over a 40px cell's 32.8px.
+    expect(formatPixelLabelValue(123456.789, 40, "auto", "float32")).toBe("1.2e5");
+    expect(formatPixelLabelValue(1.2345, 18, "auto", "float32")).toBe("1.2");
   });
 
   it("preserves explicit integer and scientific modes for float data", () => {
     expect(formatPixelLabelValue(1.2345, 40, "integer", "float32")).toBe("1");
-    expect(formatPixelLabelValue(0.0001234, 60, "scientific", "float32")).toBe("1.234e-4");
+    expect(formatPixelLabelValue(0.0001234, 60, "scientific", "float32")).toBe("1.23e-4");
+  });
+
+  // Advances in the bundled Inter (frontend/vendor/InterVariable.woff2), read
+  // from the font file, unrounded.
+  const INTER_EM = {
+    0: 0.631, 1: 0.407, 2: 0.61, 3: 0.618, 4: 0.646, 5: 0.593, 6: 0.62, 7: 0.566,
+    8: 0.619, 9: 0.62, ".": 0.288, "-": 0.46, "+": 0.662, e: 0.583,
+  };
+  const interWidthPx = (text, fontPx) => [...text].reduce((sum, ch) => sum + INTER_EM[ch] * fontPx, 0);
+
+  it("formats every float label to fit its cell at any zoom", () => {
+    // Float labels were cut to a flat 5.6px per character while drawn at up to
+    // 11.5px, so at many zoom levels one ran wider than its cell and the
+    // painter dropped every label on screen.
+    const values = [
+      0.000123, 0.0123, 0.4567, 0.999791, 1.2345, -3.14159, 12.3456, -47.891, 123.456, 987.65, 1234.5,
+      -54321.7, 123456.789, 6.02e23,
+    ];
+    for (let cell = 18; cell <= 120; cell += 0.5) {
+      const budget = cell * PIXEL_LABEL_WIDTH_FRACTION;
+      const fontPx = pixelLabelFontPx(cell, { float: true });
+      for (const value of values) {
+        for (const mode of ["auto", "scientific"]) {
+          const label = formatPixelLabelValue(value, cell, mode, "float32");
+          expect(interWidthPx(label, fontPx), `${value} ${mode} at ${cell}px: "${label}"`).toBeLessThanOrEqual(budget);
+          // Below 0.01 or from 1000 up a label is in scientific form, which takes a
+          // wider cell; a narrow one rightly stays blank.
+          if (mode === "auto" && Math.abs(value) >= 0.01 && Math.abs(value) < 1000) expect(label, `${value} ${mode} at ${cell}px`).not.toBe("");
+        }
+      }
+    }
   });
 });
 

@@ -17,6 +17,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- **Pixel values on floating-point images no longer come and go as you zoom.** A float value was shortened to fit its pixel by counting characters at a fixed width, but drawn in a font that grows with the zoom, so at many zoom levels one value came out wider than its pixel, and then no value was drawn at all. Which zoom levels it hit depended on the values in view, so the numbers seemed to appear at random or not at all. Each value is now shortened to the width it is really drawn at, and should one still not fit, only that one is left out. The same applies to images and animations exported with pixel values.
+
 - **The focus ring of the first and last field in a side-panel section is no longer cut off.** A section's content clips at its edges, for the fade when it opens and closes, and the fields in its first and last row reached those edges, so the blue ring of the focused field lost its top or bottom (the Data Source field, for one). The content now has room for the ring; nothing in the panel moves.
 
 ## [0.48.0] - 2026-11-23

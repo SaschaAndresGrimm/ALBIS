@@ -28,7 +28,7 @@ import {
   wavelengthFromEnergy,
 } from "./ring_geometry_utils.js";
 import { canvasFont } from "./canvas_fonts.js";
-import { formatPixelLabelValue, pixelLabelFontPx } from "./intensity_scale_utils.js";
+import { formatPixelLabelValue, pixelLabelFontPx, PIXEL_LABEL_WIDTH_FRACTION } from "./intensity_scale_utils.js";
 
 // Translucent on screen: halos are meant to darken or lighten whatever is
 // underneath rather than replace it.
@@ -285,8 +285,8 @@ export function pixelLabelResolver({
  * Pixel values, centred in their cells, for image columns x0..x1-1 and rows
  * y0..y1-1. The font follows the cell width exactly as on screen, so an export
  * at the viewer's zoom carries the labels the viewer shows. `haloWidth`
- * overrides the halo's line width. Returns false, and draws nothing, when a
- * float label would overrun its cell.
+ * overrides the halo's line width. A float label that would still overrun its
+ * cell is left out.
  */
 export function paintPixelLabels(
   ctx,
@@ -321,27 +321,18 @@ export function paintPixelLabels(
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
-  if (float) {
-    // A float label is cut to fit its cell by character count; sample a few to
-    // catch a font whose glyphs still run wider than the cell.
-    const stepX = Math.max(1, Math.ceil(cols / Math.min(6, cols)));
-    const stepY = Math.max(1, Math.ceil(rows / Math.min(4, rows)));
-    const widthBudget = Math.max(1, view.scaleX * 0.82);
-    let widest = 0;
-    let samples = 0;
-    for (let y = y0; y < y1 && samples < 24; y += stepY) {
-      for (let x = x0; x < x1 && samples < 24; x += stepX) {
-        const text = labelAt(y * frameWidth + x);
-        if (!text) continue;
-        widest = Math.max(widest, ctx.measureText(text).width);
-        samples += 1;
-      }
+  // A float label is formatted to fit its cell; should the face drawn still
+  // run wider (a fallback font), that one label is left out, not all of them.
+  const widthBudget = Math.max(1, view.scaleX * PIXEL_LABEL_WIDTH_FRACTION);
+  const widths = float ? new Map() : null;
+  const tooWide = (text) => {
+    let width = widths.get(text);
+    if (width === undefined) {
+      width = ctx.measureText(text).width;
+      widths.set(text, width);
     }
-    if (widest > widthBudget) {
-      ctx.restore();
-      return false;
-    }
-  }
+    return width > widthBudget;
+  };
 
   ctx.fillStyle = colors?.text || "rgba(248, 252, 255, 0.95)";
   if (halo) {
@@ -355,7 +346,7 @@ export function paintPixelLabels(
     const cy = viewY(view, y) + view.scaleY / 2;
     for (let x = x0; x < x1; x += 1) {
       const text = labelAt(rowOffset + x);
-      if (!text) continue;
+      if (!text || (float && tooWide(text))) continue;
       const cx = viewX(view, x) + view.scaleX / 2;
       if (halo) ctx.strokeText(text, cx, cy);
       ctx.fillText(text, cx, cy);

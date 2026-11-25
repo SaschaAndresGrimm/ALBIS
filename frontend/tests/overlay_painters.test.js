@@ -7,6 +7,7 @@ import {
   markerInkScale,
   nearestOverlayColorIndex,
   paintPeakMarkers,
+  paintPixelLabels,
   paintResolutionRings,
   regionView,
   screenView,
@@ -108,6 +109,19 @@ describe("anisotropic pixels", () => {
       pixelAspect: 3,
     });
     expect(radiusY).toBeCloseTo(radiusX / 3);
+  });
+});
+
+describe("paintPixelLabels", () => {
+  it("leaves out only a float label too wide for its cell, not all of them", () => {
+    // The fake context measures 8px per character; a 40px cell takes 32.8px.
+    const ctx = recordingContext();
+    const view = { scaleX: 40, scaleY: 40, offsetX: 0, offsetY: 0 };
+    const labelAt = (idx) => (idx === 0 ? "12.345" : "1.23");
+    paintPixelLabels(ctx, { view, x0: 0, y0: 0, x1: 3, y1: 2, frameWidth: 3, labelAt, float: true });
+    const drawn = ctx.of("fillText").map(([, text]) => text);
+    expect(drawn).toHaveLength(5);
+    expect(drawn).not.toContain("12.345");
   });
 });
 
