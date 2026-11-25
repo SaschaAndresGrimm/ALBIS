@@ -1,8 +1,10 @@
 /**
- * Build ROI CSV payloads independently from DOM/browser download side effects.
+ * Build ROI CSV payloads, and the statistics table Copy puts on the
+ * clipboard, independently from DOM/browser download side effects.
  */
 
 import { buildCsvTable, csvProvenanceLines, plotSeriesColumns } from "./csv_export_utils.js";
+import { formatLevelValue } from "./format_utils.js";
 import { t } from "./i18n.js";
 
 /** The ROI itself, for the provenance block: what these numbers were measured over. */
@@ -114,4 +116,38 @@ export function buildRoiCsvExportPayload({
     filename,
     content: lines.join("\n"),
   };
+}
+
+/**
+ * The statistics panel as a two-column, tab-separated table for the
+ * clipboard: it pastes into a spreadsheet as cells and into notes as aligned
+ * text. Above it the CSV's comment lines, so a pasted block still says which
+ * file, frame and ROI it describes. The values are the full ones, not the four
+ * digits the panel rounds to. Labels are in the interface's language, as the
+ * panel shows them; null when there are no statistics to copy.
+ */
+export function buildRoiStatsTsv(state, roiState) {
+  const stats = roiState?.statistics;
+  if (!stats) return null;
+  const region = roiState.enabled && roiState.active ? roiGeometryNote(roiState) : "ROI: none, whole frame";
+  const rows = [];
+  const add = (label, value) => {
+    if (value !== undefined && value !== null && !Number.isNaN(value)) rows.push(`${label}\t${value}`);
+  };
+  const counts = roiState.pixelCounts;
+  add(t("analysis.roi.stats.total_pixels"), counts?.total);
+  add(t("analysis.roi.stats.gap_pixels"), counts?.gap);
+  add(t("analysis.roi.stats.defective_pixels"), counts?.defective);
+  add(t("analysis.roi.stats.saturated_pixels"), counts?.saturated);
+  ["min", "max", "sum", "median", "mean", "std"].forEach((key) => add(t(`analysis.roi.stats.${key}`), stats[key]));
+  const bands = roiState.levelBands;
+  if (bands?.total) {
+    // The levels as the panel labels them ("FG 37"); they name the rows, and
+    // 36.95234009337005 there would be noise.
+    const levels = { bg: formatLevelValue(bands.bg, state?.dtype), fg: formatLevelValue(bands.fg, state?.dtype) };
+    add(t("analysis.roi.stats.below_bg_at", levels), bands.below);
+    add(t("analysis.roi.stats.bg_to_fg_at", levels), bands.between);
+    add(t("analysis.roi.stats.above_fg_at", levels), bands.above);
+  }
+  return [...csvProvenanceLines(state, [region]), ...rows].join("\n") + "\n";
 }

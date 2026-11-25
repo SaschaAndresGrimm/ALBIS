@@ -2839,7 +2839,7 @@ function handleRoiChanged(reason = "change") {
 }
 
 const roiStatsController = createRoiStatsController({
-  state,
+  state, core,
   roiState,
   roiCenterXInput,
   roiCenterYInput,
@@ -2856,7 +2856,7 @@ const roiStatsController = createRoiStatsController({
   roiSizeLabel,
   roiHelp,
   roiModeSelect,
-  roiClearBtn, roiWholeFrameBtn: appElements.roiWholeFrameBtn,
+  roiClearBtn, roiWholeFrameBtn: appElements.roiWholeFrameBtn, roiBoxFields: appElements.roiBoxFields,
   roiRadiusInput,
   roiInnerInput,
   roiOuterInput,

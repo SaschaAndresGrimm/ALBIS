@@ -1066,29 +1066,20 @@
               </div>
               <div class="roi-help" id="roi-help" data-i18n="roi.help.default">Right‑drag on the image to define the ROI.</div>
               <div class="roi-params" id="roi-params">
-                <div class="roi-center-fields is-hidden" id="roi-center-fields">
-                  <label class="roi-mini-field">
-                    <span class="roi-mini-label">X</span>
-                    <input id="roi-center-x" type="number" step="1" />
-                  </label>
-                  <label class="roi-mini-field">
-                    <span class="roi-mini-label">Y</span>
-                    <input id="roi-center-y" type="number" step="1" />
-                  </label>
+                <div class="roi-box-fields is-hidden" id="roi-box-fields">
+                  <label class="roi-mini-field"><span class="roi-mini-label" data-i18n="roi.box.start_x">Start X</span><input id="roi-box-x0" type="number" min="0" step="1" /></label>
+                  <label class="roi-mini-field"><span class="roi-mini-label" data-i18n="roi.box.start_y">Start Y</span><input id="roi-box-y0" type="number" min="0" step="1" /></label>
+                  <label class="roi-mini-field"><span class="roi-mini-label" data-i18n="roi.box.end_x">End X</span><input id="roi-box-x1" type="number" min="0" step="1" /></label>
+                  <label class="roi-mini-field"><span class="roi-mini-label" data-i18n="roi.box.end_y">End Y</span><input id="roi-box-y1" type="number" min="0" step="1" /></label>
                 </div>
-                <label class="roi-mini-field roi-radius-field is-hidden" id="roi-radius-field">
-                  <span class="roi-mini-label">R</span>
-                  <input id="roi-radius" type="number" min="0" step="1" />
-                </label>
+                <div class="roi-center-fields is-hidden" id="roi-center-fields">
+                  <label class="roi-mini-field"><span class="roi-mini-label">X</span><input id="roi-center-x" type="number" step="1" /></label>
+                  <label class="roi-mini-field"><span class="roi-mini-label">Y</span><input id="roi-center-y" type="number" step="1" /></label>
+                </div>
+                <label class="roi-mini-field roi-radius-field is-hidden" id="roi-radius-field"><span class="roi-mini-label">R</span><input id="roi-radius" type="number" min="0" step="1" /></label>
                 <div class="roi-ring-fields is-hidden" id="roi-ring-fields">
-                  <label class="roi-mini-field">
-                    <span class="roi-mini-label">Inner</span>
-                    <input id="roi-inner-radius" type="number" min="0" step="1" />
-                  </label>
-                  <label class="roi-mini-field">
-                    <span class="roi-mini-label">Outer</span>
-                    <input id="roi-outer-radius" type="number" min="0" step="1" />
-                  </label>
+                  <label class="roi-mini-field"><span class="roi-mini-label">Inner</span><input id="roi-inner-radius" type="number" min="0" step="1" /></label>
+                  <label class="roi-mini-field"><span class="roi-mini-label">Outer</span><input id="roi-outer-radius" type="number" min="0" step="1" /></label>
                 </div>
                 <button id="roi-center-snap" class="btn btn-secondary roi-snap-btn is-hidden" type="button" title="Set the ROI center to the beam center for accurate d-spacing" aria-label="Set the ROI center to the beam center for accurate d-spacing" data-i18n="roi.center.snap_beam" data-i18n-title="roi.center.snap_beam_hint" data-i18n-aria-label="roi.center.snap_beam_hint">
                   Center on beam
@@ -1118,6 +1109,7 @@
                 </div>
               </div>
               <div class="roi-plot-controls" id="roi-plot-controls">
+                <button id="roi-copy-stats" class="btn btn-secondary roi-export-btn" type="button" title="Copy the statistics as a table, for a spreadsheet or notes" data-i18n="analysis.roi.copy_stats" data-i18n-title="analysis.roi.copy_stats_hint">Copy</button>
                 <button id="roi-export-csv" class="btn btn-secondary roi-export-btn" type="button" data-i18n="analysis.roi.export_csv">
                   Export CSV
                 </button>

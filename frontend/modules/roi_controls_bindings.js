@@ -26,6 +26,8 @@ export function bindRoiControlInteractions({
     roiHistBinPresetBtns,
     roiClearBtn,
     roiWholeFrameBtn,
+    roiBoxFields,
+    roiCopyStatsBtn,
     roiExportCsvBtn,
     roiRadiusInput,
     roiInnerInput,
@@ -144,6 +146,12 @@ export function bindRoiControlInteractions({
   roiWholeFrameBtn?.addEventListener("click", () => {
     if (core.roiInteraction.selectWholeFrame()) setStatus(t("status.roi.whole_frame"));
   });
+
+  roiBoxFields?.querySelectorAll("input").forEach((input) => {
+    input.addEventListener("change", () => core.roiInteraction.applyRoiEndpointInputs());
+  });
+
+  roiCopyStatsBtn?.addEventListener("click", () => core.roiStats.copyRoiStats());
 
   roiExportCsvBtn?.addEventListener("click", exportRoiCsv);
 

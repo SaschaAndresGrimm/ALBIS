@@ -25,11 +25,37 @@ function createController(extra = {}) {
     formatStat: (value) => value.toFixed(1),
     formatRoiTick: (value) => value.toFixed(1),
     PLOT_THEME: {},
-    setStatus: vi.fn(),
+    setStatus: extra.setStatus || vi.fn(),
   });
 }
 
 describe("roi_stats_controller", () => {
+  it("copies the statistics to the clipboard and says so", async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    const setStatus = vi.fn();
+    const controller = createController({
+      state: { file: "a.h5", frameIndex: 0, hasFrame: true },
+      setStatus,
+      roiState: { enabled: true, active: false, statistics: { min: 1, max: 2, sum: 3, median: 1.5, mean: 1.25, std: 0.5 } },
+    });
+    await controller.copyRoiStats();
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("1.25"));
+    expect(setStatus).toHaveBeenCalledWith("status.roi.stats_copied", { tone: "success" });
+
+    const empty = createController({ setStatus, state: { hasFrame: true }, roiState: { enabled: true, statistics: null } });
+    await empty.copyRoiStats();
+    expect(setStatus).toHaveBeenLastCalledWith("status.roi.no_stats", { tone: "warning" });
+
+    // A closed file's numbers linger in the state; they are not copied.
+    writeText.mockClear();
+    const closed = createController({ setStatus, state: { hasFrame: false }, roiState: { enabled: true, statistics: { mean: 1 } } });
+    await closed.copyRoiStats();
+    expect(writeText).not.toHaveBeenCalled();
+    expect(setStatus).toHaveBeenLastCalledWith("status.roi.no_stats", { tone: "warning" });
+    vi.unstubAllGlobals();
+  });
+
   it("folds the histogram card to its title when the histogram is off, and hides it with the ROI tools", () => {
     const roiHistogramPlot = document.createElement("div");
     const roiState = { enabled: true, histogramEnabled: false, mode: "box" };

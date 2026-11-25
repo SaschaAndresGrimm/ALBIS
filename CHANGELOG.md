@@ -13,6 +13,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - **Each ROI plot can be saved as a PNG.** A download button in the plot's header, next to its settings, saves the profile or histogram as it is on screen, for a slide or a lab notebook. **Export CSV** gave the numbers, but a picture of the plot meant a screenshot. The PNG has the plot's title and a line naming the file, the frame and the ROI above the plot, so it still says what it shows once it is away from ALBIS.
 
+- **A box or line ROI can be typed in.** In Box and Line mode, **Start X**, **Start Y**, **End X** and **End Y** fields sit under the mode menu, as the centre and radius do for a circle. Start and End were only shown, so the same region on another file, or one a colleague described in numbers, had to be dragged by eye. The fields follow the ROI while you drag it; a typed value is rounded to a whole pixel and kept on the frame, and the ROI moves once all four are filled.
+
+- **Copy puts the ROI statistics on the clipboard.** The button next to **Export CSV** copies the statistics as a two-column table: pasted into a spreadsheet it fills cells, pasted into notes it stays aligned. The values are the full ones, not the four digits the panel shows (a mean of 6.623123 rather than 6.623), and the first lines name the file, frame and ROI, as in the CSV. With no ROI drawn it copies the whole frame's statistics and says so. Export CSV was the only way to get the numbers out, and it writes a file with every plot's data too.
+
 ### Changed
 
 - **The ROI Histogram is switched on in its own title, under the profiles.** The **Histogram** box sat above the profiles, next to **Export CSV**, and ticking it opened the histogram at the bottom of the panel, usually out of view, so it looked as if nothing had happened. The histogram's card now always shows its title, **ROI Histogram**, with the box in it; ticked, the plot opens right there.

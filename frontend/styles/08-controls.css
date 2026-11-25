@@ -788,6 +788,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 }
 
 .roi-params {
+  container-type: inline-size;
   display: grid;
   gap: 6px;
   margin-bottom: 6px;
@@ -803,6 +804,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   display: contents;
 }
 
+.roi-box-fields.is-hidden,
 .roi-radius-field.is-hidden,
 .roi-ring-fields.is-hidden,
 .roi-center-fields.is-hidden,
@@ -822,6 +824,21 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
+}
+
+/* A line's or box's ends: four across, two by two in a narrow panel (a
+   wrapping grid broke them three and one there, Start X Start Y End X over
+   a lone End Y). */
+.roi-box-fields {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+@container (max-width: 300px) {
+  .roi-box-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .roi-center-fields {

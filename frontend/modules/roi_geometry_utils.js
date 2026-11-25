@@ -207,3 +207,18 @@ export function wholeFrameBox(width, height) {
   if (!(w > 0) || !(h > 0)) return null;
   return { start: { x: 0, y: 0 }, end: { x: w - 1, y: h - 1 } };
 }
+
+/**
+ * A line's or box's ends from the four typed fields, rounded to whole pixels
+ * and kept on the frame. Null until all four hold a number, so a half-typed
+ * box does not jump to the corner while the rest is entered.
+ */
+export function roiEndpointsFromInputs({ x0, y0, x1, y1 }, width, height) {
+  const values = [x0, y0, x1, y1].map((value) => (String(value ?? "").trim() === "" ? Number.NaN : Number(value)));
+  if (!values.every(Number.isFinite) || !(width > 0) || !(height > 0)) return null;
+  const clamp = (value, size) => Math.max(0, Math.min(size - 1, Math.round(value)));
+  return {
+    start: { x: clamp(values[0], width), y: clamp(values[1], height) },
+    end: { x: clamp(values[2], width), y: clamp(values[3], height) },
+  };
+}

@@ -26,8 +26,10 @@ import {
 } from "./roi_profile_utils.js";
 import {
   buildRoiCsvExportPayload,
+  buildRoiStatsTsv,
   roiCsvExportUnavailableReason,
 } from "./roi_csv_export.js";
+import { copyText } from "./clipboard_copy.js";
 import { t } from "./i18n.js";
 import {
   clampCircularRoiInnerRadius,
@@ -38,6 +40,7 @@ import {
 export function createRoiStatsController(ctx) {
   const {
     state,
+    core,
     roiState,
     roiCenterXInput,
     roiCenterYInput,
@@ -55,6 +58,7 @@ export function createRoiStatsController(ctx) {
     roiModeSelect,
     roiClearBtn,
     roiWholeFrameBtn,
+    roiBoxFields,
     roiRadiusInput,
     roiInnerInput,
     roiOuterInput,
@@ -204,6 +208,7 @@ function updateRoiModeUI() {
   if (roiRingFields) {
     roiRingFields.classList.toggle("is-hidden", !enabled || mode !== "annulus");
   }
+  roiBoxFields?.classList.toggle("is-hidden", !enabled || (mode !== "box" && mode !== "line"));
   if (roiSizeLabel) {
     if (!enabled) {
       roiSizeLabel.textContent = t("roi.size.image");
@@ -268,13 +273,9 @@ function clearRoi() {
   setRoiText(roiGapEl, "-");
   setRoiText(roiDefectiveEl, "-");
   setRoiText(roiSaturatedEl, "-");
-  setRoiText(roiMinEl, "-");
-  setRoiText(roiMaxEl, "-");
-  setRoiText(roiSumEl, "-");
-  setRoiText(roiMedianEl, "-");
-  setRoiText(roiMeanEl, "-");
-  setRoiText(roiStdEl, "-");
+  showRoiStatistics(null);
   levelBands.clear();
+  core?.roiInteraction?.syncRoiEndpointInputs();
   drawRoiPlot(roiLineCanvas, roiLineCtx, null);
   drawRoiPlot(roiXCanvas, roiXCtx, null);
   drawRoiPlot(roiYCanvas, roiYCtx, null);
@@ -391,7 +392,19 @@ function accumulateRoiPixelCounters(counters, sampled, satMax) {
   );
 }
 
+// Min to Std, rounded for the panel; the full values stay in roiState.statistics
+// for Copy, which should paste 6.62312... rather than the 6.623 on screen.
+function showRoiStatistics(values) {
+  const keys = ["min", "max", "sum", "median", "mean", "std"];
+  roiState.statistics = values ? Object.fromEntries(keys.map((key) => [key, values[key]])) : null;
+  [roiMinEl, roiMaxEl, roiSumEl, roiMedianEl, roiMeanEl, roiStdEl].forEach((el, i) => {
+    const value = values?.[keys[i]];
+    setRoiText(el, Number.isFinite(value) ? formatStat(value) : "-");
+  });
+}
+
 function updateRoiPixelCounterFields(counters) {
+  roiState.pixelCounts = counters || null;
   // With inpainting on, these pixels hold filled values, not measured ones.
   const filled = currentlyFilled();
   const show = (count, wasFilled) =>
@@ -445,12 +458,7 @@ function showWholeImageStats(stats) {
         }
       : null
   );
-  setRoiText(roiMinEl, stats ? formatStat(stats.min) : "-");
-  setRoiText(roiMaxEl, stats ? formatStat(stats.max) : "-");
-  setRoiText(roiSumEl, stats ? formatStat(stats.sum) : "-");
-  setRoiText(roiMedianEl, stats && Number.isFinite(stats.median) ? formatStat(stats.median) : "-");
-  setRoiText(roiMeanEl, stats ? formatStat(stats.mean) : "-");
-  setRoiText(roiStdEl, stats ? formatStat(stats.std) : "-");
+  showRoiStatistics(stats);
   levelBands.showWholeFrame();
 }
 
@@ -539,6 +547,7 @@ function updateRoiStats() {
     : Math.max(0, Math.min(state.height - 1, Math.round(roiState.end.y)));
   setRoiText(roiStartEl, `${x0}, ${y0}`);
   setRoiText(roiEndEl, `${x1}, ${y1}`);
+  core?.roiInteraction?.syncRoiEndpointInputs([x0, y0, x1, y1]);
 
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
@@ -630,12 +639,7 @@ function updateRoiStats() {
     updateRoiPixelCounterFields(pixelCounters);
     const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;
     const median = statsValues.length ? computeMedian(statsValues) : Number.NaN;
-    setRoiText(roiMinEl, count ? formatStat(min) : "-");
-    setRoiText(roiMaxEl, count ? formatStat(max) : "-");
-    setRoiText(roiSumEl, count ? formatStat(sum) : "-");
-    setRoiText(roiMedianEl, count ? formatStat(median) : "-");
-    setRoiText(roiMeanEl, count ? formatStat(mean) : "-");
-    setRoiText(roiStdEl, count ? formatStat(std) : "-");
+    showRoiStatistics(count ? { min, max, sum, median, mean, std } : null);
     const lineParams = typeof getRingParams === "function" ? getRingParams() : null;
     const lineDSpacingForX =
       isResolutionCalibrated(lineParams) && typeof getResolutionAtPixel === "function"
@@ -711,12 +715,7 @@ function updateRoiStats() {
     updateRoiPixelCounterFields(pixelCounters);
     const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;
     const median = boxMedian;
-    setRoiText(roiMinEl, count ? formatStat(min) : "-");
-    setRoiText(roiMaxEl, count ? formatStat(max) : "-");
-    setRoiText(roiSumEl, count ? formatStat(sum) : "-");
-    setRoiText(roiMedianEl, count ? formatStat(median) : "-");
-    setRoiText(roiMeanEl, count ? formatStat(mean) : "-");
-    setRoiText(roiStdEl, count ? formatStat(std) : "-");
+    showRoiStatistics(count ? { min, max, sum, median, mean, std } : null);
     drawRoiPlot(roiLineCanvas, roiLineCtx, null);
     if (roiXCanvas) {
       roiXCanvas._roiPlotMeta = {
@@ -825,12 +824,7 @@ function updateRoiStats() {
     updateRoiPixelCounterFields(pixelCounters);
     const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;
     const median = circleMedian;
-    setRoiText(roiMinEl, count ? formatStat(min) : "-");
-    setRoiText(roiMaxEl, count ? formatStat(max) : "-");
-    setRoiText(roiSumEl, count ? formatStat(sum) : "-");
-    setRoiText(roiMedianEl, count ? formatStat(median) : "-");
-    setRoiText(roiMeanEl, count ? formatStat(mean) : "-");
-    setRoiText(roiStdEl, count ? formatStat(std) : "-");
+    showRoiStatistics(count ? { min, max, sum, median, mean, std } : null);
     const radialParams = typeof getRingParams === "function" ? getRingParams() : null;
     // A radius->d mapping is only physical when the radial profile is centred on
     // the beam; otherwise the ring geometry the profile sees is off-axis. Use a
@@ -890,6 +884,18 @@ function updateRoiStats() {
   updateRoiSectionState();
 }
 
+/** Put the statistics on the clipboard as a table (see buildRoiStatsTsv). */
+async function copyRoiStats() {
+  // Without a frame the last file's numbers may linger; they describe nothing open.
+  const text = state.hasFrame ? buildRoiStatsTsv(state, roiState) : null;
+  if (!text) {
+    setStatus(t("status.roi.no_stats"), { tone: "warning" });
+    return;
+  }
+  const copied = await copyText(text);
+  setStatus(t(copied ? "status.roi.stats_copied" : "status.roi.copy_failed"), { tone: copied ? "success" : "warning" });
+}
+
 function exportRoiCsv() {
   const unavailable = roiCsvExportUnavailableReason(state, roiState);
   if (unavailable) {
@@ -943,6 +949,7 @@ function exportRoiCsv() {
     redrawRoiPlots,
     drawRoiPlot,
     exportRoiCsv,
+    copyRoiStats,
     exportRoiPlotPng,
     roiCsvExportUnavailableReason: () => roiCsvExportUnavailableReason(state, roiState),
     refreshLevelBands: levelBands.refresh,

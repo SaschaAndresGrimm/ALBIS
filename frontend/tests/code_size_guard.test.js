@@ -50,7 +50,9 @@ const LINE_BASELINE = {
   // file names under its prefix.
   // -3 for the ROI panel: the Histogram box moved into the histogram card's
   // title (+1 Whole frame button; the PNG buttons share the action rows).
-  "frontend/index.html": 2575,
+  // -8 for the box's Start/End fields (+6) and Copy (+1), with the circle's
+  // centre and radius fields written one label to a line (-15).
+  "frontend/index.html": 2567,
 };
 
 // The only modules that call fetch() themselves: http.js, which every other

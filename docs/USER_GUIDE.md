@@ -419,6 +419,11 @@ beam centre, which is usually what you want for powder rings.
 frame, so the profiles and the histogram cover every pixel without dragging
 from corner to corner. In Line, Circle or Annulus mode it switches to Box.
 
+In Box and Line mode, **Start X**, **Start Y**, **End X** and **End Y** under the
+mode menu give the region's ends in pixels. Type into them to place it exactly,
+for example the same region on another file; the region moves once all four
+are filled, and the fields follow it while you drag.
+
 To move a region, drag its **centre handle** (a line: drag the line). The
 corner, radius and end handles resize it, a box's edge handles move one of its
 sides, and the cursor shows which a handle does. Inside the region a drag pans the image as anywhere else, so a large
@@ -478,6 +483,11 @@ axes you had. Double-click or the plot's settings forget them instead.
 The download button in a plot's header, next to its settings, saves that plot
 as a PNG, as it is on screen, with its title and a line naming the file, the
 frame and the ROI drawn above it.
+
+**Copy**, next to **Export CSV**, puts the statistics on the clipboard as a
+two-column table, with the full values rather than the rounded ones on
+screen and the file, frame and ROI on the first lines. Paste it into a
+spreadsheet or your notes.
 
 **Export CSV** writes the plots you are looking at, for use elsewhere. Every
 plot gets its own pair of columns side by side — a line profile its distance
@@ -596,6 +606,7 @@ absolute extremes of one frame.
 | An animation of a series | **File → Export Animation…** (`⌘G`) |
 | A quick picture of what is on screen | **File → Save As → Full Image / Visible Area / Viewer Window** |
 | ROI numbers for analysis | **Export CSV** in the Analysis tab |
+| ROI statistics for a spreadsheet or notes | **Copy** in the Analysis tab |
 | One ROI plot for a slide | The download button in the plot's header (PNG) |
 
 ![The Export Image dialog: Region, Size, Print resolution, Include overlays and Pixel values](images/user-guide/export-image.webp)

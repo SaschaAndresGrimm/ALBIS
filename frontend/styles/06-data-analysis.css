@@ -948,6 +948,11 @@
   font-size: var(--font-size-sm);
 }
 
+/* Copy and Export CSV sit together on the right. */
+.roi-export-btn + .roi-export-btn {
+  margin-left: 0;
+}
+
 /* The Analysis tab's reminder that some tools are hidden, and where to bring them back. */
 .analysis-hidden-tools {
   display: flex;

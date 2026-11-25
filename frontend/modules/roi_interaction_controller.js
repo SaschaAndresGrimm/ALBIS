@@ -10,6 +10,7 @@ import {
   getCircularRoiOuterRadius,
   getVisibleCircularHandlePoint,
   physicalRoiRadius,
+  roiEndpointsFromInputs,
   wholeFrameBox,
 } from "./roi_geometry_utils.js";
 
@@ -30,7 +31,12 @@ export function createRoiInteractionController({
     roiInnerInput,
     roiOuterInput,
     roiModeSelect,
+    roiBoxX0Input,
+    roiBoxY0Input,
+    roiBoxX1Input,
+    roiBoxY1Input,
   } = elements;
+  const endpointInputs = [roiBoxX0Input, roiBoxY0Input, roiBoxX1Input, roiBoxY1Input];
 
   const {
     getEffectiveScrollLeft,
@@ -609,8 +615,44 @@ export function createRoiInteractionController({
     return true;
   }
 
+  /**
+   * Show a line's or box's ends in the Start/End fields: `ends` as the
+   * readouts beside them show them (held to the frame), else the ROI's own.
+   * A field being typed in is left alone: the readouts refresh on every frame
+   * during playback, and would otherwise overwrite the number half-entered.
+   */
+  function syncRoiEndpointInputs(ends = null) {
+    const { start, end } = roiState;
+    const raw = ends || (start && end ? [start.x, start.y, end.x, end.y] : null);
+    const values = raw ? raw.map((v) => String(Math.round(v))) : ["", "", "", ""];
+    endpointInputs.forEach((input, i) => {
+      if (input && input !== document.activeElement) input.value = values[i];
+    });
+  }
+
+  /** Move the line or box to the typed ends, once all four fields hold a number. */
+  function applyRoiEndpointInputs() {
+    if (!roiState.enabled || (roiState.mode !== "box" && roiState.mode !== "line")) return false;
+    const [x0, y0, x1, y1] = endpointInputs.map((input) => input?.value);
+    const ends = roiEndpointsFromInputs({ x0, y0, x1, y1 }, state.width, state.height);
+    if (!ends) return false;
+    roiState.start = ends.start;
+    roiState.end = ends.end;
+    roiState.active = true;
+    // Back into the fields as applied: rounded, and kept on the frame.
+    [ends.start.x, ends.start.y, ends.end.x, ends.end.y].forEach((v, i) => {
+      if (endpointInputs[i]) endpointInputs[i].value = String(v);
+    });
+    scheduleRoiOverlay();
+    scheduleRoiUpdate();
+    handleRoiChanged?.("roi");
+    return true;
+  }
+
   return {
     selectWholeFrame,
+    syncRoiEndpointInputs,
+    applyRoiEndpointInputs,
     getRoiHandleAt,
     isPointInRoi,
     startRoiEdit,
