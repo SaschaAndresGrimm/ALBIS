@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.48.1] - 2026-11-25
+
 ### Changed
 
 - **The Data Source section lines up, and every setting a source needs is in sight.** The fields had two widths and uneven gaps, and the folder and file buttons showed only a sliver of their icons. Now each row has its label, its field and, where there is one, its button in the same columns. **Watch folder** sits right under **Folder**, with its pattern, file types and poll interval appearing below it when switched on; it was hidden in **Advanced source settings**, as were JUNGFRAUJOCH's **Preview Endpoint**, which the preview cannot start without, and the folder's progress while watching. **File System** (on a remote server) now comes before **Folder**, whose list it decides. **Advanced source settings** gives way to **Connection options**, shown only for a live source and holding only what can stay at its default: SIMPLON's API version and timeout, the remote stream's source ID and poll interval, JUNGFRAUJOCH's source ID, topic, channel and poll interval. **Test** sits under the address it tests.
@@ -2083,7 +2085,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.48.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.48.1...HEAD
+[0.48.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.48.0...v0.48.1
 [0.48.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.47.0...v0.48.0
 [0.47.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.46.0...v0.47.0
 [0.46.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.45.1...v0.46.0
