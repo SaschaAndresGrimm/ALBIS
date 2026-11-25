@@ -10,6 +10,7 @@ import {
   getCircularRoiOuterRadius,
   getVisibleCircularHandlePoint,
   physicalRoiRadius,
+  wholeFrameBox,
 } from "./roi_geometry_utils.js";
 
 const BOX_EDGE_HANDLES = new Set(["box-n", "box-e", "box-s", "box-w"]);
@@ -28,6 +29,7 @@ export function createRoiInteractionController({
     roiRadiusInput,
     roiInnerInput,
     roiOuterInput,
+    roiModeSelect,
   } = elements;
 
   const {
@@ -584,7 +586,31 @@ export function createRoiInteractionController({
     return roiEditing;
   }
 
+  /**
+   * Make the ROI a box over the whole frame, so the profiles and the histogram
+   * cover every pixel without a corner-to-corner drag. A whole line, circle or
+   * annulus means nothing, so any mode switches to Box, which the mode menu
+   * then shows. Returns false when there is no frame to cover.
+   */
+  function selectWholeFrame() {
+    const box = wholeFrameBox(state.width, state.height);
+    if (!roiState.enabled || !box) return false;
+    roiState.mode = "box";
+    if (roiModeSelect) roiModeSelect.value = "box";
+    roiState.start = box.start;
+    roiState.end = box.end;
+    roiState.innerRadius = 0;
+    roiState.outerRadius = 0;
+    roiState.active = true;
+    core.roiStats.updateRoiModeUI();
+    scheduleRoiOverlay();
+    scheduleRoiUpdate();
+    handleRoiChanged?.("roi");
+    return true;
+  }
+
   return {
+    selectWholeFrame,
     getRoiHandleAt,
     isPointInRoi,
     startRoiEdit,

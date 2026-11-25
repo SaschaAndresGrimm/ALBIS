@@ -238,6 +238,7 @@ export function queryAppElements(doc = document) {
     roiOuterInput: byId("roi-outer-radius"),
     roiExportCsvBtn: byId("roi-export-csv"),
     roiClearBtn: byId("roi-clear-btn"),
+    roiWholeFrameBtn: byId("roi-whole-frame-btn"),
     roiStartEl: byId("roi-start"),
     roiEndEl: byId("roi-end"),
     roiSizeLabel: byId("roi-size-label"),

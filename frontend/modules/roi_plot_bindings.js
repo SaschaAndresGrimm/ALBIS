@@ -23,6 +23,7 @@ export function bindRoiPlotInteractions({
   roiState,
   elements,
   callbacks,
+  core,
 }) {
   const {
     roiLineCanvas,
@@ -68,6 +69,12 @@ export function bindRoiPlotInteractions({
     resetBtn: entry.container.querySelector("[data-roi-axis-reset]"),
     backBtn: entry.container.querySelector("[data-roi-view-back]"),
   }));
+  roiPlotEntries.forEach((entry) => {
+    entry.container.querySelector("[data-roi-plot-png]")?.addEventListener("click", () => {
+      core?.roiStats.exportRoiPlotPng(entry.key);
+    });
+  });
+
   let roiPlotResizing = null;
   let roiPlotResizeStart = { x: 0, y: 0, height: 0, container: null };
   let roiPlotPanning = null;

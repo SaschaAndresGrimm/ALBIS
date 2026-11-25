@@ -919,15 +919,20 @@
   margin-bottom: 6px;
 }
 
+/* Mode menu, Whole frame, Clear ROI. The panel can be dragged down to 220px,
+   where three columns left the menu a sliver: the menu keeps 120px and the
+   buttons wrap under it instead. */
 .roi-mode-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
   gap: 8px;
   margin-bottom: 6px;
 }
 
 .roi-mode-row > .field {
+  flex: 1 1 120px;
+  min-width: 0;
   margin: 0;
 }
 

@@ -6,7 +6,7 @@ import { buildCsvTable, csvProvenanceLines, plotSeriesColumns } from "./csv_expo
 import { t } from "./i18n.js";
 
 /** The ROI itself, for the provenance block: what these numbers were measured over. */
-function roiGeometryNote(roiState) {
+export function roiGeometryNote(roiState) {
   const mode = roiState?.mode || "";
   const point = (p) =>
     p && Number.isFinite(p.x) && Number.isFinite(p.y) ? `${Math.round(p.x)} ${Math.round(p.y)}` : "";

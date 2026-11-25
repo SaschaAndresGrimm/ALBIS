@@ -7,6 +7,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Whole frame sets the ROI to the whole frame in one click.** The button sits next to **Clear ROI** in **Statistics and ROI**. With no ROI drawn, the statistics already describe the whole image, but the profiles and the histogram need a region, and drawing one from corner to corner by hand is fiddly and rarely exact. **Whole frame** makes a box from the first pixel to the last, so **Profile along X / Y** and **ROI Histogram** cover the whole detector; in Line, Circle or Annulus mode it switches to Box ROI.
+
+- **Each ROI plot can be saved as a PNG.** A download button in the plot's header, next to its settings, saves the profile or histogram as it is on screen, for a slide or a lab notebook. **Export CSV** gave the numbers, but a picture of the plot meant a screenshot. The PNG has the plot's title and a line naming the file, the frame and the ROI above the plot, so it still says what it shows once it is away from ALBIS.
+
+### Changed
+
+- **The ROI Histogram is switched on in its own title, under the profiles.** The **Histogram** box sat above the profiles, next to **Export CSV**, and ticking it opened the histogram at the bottom of the panel, usually out of view, so it looked as if nothing had happened. The histogram's card now always shows its title, **ROI Histogram**, with the box in it; ticked, the plot opens right there.
+
 ## [0.48.1] - 2026-11-25
 
 ### Changed

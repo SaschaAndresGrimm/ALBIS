@@ -9,11 +9,17 @@ import {
 } from "./roi_stats_engine.js";
 import { renderRoiPlot } from "./roi_plot_renderer.js";
 import { roiPlotSampleIndexAt } from "./roi_plot_view_utils.js";
+import { composeRoiPlotPng, roiPlotPngCaption, roiPlotPngFilename } from "./roi_plot_png_utils.js";
 import { t } from "./i18n.js";
 
 export function createRoiPlotController(ctx) {
   const {
+    state,
     roiState,
+    roiLinePlot,
+    roiBoxPlotX,
+    roiBoxPlotY,
+    setStatus,
     roiLineCanvas,
     roiLineCtx,
     roiXCanvas,
@@ -207,6 +213,60 @@ function updateRoiTooltip(event, canvasEl) {
   showRoiTooltip(canvasEl, label, event.clientX, event.clientY);
 }
 
+// The histogram card sits under the profiles, its title doubling as its on/off
+// box: off, it folds to that title row, so the switch is where the plot opens.
+// It is hidden only while the ROI tools are off.
+function syncRoiHistogramPanel() {
+  if (!roiHistogramPlot) return;
+  const open = Boolean(roiState.histogramEnabled);
+  roiHistogramPlot.classList.toggle("is-hidden", !roiState.enabled);
+  roiHistogramPlot.classList.toggle("is-collapsed", !open);
+  // A height dragged with the corner handle is inline and would hold the
+  // folded card open; folding gives the card back its default height.
+  if (!open) roiHistogramPlot.style.removeProperty("height");
+}
+
+const PNG_PLOTS = {
+  line: () => [roiLinePlot, roiLineCanvas],
+  x: () => [roiBoxPlotX, roiXCanvas],
+  y: () => [roiBoxPlotY, roiYCanvas],
+  hist: () => [roiHistogramPlot, roiHistCanvas],
+};
+
+/** Save one plot as a PNG, as it is on screen, with its title and what it was measured on. */
+function exportRoiPlotPng(plotKey) {
+  const [container, canvas] = PNG_PLOTS[plotKey]?.() || [];
+  if (!canvas?._roiPlotMeta) {
+    setStatus?.(t("status.roi.no_projection_data"), { tone: "warning" });
+    return;
+  }
+  const rootStyle = window.getComputedStyle(document.documentElement);
+  const image = composeRoiPlotPng({
+    source: canvas,
+    title: container?.querySelector(".roi-plot-title")?.textContent?.trim() || "",
+    caption: roiPlotPngCaption(state, roiState),
+    dpr: window.devicePixelRatio || 1,
+    colors: {
+      background: rootStyle.getPropertyValue("--surface-0").trim() || PLOT_THEME.bg,
+      plot: PLOT_THEME.bg,
+      text: PLOT_THEME.text,
+      muted: PLOT_THEME.axis,
+    },
+    createCanvas: (width, height) => Object.assign(document.createElement("canvas"), { width, height }),
+  });
+  if (!image) return;
+  const filename = roiPlotPngFilename(state, roiState, plotKey);
+  image.toBlob((blob) => {
+    if (!blob) return;
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    setStatus?.(t("status.roi.exported_png", { filename }), { tone: "success" });
+  }, "image/png");
+}
+
 function buildRoiHistogram(values) {
   return buildRoiHistogramEngine(values, getRoiHistogramBinsConfig());
 }
@@ -214,7 +274,7 @@ function buildRoiHistogram(values) {
 function updateRoiHistogramPlot(values) {
   if (!roiHistCanvas || !roiHistCtx || !roiHistogramPlot) return;
   const enabled = Boolean(roiState.enabled && roiState.histogramEnabled);
-  roiHistogramPlot.classList.toggle("is-hidden", !enabled);
+  syncRoiHistogramPanel();
   if (!enabled) {
     roiState.histogramDistribution = null;
     roiHistCanvas._roiPlotMeta = null;
@@ -295,6 +355,8 @@ function redrawRoiPlots() {
     drawRoiPlot,
     redrawRoiPlots,
     syncRoiHistogramBinsUi,
+    syncRoiHistogramPanel,
     updateRoiHistogramPlot,
+    exportRoiPlotPng,
   };
 }

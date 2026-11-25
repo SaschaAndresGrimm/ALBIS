@@ -174,6 +174,11 @@
   background: var(--control-hover);
 }
 
+.roi-plot-png-icon {
+  width: 13px;
+  height: 13px;
+}
+
 .roi-plot-icon-btn:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
@@ -369,6 +374,31 @@
 }
 
 .roi-plot.is-hidden {
+  display: none;
+}
+
+/* The histogram's title is its on/off box. Off, the card folds to that row:
+   the switch sits where the plot opens, under the profiles. */
+.roi-plot-header .roi-histogram-toggle {
+  min-height: 0;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--plot-text);
+  cursor: pointer;
+}
+
+#roi-hist-plot.is-collapsed {
+  height: auto;
+}
+
+#roi-hist-plot.is-collapsed .roi-plot-header {
+  margin-bottom: 0;
+}
+
+#roi-hist-plot.is-collapsed .roi-plot-actions,
+#roi-hist-plot.is-collapsed canvas,
+#roi-hist-plot.is-collapsed .roi-tooltip,
+#roi-hist-plot.is-collapsed .roi-resize-handle {
   display: none;
 }
 

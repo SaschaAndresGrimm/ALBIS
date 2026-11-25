@@ -415,6 +415,9 @@ Everything here is in the **Analysis** tab, under **Statistics and ROI**.
 Pick a **Mode** — Line, Box, Circle or Annulus — then **right-drag** on the
 image to place the region. **Center on beam** snaps a circle or annulus to the
 beam centre, which is usually what you want for powder rings.
+**Whole frame**, next to **Clear ROI**, makes the region a box over the whole
+frame, so the profiles and the histogram cover every pixel without dragging
+from corner to corner. In Line, Circle or Annulus mode it switches to Box.
 
 To move a region, drag its **centre handle** (a line: drag the line). The
 corner, radius and end handles resize it, a box's edge handles move one of its
@@ -448,7 +451,8 @@ Three plots accompany the region:
   pixels, **d (Å)** or **Q (1/nm)**.
 - **Profile along X / Y** — collapsed profiles of a box ROI.
 - **ROI Histogram** — the value distribution, with automatic or fixed bins and
-  an optional log count axis.
+  an optional log count axis. It is off at first: tick the box in its title,
+  under the profiles, and the plot opens there.
 
 Plot axes autoscale by default; switch to **Manual axes** to pin them while
 stepping through frames, so the shape you are watching does not rescale
@@ -470,6 +474,10 @@ the sample the tooltip is reading.
 The **Manual axes** tag on a plot is a button: click it to return that plot to
 automatic axes (it then reads **Auto axes**), and click again to get back the
 axes you had. Double-click or the plot's settings forget them instead.
+
+The download button in a plot's header, next to its settings, saves that plot
+as a PNG, as it is on screen, with its title and a line naming the file, the
+frame and the ROI drawn above it.
 
 **Export CSV** writes the plots you are looking at, for use elsewhere. Every
 plot gets its own pair of columns side by side — a line profile its distance
@@ -588,6 +596,7 @@ absolute extremes of one frame.
 | An animation of a series | **File → Export Animation…** (`⌘G`) |
 | A quick picture of what is on screen | **File → Save As → Full Image / Visible Area / Viewer Window** |
 | ROI numbers for analysis | **Export CSV** in the Analysis tab |
+| One ROI plot for a slide | The download button in the plot's header (PNG) |
 
 ![The Export Image dialog: Region, Size, Print resolution, Include overlays and Pixel values](images/user-guide/export-image.webp)
 

@@ -1059,6 +1059,7 @@
                     <option value="annulus" data-i18n="roi.mode.annulus">Annulus ROI</option>
                   </select>
                 </label>
+                <button id="roi-whole-frame-btn" class="btn btn-secondary roi-quick-btn" type="button" title="Make the ROI a box over the whole frame" data-i18n="analysis.roi.whole_frame" data-i18n-title="analysis.roi.whole_frame_hint">Whole frame</button>
                 <button id="roi-clear-btn" class="btn btn-secondary roi-quick-btn" type="button" data-i18n="analysis.roi.clear">
                   Clear ROI
                 </button>
@@ -1117,10 +1118,6 @@
                 </div>
               </div>
               <div class="roi-plot-controls" id="roi-plot-controls">
-                <label class="checkbox roi-histogram-toggle">
-                  <input id="roi-histogram" type="checkbox" />
-                  <span data-i18n="analysis.roi.histogram">Histogram</span>
-                </label>
                 <button id="roi-export-csv" class="btn btn-secondary roi-export-btn" type="button" data-i18n="analysis.roi.export_csv">
                   Export CSV
                 </button>
@@ -1131,7 +1128,7 @@
                   <div class="roi-plot-header">
                     <div class="roi-plot-title" data-i18n="roi.plot.line_profile">Line Profile</div>
                     <div class="roi-plot-actions">
-                      <button type="button" class="roi-plot-icon-btn is-hidden" data-roi-view-back title="Previous view" aria-label="Previous view" data-i18n-title="roi.axis.previous_view" data-i18n-aria-label="roi.axis.previous_view">↶</button><button type="button" class="roi-axis-limit-chip is-hidden" data-roi-axis-chip data-i18n="roi.axis.manual_chip" data-i18n-title="roi.axis.chip_hint.manual" title="Back to automatic axes; click again to get these axes back">Manual axes</button>
+                      <button type="button" class="roi-plot-icon-btn is-hidden" data-roi-view-back title="Previous view" aria-label="Previous view" data-i18n-title="roi.axis.previous_view" data-i18n-aria-label="roi.axis.previous_view">↶</button><button type="button" class="roi-axis-limit-chip is-hidden" data-roi-axis-chip data-i18n="roi.axis.manual_chip" data-i18n-title="roi.axis.chip_hint.manual" title="Back to automatic axes; click again to get these axes back">Manual axes</button><button type="button" class="roi-plot-icon-btn" data-roi-plot-png title="Export plot as PNG" aria-label="Export plot as PNG" data-i18n-title="roi.plot.export_png" data-i18n-aria-label="roi.plot.export_png"><svg class="roi-plot-png-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 2.5v7M4.75 6.5 8 9.75l3.25-3.25M3 12.75h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
                       <button
                         class="roi-plot-icon-btn roi-axis-limits-toggle"
                         type="button"
@@ -1180,7 +1177,7 @@
                   <div class="roi-plot-header">
                     <div class="roi-plot-title" data-i18n="analysis.roi.plot.profile_x">Profile along X</div>
                     <div class="roi-plot-actions">
-                      <button type="button" class="roi-plot-icon-btn is-hidden" data-roi-view-back title="Previous view" aria-label="Previous view" data-i18n-title="roi.axis.previous_view" data-i18n-aria-label="roi.axis.previous_view">↶</button><button type="button" class="roi-axis-limit-chip is-hidden" data-roi-axis-chip data-i18n="roi.axis.manual_chip" data-i18n-title="roi.axis.chip_hint.manual" title="Back to automatic axes; click again to get these axes back">Manual axes</button>
+                      <button type="button" class="roi-plot-icon-btn is-hidden" data-roi-view-back title="Previous view" aria-label="Previous view" data-i18n-title="roi.axis.previous_view" data-i18n-aria-label="roi.axis.previous_view">↶</button><button type="button" class="roi-axis-limit-chip is-hidden" data-roi-axis-chip data-i18n="roi.axis.manual_chip" data-i18n-title="roi.axis.chip_hint.manual" title="Back to automatic axes; click again to get these axes back">Manual axes</button><button type="button" class="roi-plot-icon-btn" data-roi-plot-png title="Export plot as PNG" aria-label="Export plot as PNG" data-i18n-title="roi.plot.export_png" data-i18n-aria-label="roi.plot.export_png"><svg class="roi-plot-png-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 2.5v7M4.75 6.5 8 9.75l3.25-3.25M3 12.75h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
                       <button
                         class="roi-plot-icon-btn roi-axis-limits-toggle"
                         type="button"
@@ -1222,7 +1219,7 @@
                   <div class="roi-plot-header">
                     <div class="roi-plot-title" data-i18n="analysis.roi.plot.profile_y">Profile along Y</div>
                     <div class="roi-plot-actions">
-                      <button type="button" class="roi-plot-icon-btn is-hidden" data-roi-view-back title="Previous view" aria-label="Previous view" data-i18n-title="roi.axis.previous_view" data-i18n-aria-label="roi.axis.previous_view">↶</button><button type="button" class="roi-axis-limit-chip is-hidden" data-roi-axis-chip data-i18n="roi.axis.manual_chip" data-i18n-title="roi.axis.chip_hint.manual" title="Back to automatic axes; click again to get these axes back">Manual axes</button>
+                      <button type="button" class="roi-plot-icon-btn is-hidden" data-roi-view-back title="Previous view" aria-label="Previous view" data-i18n-title="roi.axis.previous_view" data-i18n-aria-label="roi.axis.previous_view">↶</button><button type="button" class="roi-axis-limit-chip is-hidden" data-roi-axis-chip data-i18n="roi.axis.manual_chip" data-i18n-title="roi.axis.chip_hint.manual" title="Back to automatic axes; click again to get these axes back">Manual axes</button><button type="button" class="roi-plot-icon-btn" data-roi-plot-png title="Export plot as PNG" aria-label="Export plot as PNG" data-i18n-title="roi.plot.export_png" data-i18n-aria-label="roi.plot.export_png"><svg class="roi-plot-png-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 2.5v7M4.75 6.5 8 9.75l3.25-3.25M3 12.75h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
                       <button
                         class="roi-plot-icon-btn roi-axis-limits-toggle"
                         type="button"
@@ -1262,10 +1259,10 @@
                 </div>
                 <div class="roi-plot is-hidden" id="roi-hist-plot">
                   <div class="roi-plot-header">
-                    <div class="roi-plot-title" data-i18n="analysis.roi.plot.histogram">ROI Histogram</div>
+                    <label class="checkbox roi-histogram-toggle roi-plot-title"><input id="roi-histogram" type="checkbox" /><span data-i18n="analysis.roi.plot.histogram">ROI Histogram</span></label>
                     <div class="roi-plot-actions">
                       <button type="button" class="roi-plot-icon-btn is-hidden" data-roi-view-back title="Previous view" aria-label="Previous view" data-i18n-title="roi.axis.previous_view" data-i18n-aria-label="roi.axis.previous_view">↶</button><button type="button" class="roi-axis-limit-chip is-hidden" data-roi-axis-chip data-i18n="roi.axis.manual_chip" data-i18n-title="roi.axis.chip_hint.manual" title="Back to automatic axes; click again to get these axes back">Manual axes</button>
-                      <span class="roi-histogram-bin-chip is-hidden" id="roi-hist-bin-chip" aria-live="polite"></span>
+                      <span class="roi-histogram-bin-chip is-hidden" id="roi-hist-bin-chip" aria-live="polite"></span><button type="button" class="roi-plot-icon-btn" data-roi-plot-png title="Export plot as PNG" aria-label="Export plot as PNG" data-i18n-title="roi.plot.export_png" data-i18n-aria-label="roi.plot.export_png"><svg class="roi-plot-png-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 2.5v7M4.75 6.5 8 9.75l3.25-3.25M3 12.75h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
                       <button
                         class="roi-plot-icon-btn roi-axis-limits-toggle"
                         type="button"

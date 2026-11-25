@@ -2,10 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createRoiStatsController } from "../modules/roi_stats_controller.js";
 
-function createController() {
+function createController(extra = {}) {
   return createRoiStatsController({
     state: {},
+    ...extra,
     roiState: {
+      ...extra.roiState,
       plotLimits: {
         autoscale: true,
         line: { xMin: null, xMax: null, yMin: null, yMax: null },
@@ -28,6 +30,29 @@ function createController() {
 }
 
 describe("roi_stats_controller", () => {
+  it("folds the histogram card to its title when the histogram is off, and hides it with the ROI tools", () => {
+    const roiHistogramPlot = document.createElement("div");
+    const roiState = { enabled: true, histogramEnabled: false, mode: "box" };
+    roiHistogramPlot.style.height = "300px";
+    const controller = createController({ roiState, roiHistogramPlot });
+    controller.updateRoiModeUI();
+    expect(roiHistogramPlot.classList.contains("is-collapsed")).toBe(true);
+    expect(roiHistogramPlot.classList.contains("is-hidden")).toBe(false);
+    expect(roiHistogramPlot.style.height).toBe("");
+  });
+
+  it("opens the histogram card when the histogram is on", () => {
+    const roiHistogramPlot = document.createElement("div");
+    const controller = createController({ roiState: { enabled: true, histogramEnabled: true }, roiHistogramPlot });
+    controller.updateRoiModeUI();
+    expect(roiHistogramPlot.classList.contains("is-collapsed")).toBe(false);
+    expect(roiHistogramPlot.classList.contains("is-hidden")).toBe(false);
+
+    const off = document.createElement("div");
+    createController({ roiState: { enabled: false, histogramEnabled: true }, roiHistogramPlot: off }).updateRoiModeUI();
+    expect(off.classList.contains("is-hidden")).toBe(true);
+  });
+
   it("shows ROI plot tooltip on hover without throwing", () => {
     const controller = createController();
     const container = document.createElement("div");

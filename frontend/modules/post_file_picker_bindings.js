@@ -92,6 +92,7 @@ export function initializePostFilePickerBindings({
     roiHistBinManualRow,
     roiHistBinPresetBtns,
     roiClearBtn,
+    roiWholeFrameBtn,
     roiExportCsvBtn,
     roiRadiusInput,
     roiInnerInput,
@@ -333,6 +334,7 @@ export function initializePostFilePickerBindings({
       roiHistBinManualRow,
       roiHistBinPresetBtns,
       roiClearBtn,
+      roiWholeFrameBtn,
       roiExportCsvBtn,
       roiRadiusInput,
       roiInnerInput,
@@ -431,6 +433,7 @@ export function initializePostFilePickerBindings({
   });
 
   bindRoiPlotInteractions({
+    core,
     roiState,
     elements: {
       roiLineCanvas,

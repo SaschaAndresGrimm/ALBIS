@@ -46,7 +46,6 @@ export function createRoiStatsController(ctx) {
     roiLinePlot,
     roiBoxPlotX,
     roiBoxPlotY,
-    roiHistogramPlot,
     roiPlotControls,
     roiRadiusField,
     roiCenterFields,
@@ -55,6 +54,7 @@ export function createRoiStatsController(ctx) {
     roiHelp,
     roiModeSelect,
     roiClearBtn,
+    roiWholeFrameBtn,
     roiRadiusInput,
     roiInnerInput,
     roiOuterInput,
@@ -111,7 +111,9 @@ export function createRoiStatsController(ctx) {
     drawRoiPlot,
     redrawRoiPlots,
     syncRoiHistogramBinsUi,
+    syncRoiHistogramPanel,
     updateRoiHistogramPlot,
+    exportRoiPlotPng,
   } = createRoiPlotController(ctx);
 
   // Below BG / BG to FG / Above FG, over the same pixels as the statistics.
@@ -186,10 +188,7 @@ function updateRoiModeUI() {
   if (roiBoxPlotY) {
     roiBoxPlotY.classList.toggle("is-hidden", !enabled || mode !== "box");
   }
-  if (roiHistogramPlot) {
-    const showHistogram = enabled && Boolean(roiState.histogramEnabled);
-    roiHistogramPlot.classList.toggle("is-hidden", !showHistogram);
-  }
+  syncRoiHistogramPanel();
   if (roiPlotControls) {
     roiPlotControls.classList.toggle("is-hidden", !showPlots);
   }
@@ -234,9 +233,8 @@ function updateRoiModeUI() {
   if (roiModeSelect) {
     roiModeSelect.disabled = !enabled;
   }
-  if (roiClearBtn) {
-    roiClearBtn.disabled = !enabled;
-  }
+  if (roiClearBtn) roiClearBtn.disabled = !enabled;
+  if (roiWholeFrameBtn) roiWholeFrameBtn.disabled = !enabled;
   if (roiHistogramToggle) {
     roiHistogramToggle.checked = Boolean(roiState.histogramEnabled);
     roiHistogramToggle.disabled = !enabled;
@@ -945,6 +943,7 @@ function exportRoiCsv() {
     redrawRoiPlots,
     drawRoiPlot,
     exportRoiCsv,
+    exportRoiPlotPng,
     roiCsvExportUnavailableReason: () => roiCsvExportUnavailableReason(state, roiState),
     refreshLevelBands: levelBands.refresh,
   };

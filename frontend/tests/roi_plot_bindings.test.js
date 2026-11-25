@@ -22,7 +22,9 @@ function createPlotContainer(id, canvas) {
   const backBtn = document.createElement("button");
   backBtn.dataset.roiViewBack = "";
   backBtn.className = "is-hidden";
-  container.append(backBtn, canvas, resizeHandle);
+  const pngBtn = document.createElement("button");
+  pngBtn.dataset.roiPlotPng = "";
+  container.append(backBtn, pngBtn, canvas, resizeHandle);
   document.body.append(container);
   return container;
 }
@@ -58,8 +60,10 @@ function createBindings(overrides = {}) {
     normalizeWheelDelta: vi.fn(() => 0),
     ...overrides,
   };
+  const core = { roiStats: { exportRoiPlotPng: vi.fn() } };
 
   bindRoiPlotInteractions({
+    core,
     roiState: {
       plotLimits: {
         autoscale: true,
@@ -83,7 +87,10 @@ function createBindings(overrides = {}) {
     roiXCanvas,
     roiYCanvas,
     roiHistCanvas,
+    roiBoxPlotX,
+    roiHistogramPlot,
     callbacks,
+    core,
   };
 }
 
@@ -156,6 +163,15 @@ describe("roi_plot_bindings", () => {
     observer.callback([{ target: roiLineCanvas }, { target: roiXCanvas }]);
 
     expect(callbacks.redrawRoiPlots).toHaveBeenCalledTimes(1);
+  });
+
+  it("exports the plot whose PNG button was clicked", () => {
+    const { roiBoxPlotX, roiHistogramPlot, core } = createBindings();
+
+    roiBoxPlotX.querySelector("[data-roi-plot-png]").click();
+    roiHistogramPlot.querySelector("[data-roi-plot-png]").click();
+
+    expect(core.roiStats.exportRoiPlotPng.mock.calls).toEqual([["x"], ["hist"]]);
   });
 
   it("uses redraw-only refresh for plot double-click resets", () => {

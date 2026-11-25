@@ -194,3 +194,16 @@ export function getVisibleCircularHandlePoint(center, radius, direction, visible
   });
   return best;
 }
+
+/**
+ * The box that covers the whole frame, corner pixel to corner pixel.
+ *
+ * Box ends are inclusive pixel indices (a box from 286 to 795 is 510 pixels
+ * wide), so the far corner is one less than the size. Null without a frame.
+ */
+export function wholeFrameBox(width, height) {
+  const w = Math.floor(Number(width));
+  const h = Math.floor(Number(height));
+  if (!(w > 0) || !(h > 0)) return null;
+  return { start: { x: 0, y: 0 }, end: { x: w - 1, y: h - 1 } };
+}

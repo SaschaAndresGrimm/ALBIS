@@ -149,6 +149,7 @@ export function createPostFilePickerBindingsElements(elements) {
     roiHistBinManualRow: elements.roiHistBinManualRow,
     roiHistBinPresetBtns: elements.roiHistBinPresetBtns,
     roiClearBtn: elements.roiClearBtn,
+    roiWholeFrameBtn: elements.roiWholeFrameBtn,
     roiExportCsvBtn: elements.roiExportCsvBtn,
     roiRadiusInput: elements.roiRadiusInput,
     roiInnerInput: elements.roiInnerInput,

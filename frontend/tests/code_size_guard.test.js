@@ -48,7 +48,9 @@ const LINE_BASELINE = {
   // +5 for the Find bad pixels "by value" row.
   // +3 for Convert Dataset's Corrections and Output titles and the planned
   // file names under its prefix.
-  "frontend/index.html": 2578,
+  // -3 for the ROI panel: the Histogram box moved into the histogram card's
+  // title (+1 Whole frame button; the PNG buttons share the action rows).
+  "frontend/index.html": 2575,
 };
 
 // The only modules that call fetch() themselves: http.js, which every other

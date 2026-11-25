@@ -2856,7 +2856,7 @@ const roiStatsController = createRoiStatsController({
   roiSizeLabel,
   roiHelp,
   roiModeSelect,
-  roiClearBtn,
+  roiClearBtn, roiWholeFrameBtn: appElements.roiWholeFrameBtn,
   roiRadiusInput,
   roiInnerInput,
   roiOuterInput,

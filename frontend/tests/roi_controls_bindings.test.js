@@ -167,4 +167,25 @@ describe("roi_controls_bindings", () => {
     expect(clearRoi).toHaveBeenCalledTimes(1);
     expect(scheduleRoiUpdate).toHaveBeenCalledTimes(1);
   });
+
+  it("sets the ROI to the whole frame and says so", () => {
+    const roiWholeFrameBtn = document.createElement("button");
+    const setStatus = vi.fn();
+    const selectWholeFrame = vi.fn(() => true);
+    bindRoiControlInteractions({
+      state: { width: 100, height: 100 },
+      roiState: { enabled: true, mode: "line" },
+      elements: { roiWholeFrameBtn },
+      callbacks: { setStatus },
+      core: { roiInteraction: { selectWholeFrame } },
+    });
+
+    roiWholeFrameBtn.click();
+    expect(selectWholeFrame).toHaveBeenCalledTimes(1);
+    expect(setStatus).toHaveBeenCalledWith("status.roi.whole_frame");
+
+    selectWholeFrame.mockReturnValue(false);
+    roiWholeFrameBtn.click();
+    expect(setStatus).toHaveBeenCalledTimes(1);
+  });
 });
