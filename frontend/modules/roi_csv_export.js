@@ -26,11 +26,6 @@ export function roiGeometryNote(roiState) {
   return `ROI: ${mode} from ${start} to ${end}`;
 }
 
-/**
- * The Below BG / BG to FG / Above FG counts, with the levels they were
- * counted against: they change with BG and FG, so the levels belong next to
- * them. In English, like the rest of the provenance block.
- */
 /** Pixels too far out in a tail to be binned (roi_histogram_engine.js), so the histogram columns do not hold them. */
 export function histogramOutsideNotes(histMeta) {
   const below = histMeta?.outsideBelow || 0;
@@ -39,6 +34,11 @@ export function histogramOutsideNotes(histMeta) {
   return [`Histogram: ${below} pixels below the first bin and ${above} above the last are not in its columns`];
 }
 
+/**
+ * The Below BG / BG to FG / Above FG counts, with the levels they were
+ * counted against: they change with BG and FG, so the levels belong next to
+ * them. In English, like the rest of the provenance block.
+ */
 export function levelBandNotes(levelBands) {
   const total = levelBands?.total;
   if (!total) return [];

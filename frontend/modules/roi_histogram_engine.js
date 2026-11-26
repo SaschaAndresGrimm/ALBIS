@@ -38,8 +38,11 @@ const TAIL_STRETCH = 2;
 export const ROI_HISTOGRAM_MAX_BINS = 4096;
 const AUTO_MIN_BINS = 16;
 const AUTO_DEFAULT_MAX_VIEW_BINS = 192;
-// Narrowest bar, in CSS pixels, auto bins are chosen for.
+// Narrowest bar, in CSS pixels, auto bins are chosen for, and about how much
+// of the canvas's width the y axis and the margins take (roi_plot_renderer.js:
+// padL at least 40, padR 8).
 const MIN_BAR_PX = 2;
+const PLOT_FRAME_PX = 48;
 // Float quantiles are taken from at most this many evenly spaced values.
 const QUANTILE_SAMPLE_MAX = 1 << 20;
 
@@ -49,11 +52,12 @@ export function normalizeRoiHistogramBinCount(value) {
   return Math.max(ROI_HISTOGRAM_MIN_FIXED_BINS, Math.min(ROI_HISTOGRAM_MAX_FIXED_BINS, count));
 }
 
-/** Most auto bins in view for a plot this many CSS pixels wide (0: not laid out). */
-export function roiHistogramMaxViewBins(plotWidthPx) {
-  const width = Number(plotWidthPx);
+/** Most auto bins in view for a plot canvas this many CSS pixels wide (0: not laid out). */
+export function roiHistogramMaxViewBins(canvasWidthPx) {
+  const width = Number(canvasWidthPx);
   if (!(width > 0)) return AUTO_DEFAULT_MAX_VIEW_BINS;
-  return Math.max(AUTO_MIN_BINS, Math.min(ROI_HISTOGRAM_MAX_FIXED_BINS, Math.floor(width / MIN_BAR_PX)));
+  const plotWidth = width - PLOT_FRAME_PX;
+  return Math.max(AUTO_MIN_BINS, Math.min(ROI_HISTOGRAM_MAX_FIXED_BINS, Math.floor(plotWidth / MIN_BAR_PX)));
 }
 
 function looksIntegral(values) {
@@ -187,8 +191,10 @@ export function buildRoiHistogram(values, options = {}) {
   const list = values || [];
   const integral =
     typeof options.integral === "boolean" ? options.integral : looksIntegral(list);
+  // A sample given as a value list means the values are too far apart for a
+  // table; building it again would only repeat that pass over the pixels.
   let sample = options.levelSample;
-  if (integral && sample?.kind !== "table" && list.length) {
+  if (integral && !sample && list.length) {
     sample = buildLevelSample(list, { integral: true });
   }
   const table = integral && sample?.kind === "table" && sample.total > 0 ? sample : null;

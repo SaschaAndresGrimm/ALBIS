@@ -461,9 +461,11 @@ Three plots accompany the region:
   opens there. When a few pixels lie far from the rest (a bright spot, a hot
   pixel), the histogram opens on the range of all but the outermost 0.1 % at
   each end, and a note in the top corner says how many pixels lie beyond it,
-  for example "2166 px at or above 58 →". Zoom or pan out to see them; reset
+  for example "234 px at or above 198 →". Zoom or pan out to see them; reset
   the axes to come back. With whole-number data each bar spans the same number
-  of whole values, and the tooltip names them ("20–41").
+  of whole values, and the tooltip names them ("20–41"); a bar is never
+  narrower than one value, so fixed **Bins** over a short range of values
+  gives fewer bars than asked for.
 
 Plot axes autoscale by default; switch to **Manual axes** to pin them while
 stepping through frames, so the shape you are watching does not rescale

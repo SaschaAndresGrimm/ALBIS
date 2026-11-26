@@ -93,7 +93,8 @@ describe("roi_histogram_engine", () => {
   });
 
   it("keeps auto bins at least two screen pixels wide", () => {
-    expect(roiHistogramMaxViewBins(200)).toBe(100);
+    // The y axis and margins take about 48 px of the canvas.
+    expect(roiHistogramMaxViewBins(248)).toBe(100);
     expect(roiHistogramMaxViewBins(0)).toBe(192);
     expect(roiHistogramMaxViewBins(5000)).toBe(512);
     const values = Int32Array.from({ length: 100000 }, (_, i) => i % 1000);
@@ -108,6 +109,16 @@ describe("roi_histogram_engine", () => {
     expect(levelSample.kind).toBe("table");
     const fromTable = buildRoiHistogram(values, { integral: true, levelSample });
     expect(fromTable).toEqual(fromValues);
+  });
+
+  it("bins a whole-number value list as it is, without building a table again", () => {
+    const values = Int32Array.from({ length: 1000 }, (_, i) => i % 50);
+    values[0] = 5_000_000; // past the table's span
+    const levelSample = buildLevelSample(values, { integral: true });
+    expect(levelSample.kind).toBe("values");
+    const hist = buildRoiHistogram(values, { integral: true, levelSample });
+    expect(hist.binWidth).toBe(1);
+    expect(sum(hist.data) + hist.outsideAbove).toBe(values.length);
   });
 
   it("counts a tail beyond the bin budget instead of binning it", () => {

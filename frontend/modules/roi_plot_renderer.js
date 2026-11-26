@@ -53,7 +53,8 @@ function finiteExtent(values, from, to) {
 }
 
 // The pixels a histogram's x range leaves out, written in the top corners of
-// the plot: "← 12 px ≤ -3" on the left, "2166 px ≥ 58 →" on the right.
+// the plot: "← 12 px at or below -3" on the left, "234 px at or above 198 →"
+// on the right.
 function drawHiddenNote(ctx, note, { padL, padT, drawableWidth, plotTheme }) {
   if (!note) return;
   ctx.font = PLOT_LABEL_FONT;
