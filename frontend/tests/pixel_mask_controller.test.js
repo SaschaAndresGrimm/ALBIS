@@ -553,7 +553,9 @@ describe("Find bad pixels in the Pixel Mask section", () => {
     return data;
   }
 
-  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  // The search runs on timers (a 250 ms pause after typing, then chunks
+  // split by setTimeout 0), so the tests wait for its result, not for a
+  // fixed time: fixed sleeps failed now and then under the full check's load.
 
   it("circles what it finds in the image shown, and adds it to the mask as an edit", async () => {
     const width = 64;
@@ -567,9 +569,10 @@ describe("Find bad pixels in the Pixel Mask section", () => {
     controller.setEnabled(true);
     controller.openFind();
     expect(elements.findPanel.hidden).toBe(false);
-    await wait(20);
-    expect(elements.findResultEl.textContent).toContain("pixel_mask.find.part.hot");
-    expect(elements.findResultEl.textContent).toContain("pixel_mask.find.part.dead");
+    await vi.waitFor(() => {
+      expect(elements.findResultEl.textContent).toContain("pixel_mask.find.part.hot");
+      expect(elements.findResultEl.textContent).toContain("pixel_mask.find.part.dead");
+    });
     expect(elements.findResultEl.textContent).not.toContain("pixel_mask.find.part.cold");
     const markers = callbacks.setMarkers.mock.calls.at(-1)[0];
     expect(markers.groups[0].indices).toEqual([5 * width + 9]);
@@ -593,12 +596,10 @@ describe("Find bad pixels in the Pixel Mask section", () => {
     const { controller, elements } = setup({ state: { hasFrame: true, dataRaw, width, height } });
     controller.setEnabled(true);
     controller.openFind();
-    await wait(20);
-    expect(elements.findResultEl.textContent).toContain("pixel_mask.find.part.hot");
+    await vi.waitFor(() => expect(elements.findResultEl.textContent).toContain("pixel_mask.find.part.hot"));
     elements.findHot.checked = false;
     elements.findHot.dispatchEvent(new Event("change"));
-    await wait(20);
-    expect(elements.findResultEl.textContent).toBe("pixel_mask.find.none");
+    await vi.waitFor(() => expect(elements.findResultEl.textContent).toBe("pixel_mask.find.none"));
     expect(elements.findAddBtn.disabled).toBe(true);
   });
 
@@ -612,21 +613,23 @@ describe("Find bad pixels in the Pixel Mask section", () => {
     const { controller, elements, callbacks } = setup({ state: { hasFrame: true, dataRaw, width, height } });
     controller.setEnabled(true);
     controller.openFind();
-    await wait(20);
-    expect(elements.findResultEl.textContent).toContain("pixel_mask.find.part.dead");
+    const result = () => elements.findResultEl.textContent;
+    await vi.waitFor(() => expect(result()).toContain("pixel_mask.find.part.dead"));
 
     elements.findValue.checked = true;
     elements.findValue.dispatchEvent(new Event("change"));
-    await wait(20);
     // The zeros are now "value" pixels, no longer dead as well.
-    expect(elements.findResultEl.textContent).toContain("pixel_mask.find.part.value");
-    expect(elements.findResultEl.textContent).not.toContain("pixel_mask.find.part.dead");
+    await vi.waitFor(() => {
+      expect(result()).toContain("pixel_mask.find.part.value");
+      expect(result()).not.toContain("pixel_mask.find.part.dead");
+    });
     expect(callbacks.setMarkers.mock.calls.at(-1)[0].groups[0].indices).toContain(5 * width + 9);
 
     elements.findValueMode.value = "gte";
     elements.findValueLimit.value = "65535";
     elements.findValueLimit.dispatchEvent(new Event("input"));
-    await wait(300);
+    // With the limit at 65535 the zeros are dead pixels again.
+    await vi.waitFor(() => expect(result()).toContain("pixel_mask.find.part.dead"), { timeout: 3000 });
     controller.addFoundToMask();
     const pinned = controller.getPinnedMask();
     expect(pinned.data[7 * width + 9]).toBe(0x10);
