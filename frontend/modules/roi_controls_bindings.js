@@ -9,7 +9,7 @@ import {
   getCircularRoiDirection,
   getCircularRoiOuterRadius,
 } from "./roi_geometry_utils.js";
-import { normalizeRoiHistogramBinCount } from "./roi_stats_engine.js";
+import { normalizeRoiHistogramBinCount } from "./roi_histogram_engine.js";
 
 export function bindRoiControlInteractions({
   roiState,

@@ -32,20 +32,39 @@ function clampIndex(value, length) {
 /**
  * The x range to draw and the samples it needs.
  *
- * min / max: the view, the pinned limits clamped to the data (the whole data
- * when nothing is pinned, or when the pin misses this data entirely, as a box
- * profile's pin does once the box has moved).
+ * min / max: the view, the pinned limits clamped to the data (`defaultView`,
+ * or else the whole data, when nothing is pinned, or when the pin misses this
+ * data entirely, as a box profile's pin does once the box has moved).
  * firstIdx / lastIdx: the samples to draw, one past the view on each side so
  * the line runs to the frame instead of stopping at the last whole sample.
  * yFirstIdx / yLastIdx: the samples inside the view, which set the y range.
  */
-export function roiPlotXView({ length, xStart, xStep, histogram = false, limits = null, autoscale = true }) {
+export function roiPlotXView({
+  length,
+  xStart,
+  xStep,
+  histogram = false,
+  limits = null,
+  autoscale = true,
+  defaultView = null,
+}) {
   const domain = roiPlotXDomain({ length, xStart, xStep, histogram });
   let min = domain.min;
   let max = domain.max;
+  // Where the plot opens when nothing is pinned: a histogram's range without
+  // its far tails (roi_histogram_engine.js). The domain stays the whole data,
+  // so zooming and panning out still reach them.
+  if (defaultView && Number.isFinite(defaultView.min) && Number.isFinite(defaultView.max)) {
+    const lo = Math.max(domain.min, defaultView.min);
+    const hi = Math.min(domain.max, defaultView.max);
+    if (hi > lo) {
+      min = lo;
+      max = hi;
+    }
+  }
   if (!autoscale && limits) {
-    const lo = Number.isFinite(limits.xMin) ? Math.max(domain.min, limits.xMin) : domain.min;
-    const hi = Number.isFinite(limits.xMax) ? Math.min(domain.max, limits.xMax) : domain.max;
+    const lo = Number.isFinite(limits.xMin) ? Math.max(domain.min, limits.xMin) : min;
+    const hi = Number.isFinite(limits.xMax) ? Math.min(domain.max, limits.xMax) : max;
     if (hi > lo) {
       min = lo;
       max = hi;
@@ -58,8 +77,10 @@ export function roiPlotXView({ length, xStart, xStep, histogram = false, limits 
   const b = (max - xStart) / xStep;
   const lowIdx = Math.min(a, b);
   const highIdx = Math.max(a, b);
-  // A histogram bar is in view when any of it is: its centre within half a bin.
-  const slack = histogram ? 0.5 : 0;
+  // A histogram bar is in view when any of it is: its centre within half a
+  // bin. One that only touches the edge is not, or the bar just past a
+  // histogram's opening view would set its y range.
+  const slack = histogram ? 0.5 - 1e-9 : 0;
   let yFirstIdx = clampIndex(Math.ceil(lowIdx - slack), length);
   let yLastIdx = clampIndex(Math.floor(highIdx + slack), length);
   const firstIdx = clampIndex(Math.floor(lowIdx), length);

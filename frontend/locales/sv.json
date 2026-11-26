@@ -1174,6 +1174,8 @@
   "roi.histogram.auto_bins": "Automatiska bins",
   "roi.histogram.bins": "Bins",
   "roi.histogram.bins_chip": "{{count}} bins",
+  "roi.histogram.hidden_above": "{{count}} px vid eller över {{value}} →",
+  "roi.histogram.hidden_below": "← {{count}} px vid eller under {{value}}",
   "roi.histogram.presets": "Förval för histogram-bins",
   "roi.histogram.settings": "Histograminställningar",
   "roi.mode.annulus": "Ring-ROI",

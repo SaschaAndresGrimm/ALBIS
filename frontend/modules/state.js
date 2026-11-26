@@ -13,7 +13,7 @@ export function createRoiState() {
       line: false,
       x: false,
       y: false,
-      hist: false,
+      hist: true,
     },
     histogramEnabled: false,
     stats: null,

@@ -1174,6 +1174,8 @@
   "roi.histogram.auto_bins": "自动分箱",
   "roi.histogram.bins": "分箱",
   "roi.histogram.bins_chip": "{{count}} 个分箱",
+  "roi.histogram.hidden_above": "{{value}} 及以上：{{count}} px →",
+  "roi.histogram.hidden_below": "← {{value}} 及以下：{{count}} px",
   "roi.histogram.presets": "直方图分箱预设",
   "roi.histogram.settings": "直方图设置",
   "roi.mode.annulus": "环形 ROI",

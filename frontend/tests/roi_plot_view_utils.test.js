@@ -37,6 +37,29 @@ describe("roiPlotXView", () => {
   });
 });
 
+describe("roiPlotXView with a default view", () => {
+  // A histogram whose bins run 0..100 but which opens on 0..10.
+  const hist = { length: 101, xStart: 0, xStep: 1, histogram: true, defaultView: { min: -0.5, max: 10.5 } };
+
+  it("opens on the default view while the domain stays the whole data", () => {
+    expect(roiPlotXView({ ...hist, autoscale: true })).toMatchObject({
+      min: -0.5,
+      max: 10.5,
+      domainMin: -0.5,
+      domainMax: 100.5,
+      yFirstIdx: 0,
+      yLastIdx: 10,
+    });
+  });
+
+  it("gives way to a pinned range, which may reach past it", () => {
+    const limits = { xMin: 50, xMax: 90 };
+    expect(roiPlotXView({ ...hist, autoscale: false, limits })).toMatchObject({ min: 50, max: 90 });
+    // One end pinned: the other is the default view's.
+    expect(roiPlotXView({ ...hist, autoscale: false, limits: { xMin: 2, xMax: null } })).toMatchObject({ min: 2, max: 10.5 });
+  });
+});
+
 describe("roiPlotSampleIndexAt", () => {
   it("finds the sample nearest the pointer within the view", () => {
     // View 102..106 over 100 px starting at px 50; data slice starts at x 102.

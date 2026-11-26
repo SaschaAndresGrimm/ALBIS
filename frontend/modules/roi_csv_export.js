@@ -31,6 +31,14 @@ export function roiGeometryNote(roiState) {
  * counted against: they change with BG and FG, so the levels belong next to
  * them. In English, like the rest of the provenance block.
  */
+/** Pixels too far out in a tail to be binned (roi_histogram_engine.js), so the histogram columns do not hold them. */
+export function histogramOutsideNotes(histMeta) {
+  const below = histMeta?.outsideBelow || 0;
+  const above = histMeta?.outsideAbove || 0;
+  if (!below && !above) return [];
+  return [`Histogram: ${below} pixels below the first bin and ${above} above the last are not in its columns`];
+}
+
 export function levelBandNotes(levelBands) {
   const total = levelBands?.total;
   if (!total) return [];
@@ -106,7 +114,7 @@ export function buildRoiCsvExportPayload({
   if (!table.length) {
     return null;
   }
-  const notes = [roiGeometryNote(roiState), ...levelBandNotes(roiState.levelBands)];
+  const notes = [roiGeometryNote(roiState), ...levelBandNotes(roiState.levelBands), ...histogramOutsideNotes(histMeta)];
   const lines = [...csvProvenanceLines(state, notes), ...table];
 
   const base = (state.file || "roi").split("/").pop().replace(/\.[^.]+$/, "");

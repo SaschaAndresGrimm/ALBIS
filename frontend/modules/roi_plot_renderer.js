@@ -4,6 +4,7 @@
 
 import { canvasFont } from "./canvas_fonts.js";
 import { pickLinearTicks, pickLogTicks, pickMappedTicks } from "./plot_tick_utils.js";
+import { roiHistogramHiddenCounts } from "./roi_histogram_engine.js";
 import { roiPlotXView } from "./roi_plot_view_utils.js";
 
 const D_AXIS_TITLE_FONT = canvasFont(10, 500);
@@ -35,6 +36,41 @@ function formatResolutionLabel(value, unit) {
   if (value >= 10) return value.toFixed(1);
   if (value >= 1) return value.toFixed(2);
   return unit === "q" ? value.toFixed(3) : value.toFixed(2);
+}
+
+function finiteExtent(values, from, to) {
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  let count = 0;
+  for (let i = Math.max(0, from); i < Math.min(values.length, to); i += 1) {
+    const value = values[i];
+    if (!Number.isFinite(value)) continue;
+    count += 1;
+    if (value < min) min = value;
+    if (value > max) max = value;
+  }
+  return { min, max, count };
+}
+
+// The pixels a histogram's x range leaves out, written in the top corners of
+// the plot: "← 12 px ≤ -3" on the left, "2166 px ≥ 58 →" on the right.
+function drawHiddenNote(ctx, note, { padL, padT, drawableWidth, plotTheme }) {
+  if (!note) return;
+  ctx.font = PLOT_LABEL_FONT;
+  ctx.textBaseline = "top";
+  const draw = (text, align) => {
+    if (!text) return;
+    const textWidth = ctx.measureText(text).width;
+    const x = align === "left" ? padL + 4 : padL + drawableWidth - 4;
+    const left = align === "left" ? x : x - textWidth;
+    ctx.fillStyle = plotTheme.bg;
+    ctx.fillRect(left - 3, padT + 2, textWidth + 6, 15);
+    ctx.fillStyle = plotTheme.text;
+    ctx.textAlign = align;
+    ctx.fillText(text, x, padT + 4);
+  };
+  draw(note.below, "left");
+  draw(note.above, "right");
 }
 
 export function renderRoiPlot({
@@ -100,6 +136,7 @@ export function renderRoiPlot({
     histogram: isHistogramSeries,
     limits,
     autoscale,
+    defaultView: isHistogramSeries ? plotMeta.defaultView : null,
   });
   const visibleData = view.lastIdx >= view.firstIdx ? data.slice(view.firstIdx, view.lastIdx + 1) : [];
   xStart += view.firstIdx * xStep;
@@ -119,17 +156,19 @@ export function renderRoiPlot({
     if (!Number.isFinite(value)) return Number.NaN;
     return logScale ? Math.log10(1 + Math.max(0, value)) : value;
   });
-  const finiteValues = values.slice(inViewFrom, inViewTo + 1).filter((value) => Number.isFinite(value));
+  // Loops, not Math.min(...array): a histogram has up to 4096 bins and a
+  // profile across a large detector as many samples, which is too many
+  // arguments for some engines.
+  const inView = finiteExtent(values, inViewFrom, inViewTo + 1);
+  const all = finiteExtent(data, 0, data.length);
+  const totalMinY = isHistogramSeries || !all.count ? 0 : all.min;
+  const totalMaxY = all.count ? all.max : 0;
 
-  const allValuesRaw = data.filter((value) => Number.isFinite(value));
-  const totalMinY = isHistogramSeries || !allValuesRaw.length ? 0 : Math.min(...allValuesRaw);
-  const totalMaxY = allValuesRaw.length ? Math.max(...allValuesRaw) : 0;
-
-  let minValue = finiteValues.length ? Math.min(...finiteValues) : 0;
+  let minValue = inView.count ? inView.min : 0;
   if (!autoscale && Number.isFinite(limits.yMin)) {
     minValue = logScale ? Math.log10(1 + Math.max(0, limits.yMin)) : limits.yMin;
   }
-  let maxValue = finiteValues.length ? Math.max(...finiteValues) : minValue + 1;
+  let maxValue = inView.count ? inView.max : minValue + 1;
   if (!autoscale && Number.isFinite(limits.yMax)) {
     maxValue = logScale ? Math.log10(1 + Math.max(0, limits.yMax)) : limits.yMax;
   }
@@ -419,6 +458,21 @@ export function renderRoiPlot({
     ctx.strokeRect(Math.round(bx) + 0.5, Math.round(by) + 0.5, Math.round(Math.abs(box.x1 - box.x0)), Math.round(Math.abs(box.y1 - box.y0)));
   }
   ctx.restore();
+
+  if (isHistogramSeries && typeof plotMeta.hiddenNote === "function") {
+    const hidden = roiHistogramHiddenCounts({
+      data,
+      xStart: totalMinX,
+      xStep,
+      viewMin,
+      viewMax,
+      outsideBelow: plotMeta.outsideBelow || 0,
+      outsideAbove: plotMeta.outsideAbove || 0,
+    });
+    if (hidden.below > 0 || hidden.above > 0) {
+      drawHiddenNote(ctx, plotMeta.hiddenNote(hidden), { padL, padT, drawableWidth, plotTheme });
+    }
+  }
 
   if (profilePeaks && profilePeaks.length) {
     const peakColor = plotTheme.peak || plotTheme.line;

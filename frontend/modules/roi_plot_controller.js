@@ -6,7 +6,8 @@
 import {
   buildRoiHistogram as buildRoiHistogramEngine,
   normalizeRoiHistogramBinCount,
-} from "./roi_stats_engine.js";
+  roiHistogramMaxViewBins,
+} from "./roi_histogram_engine.js";
 import { renderRoiPlot } from "./roi_plot_renderer.js";
 import { roiPlotSampleIndexAt } from "./roi_plot_view_utils.js";
 import { composeRoiPlotPng, roiPlotPngCaption, roiPlotPngFilename } from "./roi_plot_png_utils.js";
@@ -208,7 +209,13 @@ function updateRoiTooltip(event, canvasEl) {
   const idx = roiPlotSampleIndexAt(plot, x);
   const xValue = plot.xStart + idx * plot.xStep;
   const value = plot.data[idx];
-  const xText = plot.xTickMode === "integer" ? `${Math.round(xValue)}` : formatRoiTick(xValue);
+  // A histogram bin of several whole values reads as their range.
+  const binWidth = canvasEl._roiPlotMeta?.binWidth || 0;
+  let xText = plot.xTickMode === "integer" ? `${Math.round(xValue)}` : formatRoiTick(xValue);
+  if (binWidth > 1) {
+    const first = Math.round(xValue - (binWidth - 1) / 2);
+    xText = `${first}–${first + binWidth - 1}`;
+  }
   const label = `${plot.xLabel} ${xText}  ${t("roi.tooltip.value")} ${formatStat(value)}`;
   showRoiTooltip(canvasEl, label, event.clientX, event.clientY);
 }
@@ -267,11 +274,28 @@ function exportRoiPlotPng(plotKey) {
   }, "image/png");
 }
 
-function buildRoiHistogram(values) {
-  return buildRoiHistogramEngine(values, getRoiHistogramBinsConfig());
+function buildRoiHistogram(values, levelSample, integral) {
+  return buildRoiHistogramEngine(values, {
+    ...getRoiHistogramBinsConfig(),
+    levelSample,
+    integral,
+    maxViewBins: roiHistogramMaxViewBins(roiHistCanvas?.clientWidth),
+  });
 }
 
-function updateRoiHistogramPlot(values) {
+// The note over the plot for pixels outside its x range. Whole-number bins
+// have their edges between two values, so the edge is turned into the last
+// value left out below and the first one above.
+function roiHistogramHiddenNote(integral) {
+  const value = (edge, toValue) => (integral ? `${Math.round(edge + toValue)}` : formatRoiTick(edge));
+  return ({ below, above, belowEdge, aboveEdge }) => ({
+    below: below > 0 ? t("roi.histogram.hidden_below", { count: below, value: value(belowEdge, -0.5) }) : "",
+    above: above > 0 ? t("roi.histogram.hidden_above", { count: above, value: value(aboveEdge, 0.5) }) : "",
+  });
+}
+
+/** `levelSample` and `integral` as the level bands have them, so a table of counts is binned once. */
+function updateRoiHistogramPlot(values, levelSample = null, integral = undefined) {
   if (!roiHistCanvas || !roiHistCtx || !roiHistogramPlot) return;
   const enabled = Boolean(roiState.enabled && roiState.histogramEnabled);
   syncRoiHistogramPanel();
@@ -282,7 +306,7 @@ function updateRoiHistogramPlot(values) {
     return;
   }
 
-  const histogram = buildRoiHistogram(values);
+  const histogram = buildRoiHistogram(values, levelSample, integral);
   if (!histogram || !histogram.data?.length) {
     roiState.histogramDistribution = null;
     roiHistCanvas._roiPlotMeta = null;
@@ -298,6 +322,11 @@ function updateRoiHistogramPlot(values) {
     xStep: histogram.xStep,
     xTickMode: histogram.xTickMode,
     seriesType: "histogram",
+    binWidth: histogram.binWidth,
+    defaultView: histogram.view,
+    outsideBelow: histogram.outsideBelow,
+    outsideAbove: histogram.outsideAbove,
+    hiddenNote: roiHistogramHiddenNote(histogram.xTickMode === "integer"),
   };
   drawRoiPlot(roiHistCanvas, roiHistCtx, roiState.histogramDistribution);
 }

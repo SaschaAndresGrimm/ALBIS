@@ -1174,6 +1174,8 @@
   "roi.histogram.auto_bins": "Bins automatics",
   "roi.histogram.bins": "Bins",
   "roi.histogram.bins_chip": "{{count}} bins",
+  "roi.histogram.hidden_above": "{{count}} px tar {{value}} u sur →",
+  "roi.histogram.hidden_below": "← {{count}} px tar {{value}} u sut",
   "roi.histogram.presets": "Preselecziuns da bins per l'histograma",
   "roi.histogram.settings": "Configuraziun da l'histograma",
   "roi.mode.annulus": "ROI annulara",

@@ -1174,6 +1174,8 @@
   "roi.histogram.auto_bins": "Classes automatiques",
   "roi.histogram.bins": "Classes",
   "roi.histogram.bins_chip": "{{count}} classes",
+  "roi.histogram.hidden_above": "{{count}} px à {{value}} ou plus →",
+  "roi.histogram.hidden_below": "← {{count}} px à {{value}} ou moins",
   "roi.histogram.presets": "Préréglages des classes d'histogramme",
   "roi.histogram.settings": "Paramètres de l'histogramme",
   "roi.mode.annulus": "ROI annulaire",

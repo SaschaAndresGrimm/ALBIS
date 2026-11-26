@@ -51,6 +51,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - The ROI plots (axis limits, log scale, histogram bins, hover tooltip, drawing), and the readouts' millimetre formatting, calibration check and profile peak finder.
 - `frontend/modules/roi_stats_engine.js` + `frontend/modules/roi_plot_renderer.js` + `frontend/modules/roi_csv_export.js`:
   - Pure ROI compute helpers, ROI plot rendering, and CSV payload generation.
+- `frontend/modules/roi_histogram_engine.js`:
+  - The ROI histogram's bins: whole-number widths for whole-number data, binned from the level bands' table of counts, the range the plot opens on (without the far 0.1 % tails), and the pixels a view leaves out.
 - `frontend/modules/roi_plot_png_utils.js`:
   - One ROI plot as a PNG: its file name, the caption saying what it was measured on, and the picture with title and caption above the plot (saved by `roi_plot_controller.js`).
 - `frontend/modules/plot_tick_utils.js`:

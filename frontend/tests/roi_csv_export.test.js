@@ -17,6 +17,7 @@ vi.mock("../modules/i18n.js", () => ({
 
 import {
   buildRoiCsvExportPayload,
+  histogramOutsideNotes,
   levelBandNotes,
   roiCsvExportUnavailableReason,
 } from "../modules/roi_csv_export.js";
@@ -186,6 +187,16 @@ describe("roi_csv_export", () => {
 
     const table = payload.content.split("\n").filter((line) => !line.startsWith("#"));
     expect(table[0]).toBe("Line Profile: Index,Line Profile: Value");
+  });
+});
+
+describe("histogramOutsideNotes", () => {
+  it("says how many pixels the histogram columns do not hold", () => {
+    expect(histogramOutsideNotes({ outsideBelow: 0, outsideAbove: 3 })).toEqual([
+      "Histogram: 0 pixels below the first bin and 3 above the last are not in its columns",
+    ]);
+    expect(histogramOutsideNotes({ outsideBelow: 0, outsideAbove: 0 })).toEqual([]);
+    expect(histogramOutsideNotes(null)).toEqual([]);
   });
 });
 

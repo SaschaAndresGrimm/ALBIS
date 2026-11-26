@@ -1174,6 +1174,8 @@
   "roi.histogram.auto_bins": "Pini aunoa",
   "roi.histogram.bins": "Pini",
   "roi.histogram.bins_chip": "{{count}} pini",
+  "roi.histogram.hidden_above": "{{count}} px kei {{value}}, kei runga ake rānei →",
+  "roi.histogram.hidden_below": "← {{count}} px kei {{value}}, kei raro rānei",
   "roi.histogram.presets": "Ngā tautuhinga pini hītōkaramu",
   "roi.histogram.settings": "Tautuhinga hītōkaramu",
   "roi.mode.annulus": "Annulus ROI",

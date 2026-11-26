@@ -456,8 +456,14 @@ Three plots accompany the region:
   pixels, **d (Å)** or **Q (1/nm)**.
 - **Profile along X / Y** — collapsed profiles of a box ROI.
 - **ROI Histogram** — the value distribution, with automatic or fixed bins and
-  an optional log count axis. It is off at first: tick the box in its title,
-  under the profiles, and the plot opens there.
+  a log count axis (on at first; switch it off in the plot's settings). It is
+  off at first: tick the box in its title, under the profiles, and the plot
+  opens there. When a few pixels lie far from the rest (a bright spot, a hot
+  pixel), the histogram opens on the range of all but the outermost 0.1 % at
+  each end, and a note in the top corner says how many pixels lie beyond it,
+  for example "2166 px at or above 58 →". Zoom or pan out to see them; reset
+  the axes to come back. With whole-number data each bar spans the same number
+  of whole values, and the tooltip names them ("20–41").
 
 Plot axes autoscale by default; switch to **Manual axes** to pin them while
 stepping through frames, so the shape you are watching does not rescale

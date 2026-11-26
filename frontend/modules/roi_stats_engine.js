@@ -1,18 +1,9 @@
 /**
- * Pure ROI statistics helpers for histogram and mask-aware aggregation.
+ * Pure ROI statistics helpers for mask-aware aggregation (the histogram is in
+ * roi_histogram_engine.js).
  */
 
 import { buildLevelSample, COUNT_TABLE_MAX_SPAN, levelSampleFromCounts } from "./level_bands_utils.js";
-
-export const ROI_HISTOGRAM_MIN_FIXED_BINS = 2;
-export const ROI_HISTOGRAM_MAX_FIXED_BINS = 512;
-export const ROI_HISTOGRAM_DEFAULT_FIXED_BINS = 128;
-
-export function normalizeRoiHistogramBinCount(value) {
-  const count = Math.round(Number(value));
-  if (!Number.isFinite(count)) return ROI_HISTOGRAM_DEFAULT_FIXED_BINS;
-  return Math.max(ROI_HISTOGRAM_MIN_FIXED_BINS, Math.min(ROI_HISTOGRAM_MAX_FIXED_BINS, count));
-}
 
 /** The two values detector data uses in place of a separate mask.
  *
@@ -112,105 +103,6 @@ export function accumulateRoiPixelCounters(
   if (satMax !== null && isSaturatedValue(sampled.raw, satMax) && !flags.gap && !flags.defective) {
     counters.saturated += 1;
   }
-}
-
-function buildFixedRoiHistogram(finite, min, max, binCount, isIntegerSeries) {
-  const counts = new Float64Array(binCount);
-  if (!(max > min)) {
-    const step = isIntegerSeries ? 1 : Math.max(1e-6, Math.abs(min) * 1e-6);
-    const centerIdx = Math.floor(binCount / 2);
-    counts[centerIdx] = finite.length;
-    return {
-      data: Array.from(counts),
-      xStart: min - centerIdx * step,
-      xStep: step,
-      xTickMode: isIntegerSeries ? "integer" : "",
-    };
-  }
-
-  const step = (max - min) / binCount;
-  finite.forEach((value) => {
-    const t = (value - min) / step;
-    const idx = Math.max(0, Math.min(binCount - 1, Math.floor(t)));
-    counts[idx] += 1;
-  });
-  return {
-    data: Array.from(counts),
-    xStart: min + step * 0.5,
-    xStep: step,
-    xTickMode: "",
-  };
-}
-
-export function buildRoiHistogram(values, options = {}) {
-  const finite = [];
-  let min = Number.POSITIVE_INFINITY;
-  let max = Number.NEGATIVE_INFINITY;
-  let isIntegerSeries = true;
-  (values || []).forEach((value) => {
-    if (!Number.isFinite(value)) return;
-    finite.push(value);
-    if (value < min) min = value;
-    if (value > max) max = value;
-    if (isIntegerSeries && Math.abs(value - Math.round(value)) >= 1e-9) {
-      isIntegerSeries = false;
-    }
-  });
-  if (!finite.length || !Number.isFinite(min) || !Number.isFinite(max)) return null;
-
-  const binMode = options?.mode === "fixed" ? "fixed" : "auto";
-  if (binMode === "fixed") {
-    return buildFixedRoiHistogram(
-      finite,
-      min,
-      max,
-      normalizeRoiHistogramBinCount(options?.count),
-      isIntegerSeries,
-    );
-  }
-
-  if (isIntegerSeries) {
-    const iMin = Math.floor(min);
-    const iMax = Math.ceil(max);
-    const intSpan = iMax - iMin + 1;
-    if (intSpan > 0 && intSpan <= 512) {
-      const counts = new Float64Array(intSpan);
-      finite.forEach((value) => {
-        const idx = Math.max(0, Math.min(intSpan - 1, Math.round(value) - iMin));
-        counts[idx] += 1;
-      });
-      return {
-        data: Array.from(counts),
-        xStart: iMin,
-        xStep: 1,
-        xTickMode: "integer",
-      };
-    }
-  }
-
-  const binCount = Math.max(16, Math.min(192, Math.round(Math.sqrt(finite.length) * 1.5)));
-  if (!(max > min)) {
-    return {
-      data: [finite.length],
-      xStart: min,
-      xStep: 1,
-      xTickMode: isIntegerSeries ? "integer" : "",
-    };
-  }
-
-  const step = (max - min) / binCount;
-  const counts = new Float64Array(binCount);
-  finite.forEach((value) => {
-    const t = (value - min) / step;
-    const idx = Math.max(0, Math.min(binCount - 1, Math.floor(t)));
-    counts[idx] += 1;
-  });
-  return {
-    data: Array.from(counts),
-    xStart: min + step * 0.5,
-    xStep: step,
-    xTickMode: "",
-  };
 }
 
 // Widest value span the counting median will allocate for: 2^21 bins is 8 MB of

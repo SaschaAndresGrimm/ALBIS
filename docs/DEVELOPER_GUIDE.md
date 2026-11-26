@@ -203,7 +203,8 @@ To add, say, a "Reset view" button:
 - Series summing:
   - `backend/services/series_summing.py` keeps orchestration/state in service methods and uses shared internal reduction steps for HDF5 and image-series flows.
 - Frontend ROI split:
-  - `frontend/modules/roi_stats_engine.js`: pure ROI stats/histogram/mask logic.
+  - `frontend/modules/roi_stats_engine.js`: pure ROI stats/mask logic.
+  - `frontend/modules/roi_histogram_engine.js`: pure ROI histogram binning and opening range.
   - `frontend/modules/roi_plot_renderer.js`: ROI plot rendering.
   - `frontend/modules/plot_tick_utils.js`: round-number axis ticks for those plots.
   - `frontend/modules/roi_csv_export.js`: ROI CSV payload construction.

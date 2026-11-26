@@ -878,8 +878,10 @@ function updateRoiStats() {
     drawRoiPlot(roiXCanvas, roiXCtx, null);
     drawRoiPlot(roiYCanvas, roiYCtx, null);
   }
-  levelBands.showRoi(buildLevelSample(statsValues, { integral: !currentFill() && isIntegralData(state.dataRaw) }));
-  updateRoiHistogramPlot(statsValues);
+  const integral = !currentFill() && isIntegralData(state.dataRaw);
+  const levelSample = buildLevelSample(statsValues, { integral });
+  levelBands.showRoi(levelSample);
+  updateRoiHistogramPlot(statsValues, levelSample, integral);
   drawRoiOverlay();
   updateRoiSectionState();
 }

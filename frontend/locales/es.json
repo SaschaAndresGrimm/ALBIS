@@ -1174,6 +1174,8 @@
   "roi.histogram.auto_bins": "Bins automáticos",
   "roi.histogram.bins": "Bins",
   "roi.histogram.bins_chip": "{{count}} bins",
+  "roi.histogram.hidden_above": "{{count}} px en {{value}} o más →",
+  "roi.histogram.hidden_below": "← {{count}} px en {{value}} o menos",
   "roi.histogram.presets": "Preajustes de bins del histograma",
   "roi.histogram.settings": "Ajustes del histograma",
   "roi.mode.annulus": "ROI del anillo",

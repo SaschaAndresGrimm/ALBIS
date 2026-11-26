@@ -1174,6 +1174,8 @@
   "roi.histogram.auto_bins": "自動ビン",
   "roi.histogram.bins": "ビン",
   "roi.histogram.bins_chip": "{{count}} ビン",
+  "roi.histogram.hidden_above": "{{value}} 以上: {{count}} px →",
+  "roi.histogram.hidden_below": "← {{value}} 以下: {{count}} px",
   "roi.histogram.presets": "ヒストグラムビンのプリセット",
   "roi.histogram.settings": "ヒストグラム設定",
   "roi.mode.annulus": "環状 ROI",
