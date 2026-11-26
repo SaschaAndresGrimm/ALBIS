@@ -53,10 +53,13 @@ function clampToDomain(lo, hi, domainMin, domainMax, log) {
   return [lo, hi];
 }
 
-// Zooming out an axis without a domain (y) stops once the data fills this
-// fraction of it: without a stop, a few wheel turns took a log count axis to
-// 1e50, with the data a flat line along the bottom.
+// Zooming out an axis without a domain (y) stops once the data fills a
+// quarter of it: without a stop, a few wheel turns took a log count axis to
+// 1e50, with the data a flat line along the bottom. On a log axis it stops
+// sooner, at two decades more than the data spans: a quarter of a histogram's
+// 4.7 decades of counts still let the axis run to 1e18.
 const MAX_ZOOM_OUT = 4;
+const MAX_LOG_EXTRA_DECADES = 2;
 
 // Below about a millionth of the values shown, the tick labels run out of
 // digits and the plot only shows floating-point noise.
@@ -72,8 +75,9 @@ const RELATIVE_MIN_SPAN = 1e-6;
  * out stops at the whole data and the range is kept inside it: x past the
  * data shows nothing, and a range grown past it would need notches of
  * zooming in before anything changed on screen. Without a domain, `dataMin`
- * and `dataMax` stop zooming out once the data fills a quarter of the axis,
- * and keep the axis at zero or above for data that is never negative.
+ * and `dataMax` stop zooming out once the data fills a quarter of the axis
+ * (on a log axis, or once the axis is two decades wider than the data), and
+ * keep the axis at zero or above for data that is never negative.
  *
  * Returns { min, max } in data units, or null when the range has no span.
  */
@@ -96,7 +100,10 @@ export function zoomAxisRange(
   const hasData = Number.isFinite(dataMin) && Number.isFinite(dataMax);
   if (hasData && next > span) {
     const dataSpan = toDisplay(Math.max(dataMin, dataMax), log) - toDisplay(Math.min(dataMin, dataMax), log);
-    if (dataSpan > 0) next = Math.min(next, Math.max(span, MAX_ZOOM_OUT * dataSpan));
+    const limit = log
+      ? Math.min(MAX_ZOOM_OUT * dataSpan, dataSpan + MAX_LOG_EXTRA_DECADES)
+      : MAX_ZOOM_OUT * dataSpan;
+    if (dataSpan > 0) next = Math.min(next, Math.max(span, limit));
   }
   let [nextLo, nextHi] = clampToDomain(anchorValue - at * next, anchorValue + (1 - at) * next, domainMin, domainMax, log);
   // Data that is never negative (counts, a log axis) gets no axis below zero.

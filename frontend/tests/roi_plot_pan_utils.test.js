@@ -76,14 +76,23 @@ describe("panAxisRange", () => {
 });
 
 describe("zoomAxisRange on y, with the data's extent", () => {
-  it("stops zooming out once the data fills a quarter of a log axis", () => {
+  it("stops zooming out a log axis two decades past the data", () => {
     let range = { min: 0, max: 50000 };
     for (let i = 0; i < 40; i += 1) {
       range = zoomAxisRange({ ...range, log: true, dataMin: 0, dataMax: 50000 }, 0.5, 0.5);
     }
-    // log10(1 + 50000) is 4.7 decades; four times that is the most.
-    expect(Math.log10(1 + range.max)).toBeLessThanOrEqual(4 * Math.log10(50001) + 1e-9);
+    // log10(1 + 50000) is 4.7 decades; a quarter rule alone allowed 18.8.
+    expect(Math.log10(1 + range.max)).toBeCloseTo(Math.log10(50001) + 2, 9);
     expect(range.min).toBe(0);
+  });
+
+  it("uses the quarter rule on a log axis when the data spans little", () => {
+    let range = { min: 100, max: 200 };
+    for (let i = 0; i < 40; i += 1) {
+      range = zoomAxisRange({ ...range, log: true, dataMin: 100, dataMax: 200 }, 0.5, 0.5);
+    }
+    const dataDecades = Math.log10(201) - Math.log10(101);
+    expect(Math.log10(1 + range.max) - Math.log10(1 + range.min)).toBeCloseTo(4 * dataDecades, 9);
   });
 
   it("keeps a linear axis of non-negative data at zero or above", () => {

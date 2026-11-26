@@ -474,7 +474,8 @@ to reset. Dragging on an axis (on its numbers, left of or below the plot) pans
 along that axis only, so the other one stays where it is; the cursor turns into
 a two-way arrow and the axis is shaded while it is under the pointer.
 Double-clicking an axis resets just that axis. Zooming out stops at the whole
-data along x, and once the data fills a quarter of the plot along y. Zoomed in far enough, a profile marks each
+data along x, and along y once the data fills a quarter of the plot (on a log
+axis, once the axis reaches two decades past the data). Zoomed in far enough, a profile marks each
 sample with a dot.
 
 **Right-drag** (or **Ctrl-drag**) a box over a plot to zoom into it, as you

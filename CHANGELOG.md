@@ -25,7 +25,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
-- **Zooming out on an ROI plot's count or intensity axis stops.** The wheel zoomed y out without limit: a few turns over a log count axis took it to 10^50, the data a flat line along the bottom, and an axis of counts could zoom out below zero. Zooming out now stops once the data fills a quarter of the axis, and data that is never negative keeps the axis at zero or above. Zooming in, panning and typed limits are unchanged.
+- **Zooming out on an ROI plot's count or intensity axis stops.** The wheel zoomed y out without limit: a few turns over a log count axis took it to 10^50, the data a flat line along the bottom, and an axis of counts could zoom out below zero. Zooming out now stops once the data fills a quarter of the axis, or on a log axis once it is two decades wider than the data (a histogram with counts up to 50000 stops near 5 million), and data that is never negative keeps the axis at zero or above. Zooming in, panning and typed limits are unchanged.
 
 - **Log axes label their ticks 1e+3, 1e+6, … instead of 1.000000e+3.** On a log axis reaching a million or more, every power of ten was written with up to six zero decimals, as if it had to line up with the axis's largest value.
 
