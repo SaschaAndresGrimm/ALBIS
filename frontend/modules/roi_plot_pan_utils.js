@@ -53,6 +53,11 @@ function clampToDomain(lo, hi, domainMin, domainMax, log) {
   return [lo, hi];
 }
 
+// Zooming out an axis without a domain (y) stops once the data fills this
+// fraction of it: without a stop, a few wheel turns took a log count axis to
+// 1e50, with the data a flat line along the bottom.
+const MAX_ZOOM_OUT = 4;
+
 // Below about a millionth of the values shown, the tick labels run out of
 // digits and the plot only shows floating-point noise.
 const RELATIVE_MIN_SPAN = 1e-6;
@@ -66,12 +71,14 @@ const RELATIVE_MIN_SPAN = 1e-6;
  * log units) and at a millionth of the values shown. With a domain, zooming
  * out stops at the whole data and the range is kept inside it: x past the
  * data shows nothing, and a range grown past it would need notches of
- * zooming in before anything changed on screen.
+ * zooming in before anything changed on screen. Without a domain, `dataMin`
+ * and `dataMax` stop zooming out once the data fills a quarter of the axis,
+ * and keep the axis at zero or above for data that is never negative.
  *
  * Returns { min, max } in data units, or null when the range has no span.
  */
 export function zoomAxisRange(
-  { min, max, domainMin = null, domainMax = null, log = false, minSpan = 0 },
+  { min, max, domainMin = null, domainMax = null, log = false, minSpan = 0, dataMin = null, dataMax = null },
   anchor,
   factor
 ) {
@@ -86,7 +93,18 @@ export function zoomAxisRange(
   let next = span / factor;
   // Never zoom in past the floor; a range already below it may only grow.
   if (next < span) next = Math.max(next, Math.min(span, floor));
-  const [nextLo, nextHi] = clampToDomain(anchorValue - at * next, anchorValue + (1 - at) * next, domainMin, domainMax, log);
+  const hasData = Number.isFinite(dataMin) && Number.isFinite(dataMax);
+  if (hasData && next > span) {
+    const dataSpan = toDisplay(Math.max(dataMin, dataMax), log) - toDisplay(Math.min(dataMin, dataMax), log);
+    if (dataSpan > 0) next = Math.min(next, Math.max(span, MAX_ZOOM_OUT * dataSpan));
+  }
+  let [nextLo, nextHi] = clampToDomain(anchorValue - at * next, anchorValue + (1 - at) * next, domainMin, domainMax, log);
+  // Data that is never negative (counts, a log axis) gets no axis below zero.
+  const zero = toDisplay(0, log);
+  if (hasData && Math.min(dataMin, dataMax) >= 0 && nextLo < zero && lo >= zero) {
+    nextHi += zero - nextLo;
+    nextLo = zero;
+  }
   return { min: fromDisplay(nextLo, log), max: fromDisplay(nextHi, log) };
 }
 

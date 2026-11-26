@@ -75,6 +75,35 @@ describe("panAxisRange", () => {
   });
 });
 
+describe("zoomAxisRange on y, with the data's extent", () => {
+  it("stops zooming out once the data fills a quarter of a log axis", () => {
+    let range = { min: 0, max: 50000 };
+    for (let i = 0; i < 40; i += 1) {
+      range = zoomAxisRange({ ...range, log: true, dataMin: 0, dataMax: 50000 }, 0.5, 0.5);
+    }
+    // log10(1 + 50000) is 4.7 decades; four times that is the most.
+    expect(Math.log10(1 + range.max)).toBeLessThanOrEqual(4 * Math.log10(50001) + 1e-9);
+    expect(range.min).toBe(0);
+  });
+
+  it("keeps a linear axis of non-negative data at zero or above", () => {
+    const range = zoomAxisRange({ min: 0, max: 10, dataMin: 0, dataMax: 10 }, 0.5, 0.5);
+    expect(range).toEqual({ min: 0, max: 20 });
+  });
+
+  it("lets negative data go below zero, up to the same stop", () => {
+    let range = { min: -2, max: 8 };
+    for (let i = 0; i < 20; i += 1) range = zoomAxisRange({ ...range, dataMin: -2, dataMax: 8 }, 0.5, 0.5);
+    expect(range.min).toBeLessThan(-2);
+    expect(range.max - range.min).toBeCloseTo(40);
+  });
+
+  it("still zooms in, and never shrinks a range already past the stop", () => {
+    expect(zoomAxisRange({ min: 0, max: 100, dataMin: 0, dataMax: 10 }, 0.5, 2)).toEqual({ min: 25, max: 75 });
+    expect(zoomAxisRange({ min: 0, max: 100, dataMin: 0, dataMax: 10 }, 0.5, 0.5)).toEqual({ min: 0, max: 100 });
+  });
+});
+
 describe("zoomAxisRange", () => {
   it("keeps the value under the pointer where it is", () => {
     const next = zoomAxisRange({ min: 0, max: 100 }, 0.25, 2);

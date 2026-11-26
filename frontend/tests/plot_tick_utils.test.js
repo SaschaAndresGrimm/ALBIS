@@ -77,6 +77,14 @@ describe("plot_tick_utils", () => {
       expect(ticks.labels).toEqual(["0", "10", "100", "1000", "10000", "100000"]);
     });
 
+    it("writes each power of ten on a huge axis with one digit", () => {
+      // Formatted at the axis's own scale these read "1.000000e+10".
+      const ticks = pickLogTicks({ min: 0, max: 50, lengthPx: 200, minGapPx: 22 });
+      expect(ticks.labels.length).toBeGreaterThan(2);
+      ticks.labels.filter((label) => label !== "0").forEach((label) => expect(label).toMatch(/^[125](e\+\d+)?$|^\d+$/));
+      expect(ticks.labels).toContain("1e+10");
+    });
+
     it("fills in 2 and 5 where there is room", () => {
       const ticks = pickLogTicks({ min: 0, max: logDisplay(80), lengthPx: 200, minGapPx: 28 });
       expect(ticks.labels).toEqual(["0", "1", "10", "20", "50"]);

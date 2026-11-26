@@ -706,6 +706,8 @@ export function bindRoiPlotInteractions({
                 min: useLimits ? limits.yMin : plot.yMin,
                 max: useLimits ? limits.yMax : plot.yMax,
                 log: Boolean(plot.log),
+                dataMin: plot.totalYMin,
+                dataMax: plot.totalYMax,
               },
               (plot.height - plot.padB - y) / plotH,
               action.factor

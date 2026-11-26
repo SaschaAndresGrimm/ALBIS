@@ -164,10 +164,14 @@ export function pickLogTicks({ min, max, lengthPx, minGapPx = 0 }) {
     const linear = pickLinearTicks({ min: lo, max: hi, lengthPx, minGapPx });
     if (linear.values.length > accepted.length) return { values: linear.values, labels: linear.labels };
   }
-  const scale = Math.max(hi, 0);
-  const labels = accepted.map((value) =>
-    formatTickValue(value, value > 0 ? 10 ** Math.floor(Math.log10(value) + EPS) : 1, scale),
-  );
+  // Every tick is 1, 2 or 5 times a power of ten and needs no digits past
+  // its first. Formatted with the axis's largest value as the scale, as a
+  // linear axis is, 1e10 on an axis up to 1e50 read "1.000000e+10".
+  const exponent = hi >= 1e6;
+  const labels = accepted.map((value) => {
+    if (value > 0 && exponent) return value.toExponential(0);
+    return formatTickValue(value, value > 0 ? 10 ** Math.floor(Math.log10(value) + EPS) : 1, value);
+  });
   return { values: accepted, labels };
 }
 
