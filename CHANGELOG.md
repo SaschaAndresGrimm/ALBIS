@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.49.0] - 2026-11-26
+
 ### Added
 
 - **Whole frame sets the ROI to the whole frame in one click.** The button sits next to **Clear ROI** in **Statistics and ROI**. With no ROI drawn, the statistics already describe the whole image, but the profiles and the histogram need a region, and drawing one from corner to corner by hand is fiddly and rarely exact. **Whole frame** makes a box from the first pixel to the last, so **Profile along X / Y** and **ROI Histogram** cover the whole detector; in Line, Circle or Annulus mode it switches to Box ROI.
@@ -2107,7 +2109,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.48.1...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.49.0...HEAD
+[0.49.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.48.1...v0.49.0
 [0.48.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.48.0...v0.48.1
 [0.48.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.47.0...v0.48.0
 [0.47.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.46.0...v0.47.0
