@@ -84,6 +84,11 @@
   height: 220px;
 }
 
+/* The 3D view needs more room than a profile to be turned and read. */
+#roi-surface-plot {
+  height: 300px;
+}
+
 .roi-plot-title {
   font-size: var(--font-size-sm);
   color: var(--plot-text);
@@ -387,18 +392,25 @@
   cursor: pointer;
 }
 
-#roi-hist-plot.is-collapsed {
+#roi-hist-plot.is-collapsed,
+#roi-surface-plot.is-collapsed {
   height: auto;
 }
 
-#roi-hist-plot.is-collapsed .roi-plot-header {
+#roi-hist-plot.is-collapsed .roi-plot-header,
+#roi-surface-plot.is-collapsed .roi-plot-header {
   margin-bottom: 0;
 }
 
 #roi-hist-plot.is-collapsed .roi-plot-actions,
 #roi-hist-plot.is-collapsed canvas,
 #roi-hist-plot.is-collapsed .roi-tooltip,
-#roi-hist-plot.is-collapsed .roi-resize-handle {
+#roi-hist-plot.is-collapsed .roi-resize-handle,
+#roi-surface-plot.is-collapsed .roi-plot-actions,
+#roi-surface-plot.is-collapsed .roi-surface-options,
+#roi-surface-plot.is-collapsed .roi-surface-stage,
+#roi-surface-plot.is-collapsed .roi-surface-note,
+#roi-surface-plot.is-collapsed .roi-resize-handle {
   display: none;
 }
 
@@ -417,4 +429,81 @@
 
 .roi-resize-handle:hover {
   background: linear-gradient(135deg, transparent 50%, var(--muted) 50%);
+}
+
+/* The box ROI's 3D view (roi_surface_controller.js). It shows the image's
+   pixels in the image's colours, so like the image it stays dark in both
+   themes: --ws-canvas, which the renderer also clears to. */
+.roi-surface-options {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+  font-size: var(--font-size-sm);
+  flex-shrink: 0;
+}
+
+.roi-surface-options .checkbox {
+  min-height: 0;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--plot-text);
+}
+
+.roi-surface-stage {
+  position: relative;
+  flex: 1;
+  min-height: 60px;
+  display: flex;
+}
+
+.roi-plot .roi-surface-canvas {
+  background: var(--ws-canvas);
+  border-radius: var(--radius-sm);
+  cursor: grab;
+  touch-action: none;
+}
+
+.roi-plot .roi-surface-canvas:active {
+  cursor: grabbing;
+}
+
+.roi-plot .roi-surface-canvas:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.roi-surface-message {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  text-align: center;
+  color: var(--muted);
+  font-size: var(--font-size-sm);
+  pointer-events: none;
+}
+
+.roi-surface-message.is-visible {
+  display: flex;
+}
+
+/* A message stands on the card, not on the dark view, so it reads in both
+   themes. */
+.roi-surface-stage.has-message .roi-surface-canvas {
+  visibility: hidden;
+}
+
+.roi-surface-note {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: var(--font-size-xs);
+  flex-shrink: 0;
+}
+
+.roi-surface-note:empty {
+  display: none;
 }

@@ -10,7 +10,7 @@
 import { roiGeometryNote } from "./roi_csv_export.js";
 import { canvasFont } from "./canvas_fonts.js";
 
-const PLOT_FILE_PARTS = { x: "profile_x", y: "profile_y", hist: "histogram" };
+const PLOT_FILE_PARTS = { x: "profile_x", y: "profile_y", hist: "histogram", surface: "3d_view" };
 
 /** `<file>_frame_<n>[_thr<k>]_roi_<mode>_<plot>.png`, beside the CSV export's name. */
 export function roiPlotPngFilename(state, roiState, plotKey) {

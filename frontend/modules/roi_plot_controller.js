@@ -238,6 +238,11 @@ const PNG_PLOTS = {
   x: () => [roiBoxPlotX, roiXCanvas],
   y: () => [roiBoxPlotY, roiYCanvas],
   hist: () => [roiHistogramPlot, roiHistCanvas],
+  // Built by roi_surface_controller.js, after this controller.
+  surface: () => {
+    const card = document.getElementById("roi-surface-plot");
+    return [card, card?.querySelector("canvas")];
+  },
 };
 
 /** Save one plot as a PNG, as it is on screen, with its title and what it was measured on. */

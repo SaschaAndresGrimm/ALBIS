@@ -450,11 +450,23 @@ of clipping them.
 
 ![A line ROI drawn from the beam outwards, with its statistics and the line profile with d-spacings in the Analysis tab](images/user-guide/roi.webp)
 
-Three plots accompany the region:
+Four plots accompany the region:
 
 - **Line Profile** — intensity along a line ROI, with the X axis switchable to
   pixels, **d (Å)** or **Q (1/nm)**.
 - **Profile along X / Y** — collapsed profiles of a box ROI.
+- **3D View** — a box ROI as a surface, each pixel as high as its value, in
+  the image's colours (like adxv's 3-D magnify window). It is off at first:
+  tick the box in its title. Drag to turn it, **Shift**-drag or right-drag to
+  move it, scroll to zoom and **Shift** + scroll to stretch the heights;
+  double-click or **↺** resets the view. With the view selected, the arrow
+  keys turn it and **+** and **−** zoom. **Wire mesh** draws only the grid;
+  **Log height** keeps faint signal visible beside a strong spot. Hover over
+  a point for its pixel and value. A box larger than 256 pixels on a side,
+  such as **Whole frame** on a large detector, is shown in blocks, each as
+  high as its highest pixel; the note under the view gives the block size.
+  Gaps and defective pixels lie flat in their mask colours, saturated pixels
+  stand at the top. The view needs WebGL2.
 - **ROI Histogram** — the value distribution, with automatic or fixed bins and
   a log count axis (on at first; switch it off in the plot's settings). It is
   off at first: tick the box in its title, under the profiles, and the plot

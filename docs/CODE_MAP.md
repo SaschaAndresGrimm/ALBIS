@@ -53,6 +53,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Pure ROI compute helpers, ROI plot rendering, and CSV payload generation.
 - `frontend/modules/roi_histogram_engine.js`:
   - The ROI histogram's bins: whole-number widths for whole-number data, binned from the level bands' table of counts, the range the plot opens on (without the far 0.1 % tails), and the pixels a view leaves out.
+- `frontend/modules/roi_surface_controller.js` + `frontend/modules/roi_surface_engine.js` + `frontend/modules/roi_surface_renderer.js`:
+  - The box ROI's 3D view: the card (built in JS, created by `roi_stats_controller.js`), its pure grid, mesh and camera maths (blocks of the highest pixel for large boxes), and the WebGL2 drawing.
 - `frontend/modules/roi_plot_png_utils.js`:
   - One ROI plot as a PNG: its file name, the caption saying what it was measured on, and the picture with title and caption above the plot (saved by `roi_plot_controller.js`).
 - `frontend/modules/plot_tick_utils.js`:

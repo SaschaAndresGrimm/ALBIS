@@ -14,6 +14,7 @@ describe("roiPlotPngFilename", () => {
   it("names the file, frame, ROI mode and plot", () => {
     expect(roiPlotPngFilename(state, roiState, "x")).toBe("CuHF2_01_frame_1_roi_box_profile_x.png");
     expect(roiPlotPngFilename(state, roiState, "hist")).toBe("CuHF2_01_frame_1_roi_box_histogram.png");
+    expect(roiPlotPngFilename(state, roiState, "surface")).toBe("CuHF2_01_frame_1_roi_box_3d_view.png");
     expect(roiPlotPngFilename(state, { mode: "line" }, "line")).toBe("CuHF2_01_frame_1_roi_line_line_profile.png");
     expect(roiPlotPngFilename(state, { mode: "annulus" }, "line")).toBe("CuHF2_01_frame_1_roi_annulus_radial_profile.png");
   });

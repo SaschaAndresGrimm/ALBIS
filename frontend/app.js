@@ -2891,7 +2891,7 @@ const roiStatsController = createRoiStatsController({
   roiHistBinPresetBtns,
   updateRoiSectionState,
   drawRoiOverlay: (...args) => drawRoiOverlay(...args),
-  getActiveSaturationMax,
+  getActiveSaturationMax, buildPalette, getPaletteColorCount, mapValueToNorm,
   getInpaintedFrame,
   isSaturatedValue,
   computeMedian,
@@ -2934,8 +2934,8 @@ function redraw() {
   // whether the flat fits it, and "Flatfielded".
   inpaintingController?.updateState();
   flatfieldController?.updateState();
-  // The lens follows the frame and the contrast.
-  magnifierController?.refresh();
+  // The lens and the box ROI's 3D view follow the frame and the contrast.
+  magnifierController?.refresh(); core.roiStats?.refreshSurface();
 }
 
 const mainUiBindingsElements = createMainUiBindingsElements({

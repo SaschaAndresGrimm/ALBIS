@@ -16,6 +16,8 @@ const EXACT_KEY_ALLOWLIST = new Set([
   // A symbol, a number and a unit: the same in every language.
   "geometry.inline.two_theta_file",
   "roi.mode.default",
+  // Coordinates and a value: x and y are axis names in every language.
+  "roi.surface.tooltip_pixel",
   "series.ui.output_placeholder",
   "settings.language.mi",
   "settings.language.rm",

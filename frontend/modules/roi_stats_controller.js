@@ -15,6 +15,7 @@ import {
   isIntegralData,
 } from "./roi_stats_engine.js";
 import { createRoiPlotController } from "./roi_plot_controller.js";
+import { createRoiSurfaceController } from "./roi_surface_controller.js";
 import { createLevelBandsController } from "./level_bands_controller.js";
 import { buildLevelSample } from "./level_bands_utils.js";
 import {
@@ -119,6 +120,18 @@ export function createRoiStatsController(ctx) {
     updateRoiHistogramPlot,
     exportRoiPlotPng,
   } = createRoiPlotController(ctx);
+
+  // The box's 3D view, a card above the histogram's (roi_surface_controller.js).
+  const { buildPalette, getPaletteColorCount, mapValueToNorm } = ctx;
+  const surface = createRoiSurfaceController({
+    state,
+    roiState,
+    elements: { anchor: ctx.roiHistogramPlot },
+    callbacks: {
+      buildPalette, getPaletteColorCount, mapValueToNorm, getActiveSaturationMax, isSaturatedValue, getInpaintedFrame,
+      formatStat, showTooltip: showRoiTooltip, hideTooltip: hideRoiTooltip, exportPng: () => exportRoiPlotPng("surface"),
+    },
+  });
 
   // Below BG / BG to FG / Above FG, over the same pixels as the statistics.
   const levelBands = createLevelBandsController({
@@ -947,7 +960,11 @@ function exportRoiCsv() {
     showRoiTooltip,
     hideRoiTooltip,
     updateRoiTooltip,
-    updateRoiStats,
+    updateRoiStats: () => {
+      updateRoiStats();
+      surface.update();
+    },
+    refreshSurface: surface.refresh,
     redrawRoiPlots,
     drawRoiPlot,
     exportRoiCsv,
