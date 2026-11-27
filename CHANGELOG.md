@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.50.0] - 2026-11-27
+
 ### Added
 
 - **A box ROI can be shown in 3D.** Tick **3D View** under the box's profiles in **Statistics and ROI**, and the pixels of the box become a surface whose height is their value, in the image's colour map, contrast and mask colours, like adxv's 3-D magnify window. A profile shows a spot along one axis at a time; the surface shows its whole shape at once: one sharp peak or a split one, a flat top where it saturates, a lone hot pixel, how it sits on the background. Drag to turn it, Shift-drag or right-drag to move it, scroll to zoom and Shift+scroll to stretch the heights; **Wire mesh** draws the grid alone and **Log height** lifts faint signal next to a strong spot. Hovering over a point gives its pixel and value. A box over the whole detector (**Whole frame**) is shown in blocks, each as high as its highest pixel, so a single bright spot still stands out; a note under the view gives the block size. The view follows the frame, the contrast and the colour map, and saves as a PNG like the other ROI plots. It needs WebGL2, which current browsers have; where it is missing, the view says so.
@@ -2125,7 +2127,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.49.1...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.50.0...HEAD
+[0.50.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.49.1...v0.50.0
 [0.49.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.49.0...v0.49.1
 [0.49.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.48.1...v0.49.0
 [0.48.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.48.0...v0.48.1
