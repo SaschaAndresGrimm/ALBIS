@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **ALBIS starts again on Windows after an upgrade from an older version.** Since 0.48.0, installing over an older ALBIS (from before 0.48) opened the browser on a page that never loaded. The installer copied the new files over the old ones and left the rest in place. One old leftover, the `httptools` folder, made the server pick a component that 0.48.0 no longer ships, so every request failed. Nothing about this reached `albis.log`, because the server's own error messages only went to a console the Windows app does not have. The installer now clears ALBIS's library folder before it copies the new one. The server always uses the components that ship with it, whatever is lying around. Its errors now go to `albis.log` as well. If you are stuck on a page that never loads, uninstall ALBIS and install it again.
+
 ### Changed
 
 - **Rings and markers stay readable on a light image.** On the default Albula HDR map, which is white where nothing was counted, the amber peak circles looked thin and brownish and the magenta rings lost their edge, because the halos behind them were tuned for a dark frame. ALBIS now looks at the colour map and Invert, and on a light image it draws the halos dark and heavier and warms the amber a step; the user rings turn a brighter blue. On a dark image nothing changes, and the hues are the same in both, so a ring or a peak is recognised at a glance. The highest-pixel squares of the Min/Max Finder are coral instead of pink, because a pink square next to the magenta reference rings read as part of them.

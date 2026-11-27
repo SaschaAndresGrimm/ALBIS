@@ -51,3 +51,22 @@ def uvicorn_log_config(level: str) -> dict[str, Any]:
             "uvicorn.access": {"handlers": [], "level": "WARNING", "propagate": False},
         },
     }
+
+
+def log_server_errors_to_files(source: str = "albis") -> None:
+    """Write uvicorn's and asyncio's lines to ALBIS's log files too.
+
+    Uvicorn logs only to the console, and asyncio to nowhere of its own. The
+    packaged Windows app has no console, so when every connection failed in
+    uvicorn (a stale httptools folder left by an older install), albis.log
+    showed a server that started and then said nothing at all. The file
+    handlers of the `source` logger are shared, not copied, so the lines land
+    in the same albis.log. Call it after uvicorn.Config, whose dictConfig
+    replaces the handlers of the loggers it configures.
+    """
+    files = [h for h in logging.getLogger(source).handlers if isinstance(h, logging.FileHandler)]
+    for name in ("uvicorn", "asyncio"):
+        target = logging.getLogger(name)
+        for handler in files:
+            if handler not in target.handlers:
+                target.addHandler(handler)

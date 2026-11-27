@@ -63,6 +63,15 @@ SignTool=albis_sign
 SignedUninstaller=yes
 #endif
 
+; Setup copies over an existing install and leaves the old version's files in
+; place. The bundle's libraries live in _internal, and a leftover from an
+; older ALBIS there is not inert: Python imports a stale package folder (an
+; httptools left after 0.48.0 dropped it), and with it every connection
+; failed. Each install starts from an empty _internal; ALBIS.exe is replaced
+; anyway, and nothing the user keeps lives in the install folder.
+[InstallDelete]
+Type: filesandordirs; Name: "{app}\_internal"
+
 [Files]
 Source: "..\dist\ALBIS\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
 

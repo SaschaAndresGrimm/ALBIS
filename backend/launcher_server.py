@@ -168,3 +168,16 @@ def _wait_for_health(host: str, port: int, timeout: float = 5.0) -> bool:
         except (OSError, urllib.error.URLError):
             time.sleep(0.1)
     return False
+
+
+# The protocols the bundle ships, named rather than left to uvicorn's "auto",
+# which takes httptools or uvloop whenever `import` finds them. An upgrade
+# over an older Windows install left its httptools folder behind; Python
+# imports such a folder as an empty package, uvicorn picked httptools, and
+# every connection failed: ALBIS started, opened the browser, and answered
+# nothing. These are what "auto" chooses on a bundle without the extras.
+UVICORN_PROTOCOLS: dict[str, str] = {
+    "http": "h11",
+    "ws": "websockets-sansio",
+    "loop": "asyncio",
+}

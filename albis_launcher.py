@@ -34,6 +34,7 @@ from backend.config import (
 from backend.file_associations import is_associated_path
 from backend.host_env import restore_host_library_path
 from backend.launcher_server import (
+    UVICORN_PROTOCOLS,
     _bind_auto_port,
     _create_bound_socket,
     _load_last_server,
@@ -43,7 +44,7 @@ from backend.launcher_server import (
     _wait_for_health,
     _wait_for_server,
 )
-from backend.log_format import LOG_FORMAT, uvicorn_log_config
+from backend.log_format import LOG_FORMAT, log_server_errors_to_files, uvicorn_log_config
 from backend.version import ALBIS_VERSION
 
 try:
@@ -857,7 +858,9 @@ def main() -> None:
         log_config=uvicorn_log_config(uvicorn_level),
         access_log=False,
         ws_ping_interval=None,
+        **UVICORN_PROTOCOLS,
     )
+    log_server_errors_to_files()
     server = uvicorn.Server(uvicorn_config)
 
     def _request_shutdown(source: str) -> None:
@@ -890,7 +893,16 @@ def main() -> None:
         )
         _launcher_log(start_ts, f"idle stop after {idle_shutdown_minutes():g} min without a tab")
     _sockets = [bound_sock] if bound_sock is not None else []
-    thread = threading.Thread(target=server.run, kwargs={"sockets": _sockets}, daemon=True)
+
+    def _serve() -> None:
+        # A crash here went to stderr, which the windowed app does not have.
+        try:
+            server.run(sockets=_sockets)
+        except BaseException:
+            logging.getLogger("albis").exception("The server stopped with an error")
+            raise
+
+    thread = threading.Thread(target=_serve, daemon=True)
     thread.start()
     _launcher_log(start_ts, "server thread started", logging.DEBUG)
     _update_server_status(host, port, "starting")
