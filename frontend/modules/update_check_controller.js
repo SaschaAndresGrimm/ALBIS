@@ -19,7 +19,9 @@
  * site turned it on, only offered where the platform makes it contained, and
  * refused over live work -- a viewer that replaces itself mid-experiment is a
  * hazard, not a feature. Where it is not offered, the last step stays showing
- * the user the folder the file landed in.
+ * the user the folder the file landed in -- or, where the update cannot go in
+ * while ALBIS runs (macOS, the Windows portable zip), showing it and closing
+ * ALBIS in one step (`handoff_supported`, `update_handoff_utils.js`).
  *
  * When the dialog opened by itself at startup, its last line offers "Don't check
  * for updates at startup": the moment the notice is unwelcome is the moment
@@ -35,6 +37,7 @@ import { fetchJSONWithInit } from "./http.js";
 import { copyText } from "./clipboard_copy.js";
 import { t } from "./i18n.js";
 import { notifyError, notifySuccess } from "./toast.js";
+import { HANDOFF_ENDPOINT, handoffKeys } from "./update_handoff_utils.js";
 
 const FALLBACK_RELEASES_URL = "https://github.com/SaschaAndresGrimm/ALBIS/releases";
 
@@ -149,6 +152,7 @@ export function createUpdateCheckController({
       download_supported: false,
       apply_supported: false,
       reveal_supported: false,
+      handoff_supported: false,
     };
   }
 
@@ -185,6 +189,7 @@ export function createUpdateCheckController({
       download_supported: Boolean(payload?.download_supported),
       apply_supported: Boolean(payload?.apply_supported),
       reveal_supported: Boolean(payload?.reveal_supported),
+      handoff_supported: Boolean(payload?.handoff_supported),
     };
   }
 
@@ -225,6 +230,16 @@ export function createUpdateCheckController({
     if (!applyStatus || applyStatus.refusal) return false;
     if (applyStatus.status !== "idle") return false;
     return applyBlockers().length === 0;
+  }
+
+  // The keys for "Quit and Open Disk Image" when that is the step on offer:
+  // a verified download is ready, ALBIS cannot install it itself, and the
+  // quit controller is there to close ALBIS.
+  function handoffOffer() {
+    if (!latestPayload.handoff_supported || canApply()) return null;
+    if (activeDownload()?.status !== "ready") return null;
+    if (typeof core.quit?.quit !== "function") return null;
+    return handoffKeys(latestPayload.install_kind);
   }
 
   function normalizeDownloadStatus(payload) {
@@ -294,7 +309,7 @@ export function createUpdateCheckController({
     // replace their AppImage by hand, directly above a button that replaces
     // it for them, reads as two different instructions.
     const superseded =
-      canApply() || isApplyRunning() || applyStatus?.status === "applied";
+      canApply() || isApplyRunning() || applyStatus?.status === "applied" || handoffOffer();
     const key =
       modalState === "update_available" && !superseded
         ? INSTRUCTION_KEYS[latestPayload.install_kind]
@@ -459,6 +474,8 @@ export function createUpdateCheckController({
         // part a user needs warning about.
         text = t("update_check.apply.note");
       }
+    } else if (handoffOffer()) {
+      text = t(handoffOffer().steps);
     }
 
     updateCheckApplyNote.classList.toggle("is-warning", warning);
@@ -483,6 +500,7 @@ export function createUpdateCheckController({
       if (RUNNING_DOWNLOAD_STATES.includes(active.status)) return "busy";
       if (active.status === "ready") {
         if (canApply()) return "apply";
+        if (handoffOffer()) return "handoff";
         // A file on a server's disk cannot be shown to someone elsewhere; the
         // path stays in the dialog and there is nothing left to press.
         return latestPayload.reveal_supported ? "reveal" : "none";
@@ -508,6 +526,8 @@ export function createUpdateCheckController({
         updateCheckAction.textContent = t("update_check.action.download");
       } else if (primaryIntent === "apply") {
         updateCheckAction.textContent = t("update_check.action.apply");
+      } else if (primaryIntent === "handoff") {
+        updateCheckAction.textContent = t(handoffOffer().action);
       } else if (primaryIntent === "reveal") {
         updateCheckAction.textContent = t("update_check.action.reveal");
       } else if (modalState === "update_available") {
@@ -527,7 +547,8 @@ export function createUpdateCheckController({
     // The file is on disk either way, so the folder stays reachable while the
     // primary button offers the install instead.
     if (updateCheckReveal) {
-      updateCheckReveal.hidden = primaryIntent !== "apply" || !latestPayload.reveal_supported;
+      updateCheckReveal.hidden =
+        !["apply", "handoff"].includes(primaryIntent) || !latestPayload.reveal_supported;
       updateCheckReveal.textContent = t("update_check.action.reveal");
     }
 
@@ -777,6 +798,19 @@ export function createUpdateCheckController({
     }
   }
 
+  // The quit controller asks about running work and leaves the "stopped"
+  // page, with the install steps on it in place of this dialog.
+  async function handOffAndQuit() {
+    const keys = handoffOffer();
+    if (!keys) return;
+    const stopped = await core.quit.quit({
+      endpoint: HANDOFF_ENDPOINT,
+      stoppedText: t(keys.stopped),
+      failedText: t("update_check.handoff.failed"),
+    });
+    if (stopped) close({ restoreFocus: false });
+  }
+
   // Applied on close rather than on the tick, so the box can be unticked
   // again before it means anything.
   async function switchOffStartupCheck() {
@@ -883,6 +917,10 @@ export function createUpdateCheckController({
     }
     if (primaryIntent === "apply") {
       void applyUpdate();
+      return;
+    }
+    if (primaryIntent === "handoff") {
+      void handOffAndQuit();
       return;
     }
     if (primaryIntent === "reveal") {

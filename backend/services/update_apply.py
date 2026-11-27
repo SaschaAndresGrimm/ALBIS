@@ -16,7 +16,8 @@ it a contained operation, and only when they have asked for it:
 Not macOS: replacing a running `.app` bundle needs a detached helper and risks
 invalidating the notarization the user is relying on. Not Docker, which cannot
 replace its own image. Not a source checkout, which is the user's working tree.
-Those keep the download-and-show-the-folder behaviour.
+Those keep the download-and-show-the-folder behaviour; on macOS and with the
+Windows portable zip that step also closes ALBIS (`update_handoff.py`).
 
 Three rules this holds to, all of them because ALBIS is an image viewer on a
 beamline workstation and not a consumer app:

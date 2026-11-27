@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **On a Mac, Quit and Open Disk Image finishes an update in one click.** Once **Download Update** has fetched and verified the new disk image, the button opens the image and quits ALBIS. All that is left is to drag ALBIS to Applications and start it again. Before, the dialog only offered **Show in Folder**, and dragging the new ALBIS over the old one then failed: Finder will not replace an app that is still open, and nothing said that ALBIS had to be quit first, from the Dock or **File → Quit ALBIS**. The Windows portable archive had the same problem, because files in use cannot be overwritten, so it gets **Quit and Show in Explorer**. Running work is asked about first, as with **Quit ALBIS**, and if the download cannot be shown, ALBIS stays open. The Windows installer and the AppImage do not need this: the installer closes ALBIS by itself, and the AppImage can be replaced while it runs.
+
 ## [0.49.1] - 2026-11-27
 
 ### Fixed

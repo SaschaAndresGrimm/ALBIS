@@ -24,6 +24,7 @@ from ..api_models import (
     UpdateCheckResponse,
     UpdateDownloadStartRequest,
     UpdateDownloadStatusResponse,
+    UpdateHandoffResponse,
 )
 from ..response_compression import available_encodings
 from ..services.log_tail import read_log_tail
@@ -33,6 +34,7 @@ from ..services.update_download import (
     DownloadRefusedError,
     UpdateDownloadService,
 )
+from ..services.update_handoff import handoff_supported, show_for_install
 
 
 @dataclass(frozen=True)
@@ -140,6 +142,9 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
                 "download_supported": supported,
                 "apply_supported": apply_supported,
                 "reveal_supported": local,
+                "handoff_supported": local
+                and deps.can_quit()
+                and handoff_supported(deps.install_kind),
             }
         )
 
@@ -230,6 +235,40 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
         except Exception:
             opened = False
         return PathStatusResponse(status="ok", path=str(ready), opened=opened)
+
+    @app.post("/api/update-download/open-and-quit", response_model=UpdateHandoffResponse)
+    def update_download_open_and_quit(payload: QuitRequest) -> UpdateHandoffResponse:
+        """Show the verified download, then stop ALBIS so it can be installed.
+
+        For the installs whose files cannot be replaced while ALBIS runs: on
+        macOS the disk image is opened (mounted, never run), with the Windows
+        portable zip it is selected in Explorer. Then ALBIS stops as File ->
+        Quit ALBIS does, answering first. Without `force`, refused (409) while
+        a job of the backend's own is running; nothing is shown in that case.
+        """
+        if not deps.can_quit() or not handoff_supported(deps.install_kind):
+            raise HTTPException(
+                status_code=403, detail="This ALBIS cannot be closed for an update from here"
+            )
+        ready = deps.update_download.ready_path()
+        if ready is None:
+            raise HTTPException(status_code=404, detail="No verified download available")
+        busy = deps.backend_busy()
+        if busy and not payload.force:
+            raise HTTPException(status_code=409, detail={"code": "busy", "busy": busy})
+        try:
+            shown = show_for_install(ready, deps.install_kind)
+        except Exception:
+            shown = False
+        if not shown:
+            # Stopping would leave the user with neither ALBIS nor the update
+            # on screen, so ALBIS stays open and the dialog says where it is.
+            raise HTTPException(
+                status_code=502, detail=f"The download could not be shown. It is at {ready}"
+            )
+        if not deps.request_quit():
+            raise HTTPException(status_code=503, detail="ALBIS could not stop itself")
+        return UpdateHandoffResponse(status="stopping", path=str(ready))
 
     @app.get("/api/settings", response_model=SettingsPayloadResponse)
     def get_settings() -> SettingsPayloadResponse:

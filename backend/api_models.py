@@ -59,6 +59,10 @@ class UpdateCheckResponse(_StrictModel):
     # user's own computer. On a shared or remote server the file manager would
     # open on a screen nobody is at, and the download goes through the browser.
     reveal_supported: bool = False
+    # Whether the last step is "Quit and Open Disk Image" (macOS) or "Quit and
+    # Show in Explorer" (Windows portable): installs whose files cannot be
+    # replaced while ALBIS runs, on a server this computer can stop.
+    handoff_supported: bool = False
 
 
 class UpdateDownloadStartRequest(_StrictModel):
@@ -679,3 +683,8 @@ class QuitRequest(_StrictModel):
 
 class QuitResponse(_StrictModel):
     status: Literal["stopping"]
+
+
+class UpdateHandoffResponse(QuitResponse):
+    # The download that was shown, so the stopped page can say where it is.
+    path: str

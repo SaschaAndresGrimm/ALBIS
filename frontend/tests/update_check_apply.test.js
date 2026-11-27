@@ -30,6 +30,13 @@ const DICTIONARY = {
     "ALBIS will not install an update while a live watch, series sum or export is running.",
   "update_check.apply.refusal.unverified_download":
     "Only a download whose checksum was verified can be installed.",
+  "update_check.instruction.macos_app": "Quit ALBIS, then drag it to Applications.",
+  "update_check.action.handoff.macos_app": "Quit and Open Disk Image",
+  "update_check.action.handoff.windows_portable": "Quit and Show in Explorer",
+  "update_check.handoff.steps.macos_app": "ALBIS quits and the disk image opens.",
+  "update_check.handoff.steps.windows_portable": "ALBIS quits and Explorer shows the archive.",
+  "update_check.handoff.stopped.macos_app": "Drag ALBIS to Applications, then start it again.",
+  "update_check.handoff.failed": "ALBIS could not show the update and stays open.",
 };
 
 function updatePayload(overrides = {}) {
@@ -108,6 +115,7 @@ async function initialize({
   applyStartStatus,
   blockers = [],
   blockersThrow = false,
+  core = {},
 } = {}) {
   vi.resetModules();
   renderShell();
@@ -153,7 +161,9 @@ async function initialize({
 
   const { createUpdateCheckController } = await import("../modules/update_check_controller.js");
   const byId = (id) => document.getElementById(id);
+  const closeModal = vi.fn(() => true);
   const controller = createUpdateCheckController({
+    core,
     apiBase: "/api",
     state: { backendVersion: "0.19.0" },
     elements: {
@@ -183,7 +193,7 @@ async function initialize({
     },
     callbacks: {
       openModal: vi.fn(() => true),
-      closeModal: vi.fn(() => true),
+      closeModal,
       getApplyBlockers: () => {
         if (blockersThrow) throw new Error("state unavailable");
         return blockers;
@@ -191,7 +201,7 @@ async function initialize({
     },
   });
 
-  return { controller, posts };
+  return { controller, posts, closeModal };
 }
 
 const action = () => document.getElementById("update-check-action");
@@ -355,5 +365,120 @@ describe("applying an update", () => {
     expect(document.getElementById("update-check-progress")?.hidden).toBe(false);
     expect(note()?.hidden).toBe(true);
     expect(action()?.hidden).toBe(true);
+  });
+});
+
+describe("quitting so the update can be installed", () => {
+  const MAC_ASSET = "ALBIS-macos-arm64-v1.0.0-abc1234.dmg";
+  const macUpdate = (overrides = {}) =>
+    updatePayload({
+      install_kind: "macos_app",
+      download_url: `https://github.com/SaschaAndresGrimm/ALBIS/releases/download/v1.0.0/${MAC_ASSET}`,
+      download_name: MAC_ASSET,
+      apply_supported: false,
+      handoff_supported: true,
+      ...overrides,
+    });
+  const quitter = (result = true) => ({ quit: vi.fn(async () => result) });
+
+  beforeEach(() => {
+    window.open = vi.fn();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  it("offers Quit and Open Disk Image on a Mac, with the steps said first", async () => {
+    const quit = quitter();
+    const { controller, closeModal } = await initialize({
+      update: macUpdate(),
+      download: readyDownload({ name: MAC_ASSET }),
+      core: { quit },
+    });
+
+    await controller.openAndCheck();
+
+    expect(action()?.textContent).toBe("Quit and Open Disk Image");
+    expect(note()?.textContent).toBe("ALBIS quits and the disk image opens.");
+    // One set of steps on screen, not the manual one as well.
+    expect(document.getElementById("update-check-instruction")?.hidden).toBe(true);
+    // Showing the folder without quitting stays possible.
+    expect(reveal()?.hidden).toBe(false);
+
+    action()?.click();
+    await vi.advanceTimersByTimeAsync(0);
+
+    // The quit controller asks about running work and leaves the stopped
+    // page, with the same steps on it.
+    expect(quit.quit).toHaveBeenCalledWith({
+      endpoint: "update-download/open-and-quit",
+      stoppedText: "Drag ALBIS to Applications, then start it again.",
+      failedText: "ALBIS could not show the update and stays open.",
+    });
+    expect(closeModal).toHaveBeenCalled();
+  });
+
+  it("names Explorer for the Windows portable zip", async () => {
+    const { controller } = await initialize({
+      update: macUpdate({ install_kind: "windows_portable" }),
+      download: readyDownload({ name: MAC_ASSET }),
+      core: { quit: quitter() },
+    });
+
+    await controller.openAndCheck();
+
+    expect(action()?.textContent).toBe("Quit and Show in Explorer");
+    expect(note()?.textContent).toBe("ALBIS quits and Explorer shows the archive.");
+  });
+
+  it("keeps the dialog open when ALBIS did not stop", async () => {
+    const quit = quitter(false);
+    const { controller, closeModal } = await initialize({
+      update: macUpdate(),
+      download: readyDownload({ name: MAC_ASSET }),
+      core: { quit },
+    });
+
+    await controller.openAndCheck();
+    action()?.click();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(quit.quit).toHaveBeenCalled();
+    expect(closeModal).not.toHaveBeenCalled();
+  });
+
+  it("falls back to Show in Folder where ALBIS cannot stop itself", async () => {
+    const { controller, posts } = await initialize({
+      update: macUpdate({ handoff_supported: false }),
+      download: readyDownload({ name: MAC_ASSET }),
+      core: { quit: quitter() },
+    });
+
+    await controller.openAndCheck();
+
+    expect(action()?.textContent).toBe("Show in Folder");
+    expect(document.getElementById("update-check-instruction")?.textContent).toBe(
+      "Quit ALBIS, then drag it to Applications.",
+    );
+    action()?.click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(posts.map((entry) => entry.url)).toEqual(["reveal"]);
+  });
+
+  it("is not offered before the download is ready", async () => {
+    const { controller } = await initialize({
+      update: macUpdate(),
+      download: readyDownload({ name: MAC_ASSET, status: "downloading", bytes_downloaded: 1 }),
+      core: { quit: quitter() },
+    });
+
+    await controller.openAndCheck();
+
+    expect(action()?.hidden).toBe(true);
+    expect(note()?.hidden).toBe(true);
   });
 });

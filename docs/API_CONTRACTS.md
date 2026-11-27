@@ -213,6 +213,27 @@ file whose linked data files cannot be read (`master_data_missing`,
 failed (`refused`, `timeout`, `unreachable`). A client should switch on `code`
 and fall back to `message`, never parse the sentence.
 
+## Updating
+
+`GET /api/update-check` names the release asset for this install and what
+the interface may offer: `download_supported`, `apply_supported`,
+`reveal_supported` and `handoff_supported`. The last is true when the
+install cannot be updated while ALBIS runs (`install_kind` `macos_app` or
+`windows_portable`) and this server, on the user's own computer, can stop
+itself.
+
+- `POST /api/update-download/open-and-quit` (body `QuitRequest`: `force`,
+  default false): shows the verified download, then stops ALBIS as
+  `POST /api/quit` does, answering first with `{"status": "stopping",
+  "path": "<download>"}`. On macOS the disk image is opened (mounted, not
+  run); otherwise the file is selected in the file manager.
+  - `403` when the install does not need it or the server cannot be stopped
+    from here, `404` without a verified download,
+  - `409` with `{"code": "busy", "busy": [...]}` while the backend's own work
+    runs and `force` is false; nothing is shown in that case,
+  - `502` when the download could not be shown; ALBIS keeps running, and
+    `detail` says where the file is.
+
 ## Remote Stream Semantics
 
 - `POST /api/remote/v1/frame`: ingest a frame and metadata.

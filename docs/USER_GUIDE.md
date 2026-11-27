@@ -1503,6 +1503,17 @@ update it could not verify, and it will not install one while a live watch,
 series sum or export is running — the dialog says so and offers the folder
 instead.
 
+On a Mac, and with the Windows portable archive, the update cannot go in while
+ALBIS is running: Finder will not replace an app that is open, and Windows will
+not overwrite files in use. There the verified download gets **Quit and Open
+Disk Image** (macOS) or **Quit and Show in Explorer** (Windows portable)
+instead of **Show in Folder**. It opens the disk image, or selects the archive,
+and quits ALBIS, and the page left behind says what to do next: drag ALBIS to
+Applications, or extract the archive over your ALBIS folder, then start ALBIS
+again. If something is still running, ALBIS asks first, as **File → Quit
+ALBIS** does. **Show in Folder** stays next to it, for when you want to install
+later.
+
 On Windows, the installer you download can make SmartScreen show a blue
 "Windows protected your PC" screen, even when it is signed. A signature gives
 the publisher's name and shows the file was not changed after it was built, but

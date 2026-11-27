@@ -142,8 +142,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Side-panel layout, sections and mobile drag; tab and section listeners; the remembered tab; which optional Analysis tools a user hides.
 - `frontend/modules/hover_tips.js`, `frontend/modules/hover_tip_utils.js`, `frontend/modules/info_tips.js`:
   - The hover tooltip (a control's name and shortcut, or why it is unavailable) and the "?" buttons that explain an option in place.
-- `frontend/modules/settings_controller.js`, `frontend/modules/backend_status_controller.js`, `frontend/modules/backend_log_viewer_controller.js`, `frontend/modules/update_check_controller.js`:
-  - The Settings dialog, the backend health and live badge, View Log, and the release check with what to do for each kind of install.
+- `frontend/modules/settings_controller.js`, `frontend/modules/backend_status_controller.js`, `frontend/modules/backend_log_viewer_controller.js`, `frontend/modules/update_check_controller.js`, `frontend/modules/update_handoff_utils.js`:
+  - The Settings dialog, the backend health and live badge, View Log, and the release check with what to do for each kind of install (Quit and Open Disk Image goes through the quit controller).
 
 ### Opening files and live sources
 
@@ -321,8 +321,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Making a caller-influenced string safe as one log line, and reading the end of the log for View Log.
 - `backend/services/ui_prompts.py`:
   - Titles for the native file and folder choosers, in the user's language.
-- `backend/services/update_check.py`, `backend/services/update_download.py`, `backend/services/update_apply.py`:
-  - The GitHub release check, downloading and verifying a release asset, and applying it where that is safe.
+- `backend/services/update_check.py`, `backend/services/update_download.py`, `backend/services/update_apply.py`, `backend/services/update_handoff.py`:
+  - The GitHub release check, downloading and verifying a release asset, applying it where that is safe, and elsewhere (macOS, the Windows portable zip) showing it and quitting ALBIS so it can be installed.
 
 ## Backend Support Modules
 

@@ -92,6 +92,8 @@ def test_update_check_endpoint_reports_newer_release(monkeypatch) -> None:
         "download_supported": False,
         "apply_supported": False,
         "reveal_supported": True,
+        # A checkout can be replaced while ALBIS runs.
+        "handoff_supported": False,
     }
 
 

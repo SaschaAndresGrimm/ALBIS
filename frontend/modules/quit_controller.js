@@ -9,6 +9,11 @@
  * It asks first only when something would be lost -- a conversion, an export
  * or a series sum still running, a live watch -- and otherwise quits at once.
  * Afterwards the page says ALBIS has stopped, rather than failing quietly.
+ *
+ * The update dialog quits through here too, when the update cannot be
+ * installed over a running ALBIS: it names its own endpoint (which shows the
+ * download before stopping), the steps to show on the stopped page, and the
+ * message for a failure.
  */
 
 import { showConfirmDialog as defaultConfirm } from "./dialogs.js";
@@ -37,7 +42,7 @@ export function createQuitController({ apiBase, state, elements, callbacks }) {
     });
   }
 
-  function showStopped() {
+  function showStopped(steps) {
     const overlay = document.createElement("div");
     overlay.className = "albis-stopped";
     overlay.setAttribute("role", "alertdialog");
@@ -47,43 +52,43 @@ export function createQuitController({ apiBase, state, elements, callbacks }) {
     const title = document.createElement("h2");
     title.textContent = t("quit.stopped_title");
     const text = document.createElement("p");
-    text.textContent = t("quit.stopped_text");
+    text.textContent = steps || t("quit.stopped_text");
     card.append(title, text);
     overlay.append(card);
     document.body.append(overlay);
   }
 
-  async function send(force) {
-    return fetchResponse(`${apiBase}/quit`, {
+  async function send(force, endpoint) {
+    return fetchResponse(`${apiBase}/${endpoint}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ force }),
     });
   }
 
-  async function quit() {
+  async function quit({ endpoint = "quit", stoppedText = "", failedText = "" } = {}) {
     if (stopping || !state.canQuit) return false;
     // What this tab has running, which the server cannot see.
     const local = collectBusyWork().filter(Boolean);
     if (local.length && !(await confirmBusy(local))) return false;
     try {
       try {
-        await send(local.length > 0);
+        await send(local.length > 0, endpoint);
       } catch (err) {
         if (err?.status !== 409) throw err;
         // The server's own work (a series sum, a conversion from another tab).
         const busy = Array.isArray(err.detailData?.busy) ? err.detailData.busy : ["unknown"];
         if (!(await confirmBusy(busy))) return false;
-        await send(true);
+        await send(true, endpoint);
       }
       stopping = true;
       // So the lost-connection notice stays away: this stop was asked for.
       state.serverStopped = true;
-      showStopped();
+      showStopped(stoppedText);
       return true;
     } catch (err) {
       console.error(err);
-      setStatus(t("quit.failed"), { tone: "error", detail: failureDetail(err) });
+      setStatus(failedText || t("quit.failed"), { tone: "error", detail: failureDetail(err) });
       return false;
     }
   }

@@ -3248,7 +3248,7 @@ function validateSeriesStepInput(commit = false) {
   }
   return normalized;
 }
-quitController = createQuitController({
+quitController = core.quit = createQuitController({
   apiBase: API,
   state,
   elements: { menuItem: document.getElementById("menu-quit") },

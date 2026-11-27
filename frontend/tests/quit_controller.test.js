@@ -7,7 +7,9 @@ import { createQuitController } from "../modules/quit_controller.js";
 function setup({ canQuit = true, busy = [], confirm = true, responses = [{ status: 200 }] } = {}) {
   document.body.innerHTML = `<button id="quit" hidden></button>`;
   const sent = [];
-  global.fetch = vi.fn(async (_url, init) => {
+  const urls = [];
+  global.fetch = vi.fn(async (url, init) => {
+    urls.push(String(url));
     sent.push(JSON.parse(init.body));
     const next = responses.shift() || { status: 200 };
     return { ok: next.status < 300, status: next.status, json: async () => next.body || { status: "stopping" } };
@@ -21,7 +23,7 @@ function setup({ canQuit = true, busy = [], confirm = true, responses = [{ statu
     elements: { menuItem: document.getElementById("quit") },
     callbacks: { collectBusyWork: () => busy, showConfirmDialog, setStatus },
   });
-  return { controller, state, sent, showConfirmDialog, setStatus };
+  return { controller, state, sent, urls, showConfirmDialog, setStatus };
 }
 
 describe("File -> Quit ALBIS", () => {
@@ -69,6 +71,31 @@ describe("File -> Quit ALBIS", () => {
     expect(await controller.quit()).toBe(false);
     // With the cause under it: the server answered 503.
     expect(setStatus).toHaveBeenCalledWith("quit.failed", { tone: "error", detail: "http.error.server" });
+    expect(document.querySelector(".albis-stopped")).toBeNull();
+  });
+
+  it("quits through the update's endpoint, with the install steps on the stopped page", async () => {
+    const { controller, urls } = setup();
+    const done = await controller.quit({
+      endpoint: "update-download/open-and-quit",
+      stoppedText: "Drag ALBIS to Applications.",
+      failedText: "ALBIS could not show the update.",
+    });
+    expect(done).toBe(true);
+    expect(urls).toEqual(["/api/update-download/open-and-quit"]);
+    expect(document.querySelector(".albis-stopped").textContent).toContain(
+      "Drag ALBIS to Applications.",
+    );
+  });
+
+  it("reports the update's own failure, and ALBIS stays", async () => {
+    const { controller, setStatus } = setup({ responses: [{ status: 502 }] });
+    const done = await controller.quit({
+      endpoint: "update-download/open-and-quit",
+      failedText: "ALBIS could not show the update.",
+    });
+    expect(done).toBe(false);
+    expect(setStatus.mock.calls[0][0]).toBe("ALBIS could not show the update.");
     expect(document.querySelector(".albis-stopped")).toBeNull();
   });
 });
