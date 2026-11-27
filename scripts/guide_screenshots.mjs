@@ -154,6 +154,10 @@ const profile = path.join(work, "chrome");
 start(chromePath, [
   "--headless=new",
   "--disable-gpu",
+  // WebGL in software, for the box ROI's 3D view (roi-3d): without a GPU,
+  // Chrome offers no WebGL unless told to use SwiftShader.
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
   "--hide-scrollbars",
   `--remote-debugging-port=${cdpPort}`,
   `--user-data-dir=${profile}`,
@@ -669,6 +673,47 @@ const scenes = [
       await sleep(1500);
       await parkMouse();
       await shot("roi");
+    },
+  },
+  {
+    // The box ROI's 3D view, on the strongest reflection near the beam, with
+    // the mouse on its peak so the readout shows what a point is.
+    name: "roi-3d",
+    async run() {
+      await loadSeries();
+      await fitToWindow();
+      await tab("analysis");
+      await collapseAll();
+      await section("roi", { on: true });
+      await setValue("#roi-mode", "box");
+      await page(() => {
+        const ends = { "roi-box-x0": 166, "roi-box-y0": 297, "roi-box-x1": 194, "roi-box-y1": 325 };
+        for (const [id, value] of Object.entries(ends)) document.getElementById(id).value = String(value);
+        document.getElementById("roi-box-y1").dispatchEvent(new Event("change", { bubbles: true }));
+        const toggle = document.querySelector("[data-surface-toggle]");
+        if (!toggle.checked) toggle.click();
+        document.getElementById("roi-surface-plot").scrollIntoView({ block: "center" });
+      });
+      await waitFor(() => document.querySelector("#roi-surface-plot canvas")?._roiPlotMeta, "the 3D view", 10000);
+      await sleep(600);
+      // The peak is wherever the camera puts it: look for the highest readout.
+      const canvas = await rectOf("#roi-surface-plot canvas");
+      let best = null;
+      for (let y = canvas.y + 10; y < canvas.y + canvas.height - 10; y += 8) {
+        for (let x = canvas.x + 10; x < canvas.x + canvas.width - 10; x += 8) {
+          await mouse("mouseMoved", x, y);
+          const value = await page(() => {
+            const tip = document.querySelector("#roi-surface-plot .roi-tooltip.is-visible");
+            const number = tip?.textContent.match(/(-?[\d.]+)\s*$/);
+            return number ? Number(number[1]) : null;
+          });
+          if (value !== null && (!best || value > best.value)) best = { x, y, value };
+        }
+      }
+      if (!best) throw new Error("no readout over the 3D view");
+      await mouse("mouseMoved", best.x, best.y);
+      await sleep(500);
+      await shot("roi-3d", { selector: "#roi-surface-plot", pad: 4 });
     },
   },
   {

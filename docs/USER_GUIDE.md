@@ -479,6 +479,8 @@ Four plots accompany the region:
   narrower than one value, so fixed **Bins** over a short range of values
   gives fewer bars than asked for.
 
+![The 3D View of a box ROI on a reflection: a lit surface in the image's colours, the reflection a tall peak, with the readout of its highest pixel](images/user-guide/roi-3d.webp)
+
 Plot axes autoscale by default; switch to **Manual axes** to pin them while
 stepping through frames, so the shape you are watching does not rescale
 underneath you. Drag on a plot to pan, wheel over an axis to zoom, double-click
