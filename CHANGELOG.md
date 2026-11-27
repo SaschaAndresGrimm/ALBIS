@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **Rings and markers stay readable on a light image.** On the default Albula HDR map, which is white where nothing was counted, the amber peak circles looked thin and brownish and the magenta rings lost their edge, because the halos behind them were tuned for a dark frame. ALBIS now looks at the colour map and Invert, and on a light image it draws the halos dark and heavier and warms the amber a step; the user rings turn a brighter blue. On a dark image nothing changes, and the hues are the same in both, so a ring or a peak is recognised at a glance. The highest-pixel squares of the Min/Max Finder are coral instead of pink, because a pink square next to the magenta reference rings read as part of them.
+
 ## [0.49.0] - 2026-11-26
 
 ### Added

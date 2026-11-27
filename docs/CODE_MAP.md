@@ -184,6 +184,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Mask colours chosen to stay distinct from the colour map, the chips under the colour bar that show and change them, and finding hot, dead and cold pixels in one image (beta).
 - `frontend/modules/overlay_painters.js`:
   - Overlay drawing shared by the on-screen canvases and the GIF export.
+- `frontend/modules/overlay_tone_utils.js`:
+  - Whether the image's background is light or dark (colour map and Invert), and the ring and marker colours for a light one: same hues, heavier dark halos.
 - `frontend/modules/analysis_overlay_controller.js`, `frontend/modules/analysis_controls_bindings.js`:
   - Rings and peak analysis, and the Analysis tab's listeners.
 - `frontend/modules/minmax_finder_utils.js`, `frontend/modules/minmax_finder_controller.js`, `frontend/modules/minmax_finder_painter.js`:

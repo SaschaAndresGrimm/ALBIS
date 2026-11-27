@@ -565,7 +565,7 @@ highlights that peak.
 
 **Min/Max Finder**, in the Analysis tab under **Peak Finder**, lists the
 highest or lowest pixels of the frame on screen and draws a square around each
-on the image: magenta for the highest, cyan for the lowest.
+on the image: coral for the highest, cyan for the lowest.
 
 Unlike the Peak Finder, it does not look for diffraction spots: a lone spike, a
 pixel next to another hot one, or a pixel on a bright background all count.

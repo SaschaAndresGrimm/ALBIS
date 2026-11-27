@@ -10,7 +10,8 @@ import {
   paintResolutionRings,
   screenView,
 } from "./overlay_painters.js";
-import { paintMinMaxMarkers } from "./minmax_finder_painter.js";
+import { minmaxColorsFor, paintMinMaxMarkers } from "./minmax_finder_painter.js";
+import { imageToneFor, overlayColorsFor } from "./overlay_tone_utils.js";
 
 export function createOverlayRenderController({
   state,
@@ -222,7 +223,19 @@ export function createOverlayRenderController({
     });
   }
 
+  // The overlays' halos follow the image's background (overlay_tone_utils.js).
+  // The resolution overlay is not redrawn with the image, so a change of
+  // colour map or Invert is noticed here and passed on.
+  let lastTone = null;
+  function currentTone() {
+    const tone = imageToneFor(state.colormap, state.invert);
+    if (lastTone !== null && tone !== lastTone) scheduleResolutionOverlay();
+    lastTone = tone;
+    return tone;
+  }
+
   function drawPeakOverlay() {
+    const tone = currentTone();
     if (!peakOverlay || !peakCtx || !canvasWrap) return;
     const metrics = syncOverlayCanvas(peakOverlay, peakCtx);
     if (!metrics) return;
@@ -246,6 +259,7 @@ export function createOverlayRenderController({
       view,
       width,
       height,
+      colors: overlayColorsFor(tone),
     });
     paintMinMaxMarkers(peakCtx, {
       pixels: extremes,
@@ -253,6 +267,7 @@ export function createOverlayRenderController({
       view,
       width,
       height,
+      colors: minmaxColorsFor(tone),
     });
   }
 
@@ -316,6 +331,7 @@ export function createOverlayRenderController({
       pixelAspect: state.pixelAspect || 1,
       activeHandle: getRingInteractionState?.().handle || null,
       avoidImageRects: roiBounds ? [roiBounds] : [],
+      colors: overlayColorsFor(imageToneFor(state.colormap, state.invert)),
     });
   }
 

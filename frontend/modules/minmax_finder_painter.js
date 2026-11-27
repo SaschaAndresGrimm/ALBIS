@@ -1,7 +1,9 @@
 /**
  * Min/Max Finder markers: a square around each pixel, so they read apart from
  * the Peak Finder's round markers when both are on; magenta for the highest,
- * cyan for the lowest, green for the picked ones.
+ * cyan for the lowest, green for the picked ones. The highest is coral, not
+ * pink: the reference resolution rings are magenta, and a pink square on a ring
+ * read as part of it.
  *
  * The square frames the pixel itself, a few screen pixels out, and never
  * shrinks below MIN_HALF_PX: zoomed in, it outlines exactly the pixel the list
@@ -12,10 +14,20 @@ import { markerInkScale, viewX, viewY } from "./overlay_painters.js";
 
 export const MINMAX_MARKER_COLORS = Object.freeze({
   halo: "rgba(8, 10, 14, 0.72)",
-  max: "rgba(255, 92, 220, 0.98)",
+  max: "rgba(255, 99, 71, 0.98)",
   min: "rgba(64, 220, 255, 0.98)",
   selected: "rgba(72, 255, 105, 0.98)",
 });
+
+/** On a light image the halo is heavier, as the peak markers' is. */
+export const MINMAX_MARKER_COLORS_ON_LIGHT = Object.freeze({
+  ...MINMAX_MARKER_COLORS,
+  halo: "rgba(8, 10, 14, 0.9)",
+});
+
+export function minmaxColorsFor(tone) {
+  return tone === "light" ? MINMAX_MARKER_COLORS_ON_LIGHT : MINMAX_MARKER_COLORS;
+}
 
 const MIN_HALF_PX = 5;
 const PAD_PX = 2;
